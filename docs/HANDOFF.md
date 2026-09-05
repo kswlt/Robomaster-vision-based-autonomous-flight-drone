@@ -29,6 +29,9 @@ Cloned the empty GitHub repository, initialized the mandatory documentation stru
 - The USB GbE adapter (`以太网 4`) has a physical 1 Gbps link and IPv4 address `192.168.0.200/24`.
 - The configured Jetson target (`10.33.154.71`) is outside that adapter's directly connected subnet.
 - ICMP reachability test to the target failed and TCP port 22 timed out.
+- With user authorization, the USB GbE adapter was reconfigured from `192.168.0.200/24` to `10.33.154.70/24`, with no default gateway.
+- After the change, Windows reports the adapter as connected at 1 Gbps and `10.33.154.70/24` as Preferred; the directly connected `10.33.154.0/24` route is active.
+- The target still has no ARP entry and returns `Destination host unreachable` for three ICMP probes. Therefore no NX command has run.
 
 ## Inferred Facts
 
@@ -41,7 +44,7 @@ Cloned the empty GitHub repository, initialized the mandatory documentation stru
 
 ## Development Host
 
-Windows desktop with a direct wired connection to the Jetson through an external network adapter. The adapter is presently configured as `192.168.0.200/24`.
+Windows desktop with a direct wired connection to the Jetson through an external network adapter. The adapter is presently configured as `10.33.154.70/24` without a default gateway.
 
 ## Jetson NX Environment
 
@@ -104,7 +107,7 @@ Align the wired IPv4 configuration with the Jetson network, then run the Phase 0
 
 ## Exact Next Commands
 
-After approval to change networking, configure the wired adapter with an unused address in the Jetson's `10.33.154.x` subnet (for example, `10.33.154.70/24`), provided that prefix is confirmed on the Jetson console. Then test `Test-NetConnection 10.33.154.71 -Port 22`.
+At the Jetson's local console, run `ip -br addr` and `ip link`; confirm which Ethernet interface is connected and its IPv4 prefix. If it does not show `10.33.154.71/24`, update the documented target IP and align the Windows USB GbE adapter to that subnet. Then test `Test-NetConnection 10.33.154.71 -Port 22`.
 
 Then run only the audit commands defined by the project goal.
 
@@ -114,8 +117,8 @@ Initial repository documentation only.
 
 ## Latest Test Results
 
-GitHub SSH authentication: PASS. Jetson ICMP: FAIL. Jetson TCP/22: TIMEOUT.
+GitHub SSH authentication: PASS. Windows wired link: PASS at 1 Gbps. Jetson ARP: FAIL. Jetson ICMP: FAIL. Jetson TCP/22: TIMEOUT.
 
 ## Rollback Information
 
-Bootstrap adds documentation only; revert the bootstrap commit to roll back.
+To roll back the authorized host network change, set `以太网 4` back to `192.168.0.200/24` without a default gateway. Git changes are documentation only.
