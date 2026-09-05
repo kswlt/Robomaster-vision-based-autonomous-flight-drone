@@ -14,9 +14,9 @@
 | IR1 → IR2 旋转 | 单位矩阵 |
 | IR1 → IR2 平移 | (-0.0501375198364258, 0, 0) m |
 | 基线绝对值 | 0.0501375198364258 m |
-| `Camera.bf` | 19.171811531065 px·m |
+| `bf`（由 ORB-SLAM3 计算） | 19.171811531065 px·m |
 
-这些值已写入 [`config/orb_slam3/d435_stereo_640x480.yaml`](../../config/orb_slam3/d435_stereo_640x480.yaml)，作为 ORB-SLAM3 Stereo 的首个参数基线。
+这些值已写入 [`config/orb_slam3/d435_stereo_640x480.yaml`](../../config/orb_slam3/d435_stereo_640x480.yaml)，作为 ORB-SLAM3 Stereo 的首个参数基线。该 ORB-SLAM3 版本由 `Stereo.T_c1_c2` 读取右相机到左相机的变换，因此配置中的 X 平移为正基线；`bf` 在运行时由该矩阵的模长和 `fx` 计算。
 
 ## 可复现导出
 

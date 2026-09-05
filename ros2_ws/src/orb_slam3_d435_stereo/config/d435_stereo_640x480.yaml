@@ -1,9 +1,7 @@
 %YAML:1.0
 
-# Intel RealSense D435 factory calibration, IR1/IR2, 640x480 Y8 at 30 Hz.
-# Captured on nvidia-sentry, serial 938422073656, firmware 5.17.3.10.
+# Copy of the project D435 factory-calibration baseline for package deployment.
 File.version: "1.0"
-
 Camera.type: "PinHole"
 Camera1.fx: 382.384521484375
 Camera1.fy: 382.384521484375
@@ -17,9 +15,6 @@ Camera.width: 640
 Camera.height: 480
 Camera.fps: 30
 Camera.RGB: 0
-
-# T_c1_c2 maps the right-camera frame into the left-camera frame. Factory
-# IR1 -> IR2 translation is -0.0501375198364258 m, so this transform is +B.
 Stereo.T_c1_c2: !!opencv-matrix
   rows: 4
   cols: 4
@@ -29,7 +24,6 @@ Stereo.T_c1_c2: !!opencv-matrix
          0.0, 0.0, 1.0, 0.0,
          0.0, 0.0, 0.0, 1.0]
 Stereo.ThDepth: 40.0
-
 ORBextractor.nFeatures: 1200
 ORBextractor.scaleFactor: 1.2
 ORBextractor.nLevels: 8

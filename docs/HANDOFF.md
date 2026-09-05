@@ -55,7 +55,7 @@ VERIFIED: D435 is connected at USB 3 / 5 Gbps. Stereo IR acquisition/timing at 6
 
 ## VIO State
 
-Pure Stereo VO not deployed. PX4 stereo-inertial VIO is a later stage.
+Pure Stereo VO ROS 2 adapter now builds and passed a ground smoke test with the D435 IR pair. PX4 stereo-inertial VIO is a later stage.
 
 ## Depth State
 
