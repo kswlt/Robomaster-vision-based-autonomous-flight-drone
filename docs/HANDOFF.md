@@ -18,7 +18,7 @@ IN_PROGRESS (Phase A); Phase 0 remains PASS.
 
 ## What Was Just Done
 
-Built librealsense v2.58.4 in a temporary NX directory and installed its user-space RSUSB variant under the `nvidia` user directory.
+Built and verified the V4L2 user-space librealsense runtime for Phase A.
 
 ## Verified Facts
 
@@ -30,7 +30,7 @@ Built librealsense v2.58.4 in a temporary NX directory and installed its user-sp
 - The `nvidia` user has verified read/write access to the D435 video nodes.
 - Current apt sources have ROS RealSense wrapper packages, but no `librealsense2-*` runtime, development, or viewer package.
 - librealsense v2.58.4 RSUSB library and tools are installed at `/home/nvidia/opt/librealsense-2.58.4`; no DKMS, kernel, BSP, or system package was changed.
-- RSUSB enumeration is blocked by raw `/dev/bus/usb` access permissions. The V4L2 backend is the preferred no-root alternative but its temporary configuration did not complete because a third-party dependency fetch failed.
+- RSUSB enumeration is blocked by raw `/dev/bus/usb` access permissions. The V4L2 no-root alternative is installed at `/home/nvidia/opt/librealsense-v4l2-2.58.4` and detects D435 serial `938422073656`, firmware `5.17.3.10`.
 
 ## Inferred Facts
 
@@ -84,7 +84,7 @@ Baseline CPU 0–5%, GPU 0%, RAM 1.86/7.62 GB, input power about 4.4 W.
 
 ## Known Problems
 
-Stereo acquisition/timing is not yet benchmarked. A user-space RSUSB librealsense is present but cannot access the raw USB node; V4L2 backend build remains incomplete.
+Stereo acquisition/timing is not yet benchmarked. V4L2 librealsense is verified and is the active capture route.
 
 ## Failed Attempts
 
@@ -101,15 +101,15 @@ No failed experiment in the revised route. The former camera-model mismatch was 
 
 ## Risks
 
-Root disk is 86% full; avoid large downloads, builds, datasets, and rosbags. librealsense is absent.
+Root disk is 86% full; avoid large downloads, builds, datasets, and rosbags.
 
 ## Next Recommended Step
 
-Complete a V4L2-backend librealsense build without fetching dependencies from the NX, then validate D435 left/right IR at 640×480@30 for 60 seconds with RGB/depth/point cloud off.
+Implement and run a 60-second D435 left/right IR timing benchmark at 640×480@30 with RGB/depth/point cloud off.
 
 ## Exact Next Commands
 
-After approval, fetch a pinned librealsense release and build only user-space tools/libraries in a temporary build directory.
+Use `LD_LIBRARY_PATH=/home/nvidia/opt/librealsense-v4l2-2.58.4/lib` for the benchmark runtime.
 
 ## Files Changed
 

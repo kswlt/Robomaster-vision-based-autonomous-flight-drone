@@ -11,3 +11,4 @@
 - Corrected D435 hardware documentation and changed the roadmap to Stereo VO → PX4-IMU VIO → A/B benchmark → impact-aware recovery.
 - Assessed librealsense availability for Phase A; configured apt sources lack the required runtime package.
 - Built a user-space librealsense v2.58.4 RSUSB variant; documented raw-USB permission block and V4L2-backend fallback.
+- Completed V4L2 user-space librealsense v2.58.4 build and D435 enumeration without system-level changes.
