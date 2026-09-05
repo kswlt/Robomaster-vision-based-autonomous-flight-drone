@@ -10,15 +10,15 @@ Validate D435 stereo IR acquisition and timing as the Pure Stereo VO baseline in
 
 ## Current Phase
 
-Phase A — D435 stereo IR acquisition and timing validation.
+Phase B — Pure Stereo VO baseline.
 
 ## Current Status
 
-IN_PROGRESS (Phase A); Phase 0 remains PASS.
+IN_PROGRESS (Phase B); Phase A and Phase 0 are PASS.
 
 ## What Was Just Done
 
-Ran a 60-second D435 stereo IR timing benchmark with the verified V4L2 librealsense runtime.
+Completed the resource-enhanced 60-second D435 stereo IR timing benchmark.
 
 ## Verified Facts
 
@@ -31,7 +31,7 @@ Ran a 60-second D435 stereo IR timing benchmark with the verified V4L2 librealse
 - Current apt sources have ROS RealSense wrapper packages, but no `librealsense2-*` runtime, development, or viewer package.
 - librealsense v2.58.4 RSUSB library and tools are installed at `/home/nvidia/opt/librealsense-2.58.4`; no DKMS, kernel, BSP, or system package was changed.
 - RSUSB enumeration is blocked by raw `/dev/bus/usb` access permissions. The V4L2 no-root alternative is installed at `/home/nvidia/opt/librealsense-v4l2-2.58.4` and detects D435 serial `938422073656`, firmware `5.17.3.10`.
-- Stereo IR timing at 640×480@30 is PASS: 1799 frame sets in 60 s, 29.983 FPS per stream, no duplicate/backward timestamps, and 0 ms maximum left-right delta.
+- Stereo IR timing at 640×480@30 is PASS: 1799 frame sets in 60 s, 29.983 FPS per stream, no duplicate/backward timestamps, 0 ms maximum left-right delta, 1.645% process CPU, and 21.3 MiB peak RSS.
 
 ## Inferred Facts
 
@@ -85,7 +85,7 @@ Baseline CPU 0–5%, GPU 0%, RAM 1.86/7.62 GB, input power about 4.4 W.
 
 ## Known Problems
 
-Stereo IR timing passed. CPU/RAM/peak-RSS collection is the remaining Phase A benchmark coverage.
+Phase A is complete. Pure Stereo VO baseline is not deployed.
 
 ## Failed Attempts
 
@@ -106,7 +106,7 @@ Root disk is 86% full; avoid large downloads, builds, datasets, and rosbags.
 
 ## Next Recommended Step
 
-Extend the benchmark with CPU/RAM/peak-RSS metrics while preserving the verified stereo timestamp path.
+Select and assess one Pure Stereo VO baseline (ORB-SLAM3 Stereo is the first candidate) without deploying multiple algorithms.
 
 ## Exact Next Commands
 
@@ -118,7 +118,7 @@ Phase 0 report and state documentation.
 
 ## Latest Test Results
 
-Phase 0: PASS. Phase A D435 stereo timing: PASS; resource metrics pending.
+Phase 0: PASS. Phase A: PASS. Phase B Pure Stereo VO: NOT STARTED.
 
 ## Rollback Information
 

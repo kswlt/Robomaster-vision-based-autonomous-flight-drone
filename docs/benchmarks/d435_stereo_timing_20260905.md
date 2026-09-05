@@ -10,4 +10,4 @@ Status: PASS.
 - Inter-frame mean/median/P95/P99/max: 33.301 / 33.301 / 33.303 / 33.305 / 33.309 ms on both streams.
 - Left-right timestamp delta: 0.000 ms maximum.
 
-The next Phase A task is to preserve these measurement timestamps in the capture interface and add CPU/RAM/peak-RSS collection before Pure Stereo VO deployment.
+Resource run (same 60-second profile): process CPU 0.987 s / 1.645% of wall time; peak RSS 21,836 KiB (about 21.3 MiB). Phase A is complete.

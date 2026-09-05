@@ -9,6 +9,7 @@
 #include <iostream>
 #include <numeric>
 #include <set>
+#include <sys/resource.h>
 #include <string>
 #include <vector>
 
@@ -36,6 +37,10 @@ void emit_stats(std::ostream& out, const char* name, const Stats& stats) {
   out << name << "_p99_ms," << stats.percentile(0.99) << '\n';
   out << name << "_max_ms," << stats.percentile(1.00) << '\n';
 }
+
+double cpu_seconds(const rusage& usage) {
+  return usage.ru_utime.tv_sec + usage.ru_utime.tv_usec / 1e6 + usage.ru_stime.tv_sec + usage.ru_stime.tv_usec / 1e6;
+}
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -46,6 +51,8 @@ int main(int argc, char** argv) {
   config.enable_stream(RS2_STREAM_INFRARED, 1, 640, 480, RS2_FORMAT_Y8, 30);
   config.enable_stream(RS2_STREAM_INFRARED, 2, 640, 480, RS2_FORMAT_Y8, 30);
   rs2::pipeline pipeline;
+  rusage usage_start{};
+  getrusage(RUSAGE_SELF, &usage_start);
   auto profile = pipeline.start(config);
   const auto start = std::chrono::steady_clock::now();
   double previous_left = -1.0, previous_right = -1.0;
@@ -79,10 +86,15 @@ int main(int argc, char** argv) {
     ++frames;
   }
   pipeline.stop();
+  rusage usage_end{};
+  getrusage(RUSAGE_SELF, &usage_end);
   std::ofstream report(output);
   report << std::fixed << std::setprecision(3);
   report << "duration_s," << duration_s << '\n';
   report << "framesets," << frames << '\n';
+  report << "process_cpu_seconds," << (cpu_seconds(usage_end) - cpu_seconds(usage_start)) << '\n';
+  report << "process_cpu_percent_of_wall," << 100.0 * (cpu_seconds(usage_end) - cpu_seconds(usage_start)) / duration_s << '\n';
+  report << "peak_rss_kb," << usage_end.ru_maxrss << '\n';
   report << "left_fps," << frames / duration_s << '\n';
   report << "right_fps," << frames / duration_s << '\n';
   report << "left_duplicate_timestamps," << left_duplicates << '\n';
