@@ -18,7 +18,7 @@ PASS (Phase 0); BLOCKED (Stereo-Inertial VIO progression)
 
 ## What Was Just Done
 
-Completed a read-only WSL/NX/USB environment audit through wired public-key SSH.
+Re-enumerated the connected RealSense after a request to continue; it remains the same D435 and still exposes no IMU nodes.
 
 ## Verified Facts
 
@@ -85,6 +85,8 @@ HW-001: D435 is attached, not D435i.
 ## Failed Attempts
 
 The old address `10.33.154.71` is stale; do not reuse it.
+
+Re-checking the current camera does not unblock Phase 1: USB descriptor remains D435 PID `8086:0b07`, serial `943623021659`, with no HID or IIO IMU node.
 
 ## Do Not Repeat
 
