@@ -14,11 +14,11 @@ Phase 0 — NX + WSL + GitHub environment audit
 
 ## Current Status
 
-IN_PROGRESS
+BLOCKED
 
 ## What Was Just Done
 
-Cloned the empty GitHub repository to the required Windows desktop path and initialized the mandatory documentation structure.
+Cloned the empty GitHub repository, initialized the mandatory documentation structure, and performed a read-only Windows-side wired-network check.
 
 ## Verified Facts
 
@@ -26,6 +26,9 @@ Cloned the empty GitHub repository to the required Windows desktop path and init
 - `origin` uses the required GitHub SSH URL.
 - GitHub SSH authentication works for the configured developer account.
 - The remote repository was empty at clone time.
+- The USB GbE adapter (`以太网 4`) has a physical 1 Gbps link and IPv4 address `192.168.0.200/24`.
+- The configured Jetson target (`10.33.154.71`) is outside that adapter's directly connected subnet.
+- ICMP reachability test to the target failed and TCP port 22 timed out.
 
 ## Inferred Facts
 
@@ -34,10 +37,11 @@ Cloned the empty GitHub repository to the required Windows desktop path and init
 ## Unknown Facts
 
 - Jetson operating-system, L4T, JetPack, ROS, librealsense, and D435i state.
+- Jetson-side Ethernet address, prefix length, link state, and SSH service state.
 
 ## Development Host
 
-Windows desktop with a direct wired connection to the Jetson through an external network adapter.
+Windows desktop with a direct wired connection to the Jetson through an external network adapter. The adapter is presently configured as `192.168.0.200/24`.
 
 ## Jetson NX Environment
 
@@ -92,15 +96,15 @@ None.
 
 ## Risks
 
-Jetson environment and USB/D435i state are unknown.
+Jetson environment and USB/D435i state are unknown. The host cannot currently reach the configured Jetson IP; changing persistent network settings requires user approval.
 
 ## Next Recommended Step
 
-Run the Phase 0 read-only NX audit over SSH.
+Align the wired IPv4 configuration with the Jetson network, then run the Phase 0 read-only NX audit over SSH.
 
 ## Exact Next Commands
 
-`ssh nvidia@10.33.154.71`
+After approval to change networking, configure the wired adapter with an unused address in the Jetson's `10.33.154.x` subnet (for example, `10.33.154.70/24`), provided that prefix is confirmed on the Jetson console. Then test `Test-NetConnection 10.33.154.71 -Port 22`.
 
 Then run only the audit commands defined by the project goal.
 
@@ -110,7 +114,7 @@ Initial repository documentation only.
 
 ## Latest Test Results
 
-GitHub SSH authentication: PASS.
+GitHub SSH authentication: PASS. Jetson ICMP: FAIL. Jetson TCP/22: TIMEOUT.
 
 ## Rollback Information
 
