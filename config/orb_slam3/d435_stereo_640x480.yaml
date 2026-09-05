@@ -1,0 +1,41 @@
+%YAML:1.0
+
+# Intel RealSense D435 factory calibration, IR1/IR2, 640x480 Y8 at 30 Hz.
+# Captured on nvidia-sentry, serial 938422073656, firmware 5.17.3.10.
+File.version: "1.0"
+
+Camera.type: "PinHole"
+Camera1.fx: 382.384521484375
+Camera1.fy: 382.384521484375
+Camera1.cx: 319.303405761719
+Camera1.cy: 240.187591552734
+Camera2.fx: 382.384521484375
+Camera2.fy: 382.384521484375
+Camera2.cx: 319.303405761719
+Camera2.cy: 240.187591552734
+Camera.width: 640
+Camera.height: 480
+Camera.fps: 30.0
+Camera.RGB: 0
+
+# |T_ir1_to_ir2.x| = 0.0501375198364258 m; Camera.bf = fx * baseline.
+Camera.bf: 19.171811531065
+ThDepth: 40.0
+DepthMapFactor: 1.0
+
+ORBextractor.nFeatures: 1200
+ORBextractor.scaleFactor: 1.2
+ORBextractor.nLevels: 8
+ORBextractor.iniThFAST: 20
+ORBextractor.minThFAST: 7
+
+Viewer.KeyFrameSize: 0.05
+Viewer.KeyFrameLineWidth: 1.0
+Viewer.GraphLineWidth: 0.9
+Viewer.PointSize: 2.0
+Viewer.CameraSize: 0.08
+Viewer.CameraLineWidth: 3.0
+Viewer.ViewpointX: 0.0
+Viewer.ViewpointY: -0.7
+Viewer.ViewpointZ: -1.8
+Viewer.ViewpointF: 500.0
