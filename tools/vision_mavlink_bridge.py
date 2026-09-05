@@ -36,6 +36,15 @@ class VisionMavlinkBridge(Node):
         self.get_logger().info(
             f"vision_sent={self.sent} tracking_ok={tracking_ok} px4_armed={armed}")
 
+    def send_heartbeat(self):
+        # Companion/VIO identity heartbeat; this is not a vehicle-control command.
+        self.mav.mav.heartbeat_send(
+            18,  # MAV_TYPE_ONBOARD_CONTROLLER
+            8,   # MAV_AUTOPILOT_INVALID
+            0, 0,
+            4,   # MAV_STATE_ACTIVE
+            3)
+
     def state_cb(self, msg):
         with self.lock:
             self.tracking_ok = msg.data == 2
@@ -101,6 +110,14 @@ def main():
 
     thread = threading.Thread(target=reader, daemon=True)
     thread.start()
+    def heartbeat_loop():
+        while rclpy.ok():
+            try:
+                node.send_heartbeat()
+            except Exception:
+                pass
+            time.sleep(1.0)
+    threading.Thread(target=heartbeat_loop, daemon=True).start()
     try:
         rclpy.spin(node)
     finally:
