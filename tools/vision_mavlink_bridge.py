@@ -75,7 +75,9 @@ class VisionMavlinkBridge(Node):
 def main():
     from pymavlink import mavutil
 
-    mav = mavutil.mavlink_connection("/dev/ttyACM0", baud=115200, timeout=2)
+    # MAV_COMP_ID_VISUAL_INERTIAL_ODOMETRY = 197 (PX4 identifies external VIO by this component).
+    mav = mavutil.mavlink_connection("/dev/ttyACM0", baud=115200, timeout=2,
+                                     source_system=2, source_component=197)
     mav.wait_heartbeat(timeout=10)
     node_holder = {}
 
