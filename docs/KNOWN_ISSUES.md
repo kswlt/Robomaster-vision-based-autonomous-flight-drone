@@ -10,4 +10,5 @@
 - Excluded: Local Ethernet physical-link loss (interface reports Up at 1 Gbps).
 - Attempted: Read-only TCP/22 and ICMP probes.
 - Current conclusion: User-approved host-network alignment or a Jetson-console check is required before SSH audit.
-- Next step: On the Jetson local console, check `ip -br addr` and `ip link`; confirm the connected interface and IPv4 prefix before another host-side configuration change.
+- Current conclusion: The documented IPv4 target is absent from the direct link, but an IPv6 link-local SSH endpoint is reachable at `fe80::6e31:329f:3bf6:41ad%9` (MAC `48-B0-2D-E9-F0-B4`). Its identity is pending an interactive login.
+- Next step: Locally authenticate to the IPv6 endpoint, run `hostname; ip -br addr`, and use the result to correct the target-network record.

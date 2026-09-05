@@ -32,6 +32,8 @@ Cloned the empty GitHub repository, initialized the mandatory documentation stru
 - With user authorization, the USB GbE adapter was reconfigured from `192.168.0.200/24` to `10.33.154.70/24`, with no default gateway.
 - After the change, Windows reports the adapter as connected at 1 Gbps and `10.33.154.70/24` as Preferred; the directly connected `10.33.154.0/24` route is active.
 - The target still has no ARP entry and returns `Destination host unreachable` for three ICMP probes. Therefore no NX command has run.
+- IPv6 link-local discovery found a reachable SSH service at `fe80::6e31:329f:3bf6:41ad%9` on the USB GbE adapter (MAC `48-B0-2D-E9-F0-B4`).
+- That service offers public-key and password authentication for the specified user. It is a likely Jetson candidate, but its identity remains unverified until an authenticated session runs `hostname` and `ip -br addr`.
 
 ## Inferred Facts
 
@@ -41,6 +43,7 @@ Cloned the empty GitHub repository, initialized the mandatory documentation stru
 
 - Jetson operating-system, L4T, JetPack, ROS, librealsense, and D435i state.
 - Jetson-side Ethernet address, prefix length, link state, and SSH service state.
+- Whether the reachable IPv6 SSH endpoint is the intended Jetson target.
 
 ## Development Host
 
@@ -107,7 +110,7 @@ Align the wired IPv4 configuration with the Jetson network, then run the Phase 0
 
 ## Exact Next Commands
 
-At the Jetson's local console, run `ip -br addr` and `ip link`; confirm which Ethernet interface is connected and its IPv4 prefix. If it does not show `10.33.154.71/24`, update the documented target IP and align the Windows USB GbE adapter to that subnet. Then test `Test-NetConnection 10.33.154.71 -Port 22`.
+In a local terminal, connect interactively without storing the credential: `ssh -6 "nvidia@[fe80::6e31:329f:3bf6:41ad%9]"`. After successful login, run `hostname; ip -br addr` and provide the output or leave the session available. If this verifies the NX, add an SSH public key for subsequent passwordless read-only auditing (after user approval).
 
 Then run only the audit commands defined by the project goal.
 
@@ -117,7 +120,7 @@ Initial repository documentation only.
 
 ## Latest Test Results
 
-GitHub SSH authentication: PASS. Windows wired link: PASS at 1 Gbps. Jetson ARP: FAIL. Jetson ICMP: FAIL. Jetson TCP/22: TIMEOUT.
+GitHub SSH authentication: PASS. Windows wired link: PASS at 1 Gbps. Documented Jetson IPv4 ARP/ICMP/TCP: FAIL. IPv6 link-local SSH endpoint: PASS through authentication negotiation; authenticated identity: PENDING local password entry.
 
 ## Rollback Information
 
