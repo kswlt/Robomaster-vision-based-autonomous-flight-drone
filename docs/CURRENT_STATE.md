@@ -8,4 +8,4 @@
 - NX SSH: wired `10.42.0.2`; host USB GbE `10.42.0.70/24`; public-key access verified.
 - ROS 2: Humble installed but not sourced; RMW unknown. No librealsense apt package is available. User-space librealsense v2.58.4 V4L2 is verified at `/home/nvidia/opt/librealsense-v4l2-2.58.4`.
 - Camera: D435 (`8086:0b07`, serial `943623021659`) at USB 3 / 5 Gbps; video nodes present. Internal IMU: not present by hardware design.
-- Stereo acquisition and timing: not yet validated. Pure Stereo VO, PX4 IMU, VIO, depth, and impact recovery: not deployed or tested.
+- Stereo acquisition/timing: PASS at 640×480@30 for 60 s (29.983 FPS each, no duplicate/backward timestamps, max 0 ms stereo delta); resource metrics pending. Pure Stereo VO, PX4 IMU, VIO, depth, and impact recovery: not deployed or tested.

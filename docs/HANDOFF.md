@@ -18,7 +18,7 @@ IN_PROGRESS (Phase A); Phase 0 remains PASS.
 
 ## What Was Just Done
 
-Built and verified the V4L2 user-space librealsense runtime for Phase A.
+Ran a 60-second D435 stereo IR timing benchmark with the verified V4L2 librealsense runtime.
 
 ## Verified Facts
 
@@ -31,6 +31,7 @@ Built and verified the V4L2 user-space librealsense runtime for Phase A.
 - Current apt sources have ROS RealSense wrapper packages, but no `librealsense2-*` runtime, development, or viewer package.
 - librealsense v2.58.4 RSUSB library and tools are installed at `/home/nvidia/opt/librealsense-2.58.4`; no DKMS, kernel, BSP, or system package was changed.
 - RSUSB enumeration is blocked by raw `/dev/bus/usb` access permissions. The V4L2 no-root alternative is installed at `/home/nvidia/opt/librealsense-v4l2-2.58.4` and detects D435 serial `938422073656`, firmware `5.17.3.10`.
+- Stereo IR timing at 640×480@30 is PASS: 1799 frame sets in 60 s, 29.983 FPS per stream, no duplicate/backward timestamps, and 0 ms maximum left-right delta.
 
 ## Inferred Facts
 
@@ -50,7 +51,7 @@ See `docs/phases/phase0_nx_environment_audit.md`.
 
 ## D435 State
 
-VERIFIED: D435 is connected at USB 3 / 5 Gbps. Stereo stream acquisition remains unverified.
+VERIFIED: D435 is connected at USB 3 / 5 Gbps. Stereo IR acquisition/timing at 640×480@30 is PASS.
 
 ## VIO State
 
@@ -84,7 +85,7 @@ Baseline CPU 0–5%, GPU 0%, RAM 1.86/7.62 GB, input power about 4.4 W.
 
 ## Known Problems
 
-Stereo acquisition/timing is not yet benchmarked. V4L2 librealsense is verified and is the active capture route.
+Stereo IR timing passed. CPU/RAM/peak-RSS collection is the remaining Phase A benchmark coverage.
 
 ## Failed Attempts
 
@@ -105,7 +106,7 @@ Root disk is 86% full; avoid large downloads, builds, datasets, and rosbags.
 
 ## Next Recommended Step
 
-Implement and run a 60-second D435 left/right IR timing benchmark at 640×480@30 with RGB/depth/point cloud off.
+Extend the benchmark with CPU/RAM/peak-RSS metrics while preserving the verified stereo timestamp path.
 
 ## Exact Next Commands
 
@@ -117,7 +118,7 @@ Phase 0 report and state documentation.
 
 ## Latest Test Results
 
-Phase 0: PASS. Phase A D435 acquisition: NOT STARTED.
+Phase 0: PASS. Phase A D435 stereo timing: PASS; resource metrics pending.
 
 ## Rollback Information
 

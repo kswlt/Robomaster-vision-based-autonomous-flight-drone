@@ -12,3 +12,4 @@
 - Assessed librealsense availability for Phase A; configured apt sources lack the required runtime package.
 - Built a user-space librealsense v2.58.4 RSUSB variant; documented raw-USB permission block and V4L2-backend fallback.
 - Completed V4L2 user-space librealsense v2.58.4 build and D435 enumeration without system-level changes.
+- Added and passed the first 60-second D435 stereo IR timing benchmark.
