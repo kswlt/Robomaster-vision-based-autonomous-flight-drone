@@ -6,6 +6,7 @@ changes mode, or sends actuator commands. Sending is automatically suppressed
 when PX4 reports the armed flag.
 """
 import math
+import argparse
 import threading
 import time
 
@@ -17,9 +18,10 @@ from std_msgs.msg import Int32
 
 
 class VisionMavlinkBridge(Node):
-    def __init__(self, mav):
+    def __init__(self, mav, allow_armed_send=False):
         super().__init__("vision_mavlink_bridge")
         self.mav = mav
+        self.allow_armed_send = allow_armed_send
         self.lock = threading.Lock()
         self.armed = False
         self.tracking_ok = False
@@ -53,7 +55,7 @@ class VisionMavlinkBridge(Node):
         with self.lock:
             armed = self.armed
             tracking_ok = self.tracking_ok
-        if armed or not tracking_ok:
+        if (armed and not self.allow_armed_send) or not tracking_ok:
             return
         # ORB-SLAM3 camera convention (x right, y down, z forward) to PX4 NED
         # for a forward-facing, level-mounted camera. Verify on the ground first.
@@ -85,13 +87,17 @@ def main():
     from pymavlink import mavutil
 
     # MAV_COMP_ID_VISUAL_INERTIAL_ODOMETRY = 197 (PX4 identifies external VIO by this component).
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--allow-armed", action="store_true",
+                    help="continue sending VISION_POSITION_ESTIMATE while PX4 is armed")
+    args = ap.parse_args()
     mav = mavutil.mavlink_connection("/dev/ttyACM0", baud=115200, timeout=2,
                                      source_system=2, source_component=197)
     mav.wait_heartbeat(timeout=10)
     node_holder = {}
 
     rclpy.init()
-    node = VisionMavlinkBridge(mav)
+    node = VisionMavlinkBridge(mav, allow_armed_send=args.allow_armed)
     node_holder["node"] = node
 
     def reader():
