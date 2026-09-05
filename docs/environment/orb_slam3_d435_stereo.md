@@ -12,7 +12,7 @@ NX 已有 `/home/nvidia/fly/vio_benchmark/third_party/orb_slam3` 构建产物和
 
 ```bash
 source /opt/ros/humble/setup.bash
-cd /tmp/robomaster-d435-ros2-ws
+cd /home/nvidia/robomaster_d435_ros2_ws
 colcon build --packages-select orb_slam3_d435_stereo \
   --cmake-args -DORB_SLAM3_DIR=/home/nvidia/fly/vio_benchmark/third_party/orb_slam3
 source install/setup.bash
@@ -23,7 +23,7 @@ source install/setup.bash
 ```bash
 ros2 run orb_slam3_d435_stereo stereo_node --ros-args \
   -p vocab:=/home/nvidia/fly/vio_benchmark/third_party/orb_slam3/Vocabulary/ORBvoc.txt \
-  -p settings:=/tmp/robomaster-d435-ros2-ws/src/orb_slam3_d435_stereo/config/d435_stereo_640x480.yaml
+  -p settings:=/home/nvidia/robomaster_d435_ros2_ws/src/orb_slam3_d435_stereo/config/d435_stereo_640x480.yaml
 ```
 
 地面验收首先观察 `/orb_slam3/stereo/tracking_state`、`/orb_slam3/stereo/pose` 和 `/orb_slam3/stereo/path`。只有在静态/手持实景中完成初始化、尺度和失跟恢复验证后，才可讨论后续 PX4-IMU VIO；本阶段不能起飞。
