@@ -14,3 +14,4 @@
 - Completed V4L2 user-space librealsense v2.58.4 build and D435 enumeration without system-level changes.
 - Added and passed the first 60-second D435 stereo IR timing benchmark.
 - Added process CPU and peak-RSS evidence; marked Phase A complete and advanced to Pure Stereo VO baseline.
+- Verified Windows-to-NX SSH over the existing `ADAM_5G` Wi-Fi connection.
