@@ -10,3 +10,4 @@
 - Reconfirmed that the currently connected RealSense remains D435 without an IMU interface; Phase 1 remains blocked.
 - Corrected D435 hardware documentation and changed the roadmap to Stereo VO → PX4-IMU VIO → A/B benchmark → impact-aware recovery.
 - Assessed librealsense availability for Phase A; configured apt sources lack the required runtime package.
+- Built a user-space librealsense v2.58.4 RSUSB variant; documented raw-USB permission block and V4L2-backend fallback.

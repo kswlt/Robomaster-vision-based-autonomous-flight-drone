@@ -18,7 +18,7 @@ IN_PROGRESS (Phase A); Phase 0 remains PASS.
 
 ## What Was Just Done
 
-Completed a read-only librealsense package-source assessment for Phase A.
+Built librealsense v2.58.4 in a temporary NX directory and installed its user-space RSUSB variant under the `nvidia` user directory.
 
 ## Verified Facts
 
@@ -29,6 +29,8 @@ Completed a read-only librealsense package-source assessment for Phase A.
 - Six V4L2 video nodes exist. No HID/IIO IMU is expected because D435 has no internal IMU. Root disk has 17 GiB free (86% used).
 - The `nvidia` user has verified read/write access to the D435 video nodes.
 - Current apt sources have ROS RealSense wrapper packages, but no `librealsense2-*` runtime, development, or viewer package.
+- librealsense v2.58.4 RSUSB library and tools are installed at `/home/nvidia/opt/librealsense-2.58.4`; no DKMS, kernel, BSP, or system package was changed.
+- RSUSB enumeration is blocked by raw `/dev/bus/usb` access permissions. The V4L2 backend is the preferred no-root alternative but its temporary configuration did not complete because a third-party dependency fetch failed.
 
 ## Inferred Facts
 
@@ -82,7 +84,7 @@ Baseline CPU 0–5%, GPU 0%, RAM 1.86/7.62 GB, input power about 4.4 W.
 
 ## Known Problems
 
-Stereo acquisition/timing is not yet benchmarked. librealsense is absent; no supported binary package is currently configured.
+Stereo acquisition/timing is not yet benchmarked. A user-space RSUSB librealsense is present but cannot access the raw USB node; V4L2 backend build remains incomplete.
 
 ## Failed Attempts
 
@@ -103,7 +105,7 @@ Root disk is 86% full; avoid large downloads, builds, datasets, and rosbags. lib
 
 ## Next Recommended Step
 
-Approve a minimal-risk user-space librealsense source build (no DKMS, kernel, or BSP changes), then validate D435 left/right IR at 640×480@30 for 60 seconds with RGB/depth/point cloud off.
+Complete a V4L2-backend librealsense build without fetching dependencies from the NX, then validate D435 left/right IR at 640×480@30 for 60 seconds with RGB/depth/point cloud off.
 
 ## Exact Next Commands
 

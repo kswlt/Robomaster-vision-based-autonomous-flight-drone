@@ -12,9 +12,9 @@
 - Evidence: PID `8086:0b07`, product D435, serial `943623021659`; six video nodes and no HID/IIO IMU nodes.
 - Current conclusion: D435 is the intended camera. Its lack of internal IMU is expected; PX4 supplies future VIO IMU data.
 
-## ENV-001: librealsense runtime is unavailable from configured apt sources
+## ENV-001: No immediately usable librealsense runtime
 
 - Status: INVESTIGATING
-- Evidence: `rs-enumerate-devices` and RealSense runtime libraries are absent. `apt-cache search` only returns ROS wrapper packages, not `librealsense2-*` packages.
-- Current conclusion: Do not install the ROS wrapper by itself. Evaluate a pinned, user-space librealsense build that excludes DKMS and BSP changes.
-- Next step: Obtain user approval for that limited installation path.
+- Evidence: Configured apt sources only provide ROS wrappers, not `librealsense2-*`. A user-space RSUSB build of v2.58.4 succeeds, but `rs-enumerate-devices` cannot open raw USB because `/dev/bus/usb/*` is root-owned. V4L2 backend configuration did not finish due dependency fetch failure.
+- Current conclusion: Do not install the ROS wrapper alone or modify udev permissions yet. Complete the no-root V4L2 build using locally staged dependencies.
+- Next step: Stage the required third-party dependency from the Windows host and complete V4L2 build/validation.
