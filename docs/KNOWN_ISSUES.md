@@ -11,3 +11,10 @@
 - Status: FIXED
 - Evidence: PID `8086:0b07`, product D435, serial `943623021659`; six video nodes and no HID/IIO IMU nodes.
 - Current conclusion: D435 is the intended camera. Its lack of internal IMU is expected; PX4 supplies future VIO IMU data.
+
+## ENV-001: librealsense runtime is unavailable from configured apt sources
+
+- Status: INVESTIGATING
+- Evidence: `rs-enumerate-devices` and RealSense runtime libraries are absent. `apt-cache search` only returns ROS wrapper packages, not `librealsense2-*` packages.
+- Current conclusion: Do not install the ROS wrapper by itself. Evaluate a pinned, user-space librealsense build that excludes DKMS and BSP changes.
+- Next step: Obtain user approval for that limited installation path.

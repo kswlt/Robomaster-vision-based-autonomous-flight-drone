@@ -9,3 +9,4 @@
 - Completed Phase 0 NX/WSL/D435 audit; corrected direct NX IP to `10.42.0.2` and recorded the former camera-model documentation issue.
 - Reconfirmed that the currently connected RealSense remains D435 without an IMU interface; Phase 1 remains blocked.
 - Corrected D435 hardware documentation and changed the roadmap to Stereo VO → PX4-IMU VIO → A/B benchmark → impact-aware recovery.
+- Assessed librealsense availability for Phase A; configured apt sources lack the required runtime package.

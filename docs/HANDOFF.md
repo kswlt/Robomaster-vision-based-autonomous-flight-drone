@@ -18,7 +18,7 @@ IN_PROGRESS (Phase A); Phase 0 remains PASS.
 
 ## What Was Just Done
 
-Applied the D435 hardware correction and switched the architecture to stereo-first impact recovery.
+Completed a read-only librealsense package-source assessment for Phase A.
 
 ## Verified Facts
 
@@ -27,6 +27,8 @@ Applied the D435 hardware correction and switched the architecture to stereo-fir
 - ROS 2 Humble is installed but was not sourced in the audit shell.
 - Attached RealSense is the intended D435, PID `8086:0b07`, serial `943623021659`, at USB 3 / 5 Gbps.
 - Six V4L2 video nodes exist. No HID/IIO IMU is expected because D435 has no internal IMU. Root disk has 17 GiB free (86% used).
+- The `nvidia` user has verified read/write access to the D435 video nodes.
+- Current apt sources have ROS RealSense wrapper packages, but no `librealsense2-*` runtime, development, or viewer package.
 
 ## Inferred Facts
 
@@ -80,7 +82,7 @@ Baseline CPU 0–5%, GPU 0%, RAM 1.86/7.62 GB, input power about 4.4 W.
 
 ## Known Problems
 
-Stereo acquisition/timing is not yet benchmarked. librealsense is absent.
+Stereo acquisition/timing is not yet benchmarked. librealsense is absent; no supported binary package is currently configured.
 
 ## Failed Attempts
 
@@ -92,7 +94,7 @@ No failed experiment in the revised route. The former camera-model mismatch was 
 
 - Do not search for a D435 internal IMU; VIO will use PX4 IMU later.
 - Do not enable RGB, depth, or point clouds in the first stereo acquisition test.
-- Do not modify BSP/L4T or install packages before a minimal-risk dependency plan is documented.
+- Do not install a DKMS package, modify BSP/L4T, or install packages before a minimal-risk dependency plan is approved.
 - Do not commit credentials or private keys.
 
 ## Risks
@@ -101,11 +103,11 @@ Root disk is 86% full; avoid large downloads, builds, datasets, and rosbags. lib
 
 ## Next Recommended Step
 
-Assess the smallest-risk librealsense installation path, then validate D435 left/right IR at 640×480@30 for 60 seconds with RGB/depth/point cloud off.
+Approve a minimal-risk user-space librealsense source build (no DKMS, kernel, or BSP changes), then validate D435 left/right IR at 640×480@30 for 60 seconds with RGB/depth/point cloud off.
 
 ## Exact Next Commands
 
-`apt-cache policy librealsense2-utils librealsense2-dev` (read-only package availability check).
+After approval, fetch a pinned librealsense release and build only user-space tools/libraries in a temporary build directory.
 
 ## Files Changed
 
