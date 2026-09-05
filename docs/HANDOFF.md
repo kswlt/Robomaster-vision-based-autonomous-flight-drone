@@ -6,122 +6,112 @@
 
 ## Current Goal
 
-Complete a read-only Phase 0 audit of the Jetson Orin NX development environment.
+Resolve the camera hardware mismatch before D435i stereo-inertial capture validation.
 
 ## Current Phase
 
-Phase 0 — NX + WSL + GitHub environment audit
+Phase 0 complete — awaiting correct D435i hardware before Phase 1.
 
 ## Current Status
 
-BLOCKED
+PASS (Phase 0); BLOCKED (Stereo-Inertial VIO progression)
 
 ## What Was Just Done
 
-Cloned the empty GitHub repository, initialized the mandatory documentation structure, and performed a read-only Windows-side wired-network check.
+Completed a read-only WSL/NX/USB environment audit through wired public-key SSH.
 
 ## Verified Facts
 
-- Source of truth: `C:\Users\Admin\Desktop\无人机\Robomaster-vision-based-autonomous-flight-drone`.
-- `origin` uses the required GitHub SSH URL.
-- GitHub SSH authentication works for the configured developer account.
-- The remote repository was empty at clone time.
-- The USB GbE adapter (`以太网 4`) has a physical 1 Gbps link and IPv4 address `192.168.0.200/24`.
-- The configured Jetson target (`10.33.154.71`) is outside that adapter's directly connected subnet.
-- ICMP reachability test to the target failed and TCP port 22 timed out.
-- With user authorization, the USB GbE adapter was reconfigured from `192.168.0.200/24` to `10.33.154.70/24`, with no default gateway.
-- After the change, Windows reports the adapter as connected at 1 Gbps and `10.33.154.70/24` as Preferred; the directly connected `10.33.154.0/24` route is active.
-- The target still has no ARP entry and returns `Destination host unreachable` for three ICMP probes. Therefore no NX command has run.
-- IPv6 link-local discovery found a reachable SSH service at `fe80::6e31:329f:3bf6:41ad%9` on the USB GbE adapter (MAC `48-B0-2D-E9-F0-B4`).
-- That service offers public-key and password authentication for the specified user. It is a likely Jetson candidate, but its identity remains unverified until an authenticated session runs `hostname` and `ip -br addr`.
+- NX: `nvidia-sentry`, Ubuntu 22.04.5, kernel `5.15.148-tegra`, L4T 36.4.3, CUDA 12.6.
+- Direct Ethernet: Windows `10.42.0.70/24` to NX `10.42.0.2/24`; 1 ms ping and SSH pass.
+- ROS 2 Humble is installed but was not sourced in the audit shell.
+- Attached RealSense is D435, PID `8086:0b07`, serial `943623021659`, at USB 3 / 5 Gbps.
+- Six V4L2 video nodes exist; HID/IIO IMU nodes do not. Root disk has 17 GiB free (86% used).
 
 ## Inferred Facts
 
-- None.
+- L4T 36.4.3 is the JetPack 6.2 baseline.
 
 ## Unknown Facts
 
-- Jetson operating-system, L4T, JetPack, ROS, librealsense, and D435i state.
-- Jetson-side Ethernet address, prefix length, link state, and SSH service state.
-- Whether the reachable IPv6 SSH endpoint is the intended Jetson target.
+- RMW when ROS is sourced; D435i state because no D435i is connected.
 
 ## Development Host
 
-Windows desktop with a direct wired connection to the Jetson through an external network adapter. The adapter is presently configured as `10.33.154.70/24` without a default gateway.
+Windows source of truth and WSL Ubuntu 22.04.4; GitHub SSH works.
 
 ## Jetson NX Environment
 
-Not yet audited.
+See `docs/phases/phase0_nx_environment_audit.md`.
 
 ## D435i State
 
-Not yet audited.
+BLOCKED: attached hardware is D435, not D435i, and has no IMU interface.
 
 ## VIO State
 
-Not deployed or verified.
+Not deployed; blocked pending correct hardware.
 
 ## Depth State
 
-Not tested.
+Not tested; D435 depth-only validation needs explicit scope approval.
 
 ## Runtime Architecture
 
-Windows/WSL development host → wired Ethernet → Jetson Orin NX. The intended runtime sensor stack is D435i stereo IR plus IMU feeding stereo-inertial VIO.
+Intended: D435i left/right IR + IMU → Stereo-Inertial VIO → pose/velocity. The current D435 exposes video only.
 
 ## Important Paths
 
 - Repository: `C:\Users\Admin\Desktop\无人机\Robomaster-vision-based-autonomous-flight-drone`
-- NX target: `nvidia@10.33.154.71`
+- NX direct SSH: `nvidia@10.42.0.2`
 
 ## Important Commands
 
+- `ssh -i %USERPROFILE%\\.ssh\\robomaster_nx_audit nvidia@10.42.0.2`
 - `git pull --ff-only origin main`
-- Read-only NX audit commands are recorded in `docs/phases/phase0_nx_environment_audit.md` when complete.
 
 ## Running Processes / Services
 
-Unknown.
+No project runtime started.
 
 ## Current Performance
 
-Not measured.
+Baseline CPU 0–5%, GPU 0%, RAM 1.86/7.62 GB, input power about 4.4 W.
 
 ## Known Problems
 
-None recorded.
+HW-001: D435 is attached, not D435i.
 
 ## Failed Attempts
 
-None.
+The old address `10.33.154.71` is stale; do not reuse it.
 
 ## Do Not Repeat
 
-- Do not install packages, upgrade the system, modify BSP/L4T, or reboot during Phase 0.
-- Do not store credentials in repository files.
+- Do not treat D435 video nodes as D435i IMU availability.
+- Do not install librealsense, modify BSP/L4T, or start VIO before hardware is resolved.
+- Do not commit credentials or private keys.
 
 ## Risks
 
-Jetson environment and USB/D435i state are unknown. The host cannot currently reach the configured Jetson IP; changing persistent network settings requires user approval.
+Root disk is 86% full; avoid large downloads, builds, datasets, and rosbags.
 
 ## Next Recommended Step
 
-Align the wired IPv4 configuration with the Jetson network, then run the Phase 0 read-only NX audit over SSH.
+Connect the intended D435i, then repeat USB/HID/librealsense enumeration before Phase 1.
 
 ## Exact Next Commands
 
-In a local terminal, connect interactively without storing the credential: `ssh -6 "nvidia@[fe80::6e31:329f:3bf6:41ad%9]"`. After successful login, run `hostname; ip -br addr` and provide the output or leave the session available. If this verifies the NX, add an SSH public key for subsequent passwordless read-only auditing (after user approval).
-
-Then run only the audit commands defined by the project goal.
+On NX after attaching D435i: `lsusb; lsusb -t; ls -l /dev/video* /dev/hidraw*`.
 
 ## Files Changed
 
-Initial repository documentation only.
+Phase 0 report and state documentation.
 
 ## Latest Test Results
 
-GitHub SSH authentication: PASS. Windows wired link: PASS at 1 Gbps. Documented Jetson IPv4 ARP/ICMP/TCP: FAIL. IPv6 link-local SSH endpoint: PASS through authentication negotiation; authenticated identity: PENDING local password entry.
+Phase 0: PASS. D435i suitability: BLOCKED.
 
 ## Rollback Information
 
-To roll back the authorized host network change, set `以太网 4` back to `192.168.0.200/24` without a default gateway. Git changes are documentation only.
+To restore host Ethernet, set `以太网 4` to `192.168.0.200/24` with no gateway. Git changes are documentation only.
