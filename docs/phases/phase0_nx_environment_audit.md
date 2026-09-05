@@ -1,6 +1,6 @@
 # Phase 0: NX Environment Audit
 
-Status: PASS — read-only audit complete. Progression to D435i stereo-inertial capture is BLOCKED by the attached camera hardware.
+Status: PASS — read-only audit complete. The D435 hardware fact is verified.
 
 ## Development Host
 
@@ -32,4 +32,4 @@ Status: PASS — read-only audit complete. Progression to D435i stereo-inertial 
 
 ## Conclusion
 
-The attached device is D435, not D435i, and cannot provide the IMU required by the current Stereo-Inertial VIO scope. Do not start Phase 1/2 or install librealsense until a D435i is connected, unless a D435 depth-only scope is explicitly approved. Root storage is 86% full; avoid large downloads, builds, or rosbags. Do not alter L4T, CUDA, kernel, boot, or BSP components.
+The attached device is D435 and correctly lacks an internal IMU. The revised roadmap begins with D435 stereo acquisition and Pure Stereo VO; later VIO uses PX4 IMU. Root storage is 86% full; avoid large downloads, builds, or rosbags. Do not alter L4T, CUDA, kernel, boot, or BSP components.

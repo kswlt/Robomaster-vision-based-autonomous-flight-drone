@@ -6,10 +6,14 @@ Windows/WSL source of truth connects through USB GbE `10.42.0.70/24` to Jetson `
 
 ## Intended Validation Runtime
 
-Intel RealSense D435i left IR + right IR + IMU → stereo-inertial VIO → 6DoF pose and velocity.
+Stage A: D435 left IR + right IR → Pure Stereo VO → metric pose.
 
-Depth is initially an independent auxiliary signal, not a change to VIO filter equations.
+Stage B: D435 stereo + PX4 flight-controller IMU → Stereo-Inertial VIO.
 
-## Current Hardware Exception
+Stage C: Stereo VO and Stereo-Inertial VIO A/B benchmarks → impact-aware estimator supervisor. On impact, invalidate the old pose, recover sensors, initialize a new local frame, then use a known marker/AprilTag to restore the field frame.
 
-The connected camera is D435 rather than D435i and has no IMU interface. It cannot feed the intended stereo-inertial pipeline.
+Depth remains outside the baseline estimator: initially it supports feature-depth lookup, obstacle range, health checks, target range, and recovery assistance.
+
+## Hardware Fact
+
+The connected camera is Intel RealSense D435. It has stereo IR, depth, and RGB, but no internal IMU. Future VIO therefore uses the PX4 flight-controller IMU.

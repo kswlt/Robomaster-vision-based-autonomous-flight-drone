@@ -1,9 +1,9 @@
 # RoboMaster Vision-Based Autonomous Flight Drone
 
-Development-validation platform for stereo-inertial visual odometry using an NVIDIA Jetson Orin NX and Intel RealSense D435i.
+Development-validation platform using an NVIDIA Jetson Orin NX and Intel RealSense D435. The route is stereo visual odometry first, then PX4-IMU stereo-inertial VIO and impact recovery.
 
 ## Status
 
-Repository bootstrap is complete. Phase 0 (read-only Jetson environment audit) is in progress.
+Phase 0 is complete. Phase A (D435 stereo IR acquisition and timing validation) is next.
 
 Authentication: local developer credential.
