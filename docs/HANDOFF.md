@@ -1,16 +1,30 @@
 # Project Handoff
 
+> **2026-09-06 hardware transition notice**: The historical D435/Pure Stereo VO sections below are retained for traceability only. The active hardware is now an Orbbec Astra Pro and the source of truth is `docs/CURRENT_STATE.md` plus `docs/PROJECT_PROMPT_ZH.md`.
+
+## Active Hardware and Connection
+
+- NX hostname: `nvidia-sentry`; Wi-Fi address: `192.168.1.53/23` on `ADAM_5G`.
+- Windows SSH command: `ssh -i C:\Users\Admin\.ssh\robomaster_nx_audit nvidia@192.168.1.53`.
+- The former direct Ethernet address `10.42.0.2` is currently unavailable because `enP8p1s0` is down.
+- PX4 CUAV X7Pro is `/dev/ttyACM0`; use `/dev/serial/by-id/usb-CUAV_PX4_CUAV_X7Pro_0-if00` in new code.
+- The attached camera is identified by USB as Orbbec Astra Pro (`2bc5:0502`, `2bc5:0403`) with `/dev/video0` and `/dev/video1`.
+
+## Current Blocker and Required Order
+
+No verified Astra Pro depth stream is available yet. Do not reuse the D435 librealsense pipeline, D435 calibration, or D435-specific ORB-SLAM3 launch files. First install and verify an Astra-compatible Orbbec SDK/ROS 2 driver, enumerate RGB/depth profiles, obtain intrinsics/extrinsics/depth scale, and publish the streams to ROS 2/Foxglove. Only after that should RGB-D VO/VIO be connected to PX4. `vio-watchdog.service` currently restarts legacy processes, so stop or reconfigure that service before launching another process that opens `/dev/ttyACM0`.
+
 ## Last Updated
 
-2026-09-05
+2026-09-06
 
 ## Current Goal
 
-Validate D435 stereo IR acquisition and timing as the Pure Stereo VO baseline input.
+Bring up the Orbbec Astra Pro RGB-D input and rebuild the visual-odometry path before any flight test.
 
 ## Current Phase
 
-Phase B — Pure Stereo VO baseline.
+Hardware transition — Astra Pro RGB-D bring-up.
 
 ## Current Status
 
