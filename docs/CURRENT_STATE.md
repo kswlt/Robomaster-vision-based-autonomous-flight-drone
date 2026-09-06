@@ -1,7 +1,7 @@
 # Current State
 
-- 当前阶段：硬件切换与 RGB-D 输入恢复；**Astra Pro 深度/彩色流已驱动并验证**，进入标定阶段。
-- 状态：IN_PROGRESS（Phase B）；深度流可用，RGB-D 标定与 VO/VIO 尚未完成。
+- 当前阶段：硬件切换与 RGB-D 输入恢复；**Astra Pro 深度/彩色流已验证，地面 RGB-D VO（ORB-SLAM3）冒烟通过**。
+- 状态：IN_PROGRESS（Phase B）；RGB-D 标定按用户决定跳过（用默认内参），VO 冒烟完成，PX4 融合与悬停未开始。
 - Windows 工作区：`C:\Users\Admin\Desktop\无人机\Robomaster-vision-based-autonomous-flight-drone`；GitHub SSH 已验证。
 - NX：`nvidia-sentry`，Ubuntu 22.04.5，kernel 5.15.148-tegra，L4T 36.4.3，CUDA 12.6。板卡 model 串实测：`NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super`（与既有文档中 Orin NX 命名并存，待用户确认后再统一）。
 - 当前连接：NX Wi-Fi `wlP1p1s0=192.168.1.53/23`（ADAM_5G）；旧有线链路 `enP8p1s0=10.42.0.2/24` 仍为 DOWN。
@@ -22,6 +22,13 @@
 - **camera_info**：已发布（fx=fy=570.342，640×480，plumb_bob 零畸变），但 cx=319.5/cy=239.5 恰为图像中心，**疑似默认占位而非实测标定**——RGB-D 标定仍为必做项。
 - **运行注意**：`ros2 component standalone` 的容器子进程不会随外层 python 退出，必须 `pkill -f standalone_container` 清理；残留容器会报 `Resource busy` 并互相抢设备造成"伪掉线"。
 
+## RGB-D VO（ORB-SLAM3）— 冒烟已验证（2026-09-07）
+
+- **新增 `rgbd_node`**（`/home/nvidia/fly/vio_benchmark/ros2_ws/src/orb_slam3_ros2/src/rgbd_node.cpp`）：message_filters 同步 `/camera/color/image_raw`(rgb8) + `/camera/depth/image_raw`(16UC1)，调 `TrackRGBD`；输出 `/orb_slam3/{pose,tracking_state,path}` + TF `map->astra`。
+- **配置**：`config/astra_rgbd.yaml`——PinHole 640×480、fx=fy=570.342、cx=319.5、cy=239.5、`Camera.RGB: 1`、`RGBD.DepthMapFactor: 1000`、`Stereo.ThDepth: 40`、`Stereo.b: 0`（此 fork 的 Settings.cc 要求这三个键，缺一即 abort）。
+- **冒烟结果**（静态场景，45s）：tracking_state=2 持续跟踪；位姿 ~21-25 FPS；每帧处理 ~29-32ms；1293 帧中 1 次地图重置（Local Mapping reset），无 LOST 事件；设备全程存活。
+- 说明：纯 VO 冒烟（无 IMU、无 GT，按项目纪律不报 ATE/RPE）。
+
 ## 硬件注意事项（重要）
 
 - Astra Pro 当前仍挂在**两级无源 USB Hub 链**（0608→0610）上，电气余量不足：曾发生深度流启动后整链掉线（dmesg：`Cannot enable`、`buffer overrun`、`disabled by hub (EMI?)`），需物理重插才恢复。
@@ -34,8 +41,8 @@
 
 ## 下一步（按 PROJECT_PROMPT_ZH 顺序）
 
-1. **标定（第 3 步，当前缺口）**：获取/校验 Astra Pro 彩色内参、深度-彩色外参、畸变，生成项目自有标定文件，替换默认 camera_info。
-2. **Foxglove 接入（第 4 步）**：确认 `/camera/*` 话题经 :8765 桥在 Foxglove 可见（桥已在运行，自动发现话题）。
-3. **地面 RGB-D VO（第 5 步）**：先做不依赖相机 IMU 的 VO/VIO，报告跟踪质量、有效位姿、速度、重置次数。
+1. **标定（第 3 步）**：用户决定跳过棋盘格标定，直接使用驱动默认内参（fx=fy=570.342，深度毫米×0.001→米）。已知限制：彩色/深度视为已对齐（未做外参标定），VO 冒烟可接受，若轨迹发散再补标定。
+2. **Foxglove 接入（第 4 步）**：桥 `:8765` 已确认监听运行，`/camera/*`、`/orb_slam3/*` 话题会自动被发现；需在 Foxglove 客户端确认可见。
+3. **地面 RGB-D VO（第 5 步）**：**已完成冒烟**——ORB-SLAM3 RGB-D（`rgbd_node`）640×480 双流，~20-25 FPS 输出位姿，每帧处理 ~30ms，1293 帧仅 1 次地图重置、无丢失事件（纯 VO smoke，无 IMU/GT）。
 4. **PX4 融合（第 6 步）**：MAVLink ODOMETRY 注入，地面站核对 EKF 视觉融合状态。
 5. **悬停测试（第 7 步）**：拆桨 + 人工授权；不自动解锁/起飞。

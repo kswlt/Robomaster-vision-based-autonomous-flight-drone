@@ -1,6 +1,6 @@
 # Project Handoff
 
-> **2026-09-07 update**: Astra Pro RGB-D input is now **driven and verified** (depth 640×480@30 stable + color MJPG verified). The historical D435 / Pure Stereo VO sections below are retained for traceability only. Source of truth: `docs/CURRENT_STATE.md` + `docs/PROJECT_PROMPT_ZH.md`.
+> **2026-09-07 update**: Astra Pro RGB-D input is now **driven and verified** (depth 640×480@30 stable + color MJPG verified), and **ground RGB-D VO (ORB-SLAM3 `rgbd_node`) passed smoke** (tracking_state=2, ~30 ms/frame, no LOST over ~1300 frames). Calibration skipped per user decision — defaults in use. The historical D435 / Pure Stereo VO sections below are retained for traceability only. Source of truth: `docs/CURRENT_STATE.md` + `docs/PROJECT_PROMPT_ZH.md`.
 
 ## Active Hardware and Connection
 
@@ -25,7 +25,8 @@
 - Depth units: raw uint16 = millimeters (sample vmin 4557 / vmax 9859 / vmean 7126); scale 0.001 → meters (`ROS_DEPTH_SCALE=0.001`).
 - Color stream: 640×480 MJPG, ~19–20 FPS (USB-chain-limited).
 - Topics: `/camera/depth/{image_raw,camera_info}`, `/camera/color/{image_raw,camera_info}`, `/camera/extrinsic/depth_to_color`.
-- camera_info published (fx=fy=570.342, 640×480, zero distortion) but cx/cy = exact image center → **likely defaults; real calibration still required**.
+- camera_info published (fx=fy=570.342, 640×480, zero distortion) but cx/cy = exact image center → **likely defaults; calibration skipped by user decision**.
+- **RGB-D VO smoke passed**: new `rgbd_node` (ORB-SLAM3 RGBD mode, message_filters sync of rgb8+16UC1, config `astra_rgbd.yaml` with `RGBD.DepthMapFactor=1000`, `Stereo.ThDepth=40`, `Stereo.b=0`). Static-scene 45 s run: tracking_state=2, pose ~21–25 FPS, mean ~30 ms/frame, ~1300 frames, 1 map reset, 0 LOST. Pure-VO smoke only (no IMU/GT).
 - Board model string (observed): `NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super` (coexists with the documented "Orin NX" naming; user to confirm).
 - USB topology: Astra Pro behind a 2-level unpowered hub chain (Genesys 0608 → 0610). Margins are poor: one hard drop on depth start (dmesg: `Cannot enable`, `tegra-xusb buffer overrun`, `disabled by hub (EMI?)`) required physical re-plug; stable since. Recommend direct connect or powered hub before flight tests.
 
@@ -38,7 +39,7 @@
 
 ## Current Blocker / Next Step
 
-No blocker on the input side anymore. **Next: RGB-D calibration (step 3)** — verify/measure color intrinsics, depth–color extrinsics, distortion; produce project calibration files; then wire `/camera/*` topics to Foxglove (:8765, bridge already running) and start ground RGB-D VO (step 5). Do not launch any new process that opens `/dev/ttyACM0` without checking current occupancy (`vio-watchdog.service` runs the IMU bridge on it).
+No blocker on the input/VO side anymore. **Next: wire the VO output into PX4 (step 6)** — inject MAVLink ODOMETRY (from `/orb_slam3/pose`, scaled/validated), verify EKF vision-fusion state in the GCS; before that, confirm `/camera/*` and `/orb_slam3/*` topics are visible in Foxglove (bridge :8765 already running). Do not launch any new process that opens `/dev/ttyACM0` without checking current occupancy (`vio-watchdog.service` runs the IMU bridge on it).
 
 ## Last Updated
 
@@ -68,9 +69,10 @@ Windows source of truth; GitHub SSH works (`git@github.com:kswlt/...`).
 
 ## Runtime Architecture
 
-Astra Pro depth+color → `astra_camera` (ROS 2) → RGB-D VO/VIO → PX4-IMU fusion → A/B benchmark → impact-aware recovery supervisor. (D435 Pure Stereo path is legacy only.)
+Astra Pro depth+color → `astra_camera` (ROS 2) → ORB-SLAM3 `rgbd_node` (RGB-D VO, smoke-passed) → PX4-IMU fusion → A/B benchmark → impact-aware recovery supervisor. (D435 Pure Stereo path is legacy only.)
 
 ## Risks
 
 - Root disk ~16 GiB free; avoid large downloads/builds/rosbags.
 - USB hub chain electrical marginality (see above) — verify stability over longer runs; prefer physical topology fix.
+- Default intrinsics / no depth-color extrinsics calibration (user decision): acceptable for VO smoke; if trajectory diverges in real motion, revisit calibration.
