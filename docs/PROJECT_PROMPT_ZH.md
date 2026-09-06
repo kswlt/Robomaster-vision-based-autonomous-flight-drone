@@ -17,7 +17,7 @@ ssh -i C:\Users\Admin\.ssh\robomaster_nx_audit nvidia@192.168.1.53
 
 ## 当前硬件事实
 
-- 飞控：CUAV X7Pro，PX4 1.15.2；NX 上稳定串口为 `/dev/serial/by-id/usb-CUAV_PX4_CUAV_X7Pro_0-if00`（实际指向 `/dev/ttyACM0`）。
+- 飞控：CUAV X7Pro，**PX4 新版（2025+ EKF2 参数体系）**；NX 上稳定串口为 `/dev/serial/by-id/usb-CUAV_PX4_CUAV_X7Pro_0-if00`（实际指向 `/dev/ttyACM0`）。**关键参数**：`EKF2_EV_CTRL=15`（int；位0 水平位置/位1 垂直位置/位2 速度/位3 偏航，视觉融合全开；无旧版 `EKF2_AID_MASK`/`SYS_MC_EST_GROUP`/`MAV_ODOM`）、`EKF2_EV_POS_{X,Y,Z}=0`（外参未标定）、`EKF2_EVP_NOISE=EVV_NOISE=0.1`、gate 5/3。
 - 相机：实际识别为 Orbbec Astra Pro，USB IDs `2bc5:0502`（RGB，`/dev/astra_pro_rgb`）、`2bc5:0403`（深度，`/dev/astra_pro`）。
 - **驱动已验证（2026-09-06/07）**：官方 OrbbecSDK（v1.10.27/v1.10.35/源码）已移除原版 Astra Pro（PID 0403），改用社区路线 `Es777777/astra-pro-ros2`（legacy astra_camera，libuvc+OpenNI2），工作空间 `/home/nvidia/astra_pro_ws`。
 - **深度流已验证**：640×480@30、16UC1、~29.7 FPS 稳定；原始值即毫米（×0.001→米）。
@@ -36,7 +36,7 @@ ssh -i C:\Users\Admin\.ssh\robomaster_nx_audit nvidia@192.168.1.53
 3. 获取/校验 Astra Pro RGB-D 内参、外参、畸变和深度尺度；**重新生成项目自己的标定文件**（当前缺口；camera_info 疑似默认值）。
 4. 发布 ROS 2 图像/深度/相机信息，并接入 Foxglove（桥接端口 `8765`，桥已在运行，需确认 `/camera/*` 话题可见）。
 5. ~~先做地面 RGB-D VO，再做不依赖相机 IMU 的 VIO；报告跟踪质量、有效位姿、速度和重置次数~~ ✅ 已完成（冒烟）：ORB-SLAM3 RGB-D（`rgbd_node`）640×480，tracking_state=2 持续跟踪、~30ms/帧、1293 帧无 LOST；无 IMU/GT，不报 ATE/RPE。
-6. 通过 PX4 MAVLink `ODOMETRY`/等效视觉里程计接口发送经过时间戳和坐标系核对的数据；在地面站确认 `vehicle_visual_odometry`、`vehicle_local_position` 和 EKF 外部视觉融合状态。
+6. ~~通过 PX4 MAVLink `ODOMETRY`/等效视觉里程计接口发送经过时间戳和坐标系核对的数据；在地面站确认 `vehicle_visual_odometry`、`vehicle_local_position` 和 EKF 外部视觉融合状态~~ ✅ 已完成（2026-09-07）：`px4_fusion_bridge.py` ODOMETRY 注入（~23 Hz），EKF 退出 const_pos 进入视觉绝对位置融合（flags 0x37f），创新比率 0.01-0.02（≪1）稳定 60 s；桥内置 pymavlink 兼容补丁（int 参数位模式解码、旧版 estimator_status 判据、add_message 崩溃跳过、主动 TIMESYNC）。**静态验证；动态移动下需复测。**
 7. 仅在螺旋桨拆下、定位连续稳定、方向/高度/失效保护均验证后，安排人工授权的低风险悬停测试。
 
 ## 必须执行的检查
