@@ -1,139 +1,76 @@
 # Project Handoff
 
-> **2026-09-06 hardware transition notice**: The historical D435/Pure Stereo VO sections below are retained for traceability only. The active hardware is now an Orbbec Astra Pro and the source of truth is `docs/CURRENT_STATE.md` plus `docs/PROJECT_PROMPT_ZH.md`.
+> **2026-09-07 update**: Astra Pro RGB-D input is now **driven and verified** (depth 640×480@30 stable + color MJPG verified). The historical D435 / Pure Stereo VO sections below are retained for traceability only. Source of truth: `docs/CURRENT_STATE.md` + `docs/PROJECT_PROMPT_ZH.md`.
 
 ## Active Hardware and Connection
 
 - NX hostname: `nvidia-sentry`; Wi-Fi address: `192.168.1.53/23` on `ADAM_5G`.
-- Windows SSH command: `ssh -i C:\Users\Admin\.ssh\robomaster_nx_audit nvidia@192.168.1.53`.
-- The former direct Ethernet address `10.42.0.2` is currently unavailable because `enP8p1s0` is down.
-- PX4 CUAV X7Pro is `/dev/ttyACM0`; use `/dev/serial/by-id/usb-CUAV_PX4_CUAV_X7Pro_0-if00` in new code.
-- The attached camera is identified by USB as Orbbec Astra Pro (`2bc5:0502`, `2bc5:0403`) with `/dev/video0` and `/dev/video1`.
+- Windows SSH: `ssh -i C:\Users\Admin\.ssh\robomaster_nx_audit nvidia@192.168.1.53`.
+- Former direct Ethernet `10.42.0.2` is unavailable (`enP8p1s0` down).
+- PX4 CUAV X7Pro: `/dev/ttyACM0` (stable path `/dev/serial/by-id/usb-CUAV_PX4_CUAV_X7Pro_0-if00`).
+- Camera: Orbbec Astra Pro — depth `2bc5:0403` (`/dev/astra_pro`), RGB FHD `2bc5:0502` (`/dev/astra_pro_rgb`).
 
-## Current Blocker and Required Order
+## Driver Bring-up — VERIFIED (2026-09-06/07)
 
-No verified Astra Pro depth stream is available yet. Do not reuse the D435 librealsense pipeline, D435 calibration, or D435-specific ORB-SLAM3 launch files. First install and verify an Astra-compatible Orbbec SDK/ROS 2 driver, enumerate RGB/depth profiles, obtain intrinsics/extrinsics/depth scale, and publish the streams to ROS 2/Foxglove. Only after that should RGB-D VO/VIO be connected to PX4. `vio-watchdog.service` currently restarts legacy processes, so stop or reconfigure that service before launching another process that opens `/dev/ttyACM0`.
+- **Official OrbbecSDK route is dead for the original Astra Pro**: v1.10.27/v1.10.35 and current source removed PID 0403 (SDK enumerates 0 devices). Do not attempt it again.
+- **Working route**: `Es777777/astra-pro-ros2` (legacy `astra_camera`, libuvc + bundled OpenNI2 redist), validated for Astra Pro on ROS 2 Humble / Ubuntu 22.04.
+- Workspace: `/home/nvidia/astra_pro_ws` — `astra_camera` + `astra_camera_msgs` built (needs `-DCMAKE_PREFIX_PATH=/home/nvidia/opt/magic_enum_install`).
+- Deps (apt): libuvc-dev, libgoogle-glog-dev, ros-humble-camera-info-manager, ros-humble-image-publisher. magic_enum 0.9.8 installed under `/home/nvidia/opt/magic_enum_install` (add symlink `include/magic_enum.hpp -> include/magic_enum/magic_enum.hpp`).
+- udev: vendor `99-obsensor-libusb.rules` installed + appended 0502 entry; both devices MODE 0666.
+- Launch: `ros2 component standalone astra_camera astra_camera::OBCameraNodeFactory -n camera --node-namespace /camera -p enable_depth:=true -p depth_width:=640 -p depth_height:=480 -p depth_fps:=30 -p enable_color:=true -p color_width:=640 -p color_height:=480 -p color_fps:=30 -p uvc_camera.enable:=true -p uvc_camera.vid:=0x2bc5 -p uvc_camera.pid:=0x0502 -p uvc_camera.format:=mjpeg -p number_of_devices:=1` (env: source ROS + workspace; `LD_LIBRARY_PATH` += `.../openni2_redist/arm64`).
+
+## Verified Facts (2026-09-06/07)
+
+- Depth stream: 640×480@30, 16UC1, ~29.7 FPS sustained >75 s, no drops/errors, device stable.
+- Depth units: raw uint16 = millimeters (sample vmin 4557 / vmax 9859 / vmean 7126); scale 0.001 → meters (`ROS_DEPTH_SCALE=0.001`).
+- Color stream: 640×480 MJPG, ~19–20 FPS (USB-chain-limited).
+- Topics: `/camera/depth/{image_raw,camera_info}`, `/camera/color/{image_raw,camera_info}`, `/camera/extrinsic/depth_to_color`.
+- camera_info published (fx=fy=570.342, 640×480, zero distortion) but cx/cy = exact image center → **likely defaults; real calibration still required**.
+- Board model string (observed): `NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super` (coexists with the documented "Orin NX" naming; user to confirm).
+- USB topology: Astra Pro behind a 2-level unpowered hub chain (Genesys 0608 → 0610). Margins are poor: one hard drop on depth start (dmesg: `Cannot enable`, `tegra-xusb buffer overrun`, `disabled by hub (EMI?)`) required physical re-plug; stable since. Recommend direct connect or powered hub before flight tests.
+
+## Operational Lessons (do not repeat mistakes)
+
+- **Always `pkill -9 -f standalone_container` before/after tests**: `ros2 component standalone` spawns a container child that survives the parent python's exit; stale containers cause `Resource busy` on open and fake "device disconnect" cycles (they fight over the same device). This was misread as hardware instability for one full test round.
+- Do not reuse D435 pipelines/calibration/parameters for the Astra.
+- Do not search for a D435 internal IMU; VIO uses PX4 IMU.
+- Do not commit credentials or private keys.
+
+## Current Blocker / Next Step
+
+No blocker on the input side anymore. **Next: RGB-D calibration (step 3)** — verify/measure color intrinsics, depth–color extrinsics, distortion; produce project calibration files; then wire `/camera/*` topics to Foxglove (:8765, bridge already running) and start ground RGB-D VO (step 5). Do not launch any new process that opens `/dev/ttyACM0` without checking current occupancy (`vio-watchdog.service` runs the IMU bridge on it).
 
 ## Last Updated
 
-2026-09-06
+2026-09-07
 
 ## Current Goal
 
-Bring up the Orbbec Astra Pro RGB-D input and rebuild the visual-odometry path before any flight test.
+Bring up Orbbec Astra Pro RGB-D input (done: driver + depth + color verified) → calibration → ground RGB-D VO/VIO → PX4 fusion → authorized low-risk hover.
 
 ## Current Phase
 
-Hardware transition — Astra Pro RGB-D bring-up.
+Hardware transition — Astra Pro RGB-D bring-up (Phase B), calibration next.
 
 ## Current Status
 
 IN_PROGRESS (Phase B); Phase A and Phase 0 are PASS.
 
-## What Was Just Done
-
-Completed the resource-enhanced 60-second D435 stereo IR timing benchmark.
-
-## Verified Facts
-
-- NX: `nvidia-sentry`, Ubuntu 22.04.5, kernel `5.15.148-tegra`, L4T 36.4.3, CUDA 12.6.
-- Direct Ethernet: Windows `10.42.0.70/24` to NX `10.42.0.2/24`; 1 ms ping and SSH pass.
-- ROS 2 Humble is installed but was not sourced in the audit shell.
-- Attached RealSense is the intended D435, PID `8086:0b07`, serial `943623021659`, at USB 3 / 5 Gbps.
-- Six V4L2 video nodes exist. No HID/IIO IMU is expected because D435 has no internal IMU. Root disk has 17 GiB free (86% used).
-- The `nvidia` user has verified read/write access to the D435 video nodes.
-- Current apt sources have ROS RealSense wrapper packages, but no `librealsense2-*` runtime, development, or viewer package.
-- librealsense v2.58.4 RSUSB library and tools are installed at `/home/nvidia/opt/librealsense-2.58.4`; no DKMS, kernel, BSP, or system package was changed.
-- RSUSB enumeration is blocked by raw `/dev/bus/usb` access permissions. The V4L2 no-root alternative is installed at `/home/nvidia/opt/librealsense-v4l2-2.58.4` and detects D435 serial `938422073656`, firmware `5.17.3.10`.
-- Stereo IR timing at 640×480@30 is PASS: 1799 frame sets in 60 s, 29.983 FPS per stream, no duplicate/backward timestamps, 0 ms maximum left-right delta, 1.645% process CPU, and 21.3 MiB peak RSS.
-
-## Inferred Facts
-
-- L4T 36.4.3 is the JetPack 6.2 baseline.
-
-## Unknown Facts
-
-- RMW when ROS is sourced; D435 stereo acquisition/timing performance; PX4 IMU availability.
-
 ## Development Host
 
-Windows source of truth and WSL Ubuntu 22.04.4; GitHub SSH works.
-
-## Jetson NX Environment
-
-See `docs/phases/phase0_nx_environment_audit.md`.
-
-## D435 State
-
-VERIFIED: D435 is connected at USB 3 / 5 Gbps. Stereo IR acquisition/timing at 640×480@30 is PASS.
-
-## VIO State
-
-Pure Stereo VO ROS 2 adapter now builds and passed a ground smoke test with the D435 IR pair. PX4 stereo-inertial VIO is a later stage.
-
-## Depth State
-
-Not tested; depth is off during the Stereo VO baseline.
-
-## Runtime Architecture
-
-D435 left/right IR → Pure Stereo VO → PX4-IMU Stereo-Inertial VIO → A/B benchmark → impact-aware recovery supervisor.
+Windows source of truth; GitHub SSH works (`git@github.com:kswlt/...`).
 
 ## Important Paths
 
 - Repository: `C:\Users\Admin\Desktop\无人机\Robomaster-vision-based-autonomous-flight-drone`
-- NX direct SSH: `nvidia@10.42.0.2`
+- NX camera workspace: `/home/nvidia/astra_pro_ws` (build with `-DCMAKE_PREFIX_PATH=/home/nvidia/opt/magic_enum_install`)
+- NX test scripts: `/home/nvidia/astra_pro_ws/*.sh` (stage/clean/color/info/probe)
 
-## Important Commands
+## Runtime Architecture
 
-- `ssh -i %USERPROFILE%\\.ssh\\robomaster_nx_audit nvidia@10.42.0.2`
-- `git pull --ff-only origin main`
-
-## Running Processes / Services
-
-No project runtime started.
-
-## Current Performance
-
-Baseline CPU 0–5%, GPU 0%, RAM 1.86/7.62 GB, input power about 4.4 W.
-
-## Known Problems
-
-Phase A is complete. Pure Stereo VO baseline is not deployed.
-
-## Failed Attempts
-
-The old address `10.33.154.71` is stale; do not reuse it.
-
-No failed experiment in the revised route. The former camera-model mismatch was a documentation error corrected by this checkpoint.
-
-## Do Not Repeat
-
-- Do not search for a D435 internal IMU; VIO will use PX4 IMU later.
-- Do not enable RGB, depth, or point clouds in the first stereo acquisition test.
-- Do not install a DKMS package, modify BSP/L4T, or install packages before a minimal-risk dependency plan is approved.
-- Do not commit credentials or private keys.
+Astra Pro depth+color → `astra_camera` (ROS 2) → RGB-D VO/VIO → PX4-IMU fusion → A/B benchmark → impact-aware recovery supervisor. (D435 Pure Stereo path is legacy only.)
 
 ## Risks
 
-Root disk is 86% full; avoid large downloads, builds, datasets, and rosbags.
-
-## Next Recommended Step
-
-Select and assess one Pure Stereo VO baseline (ORB-SLAM3 Stereo is the first candidate) without deploying multiple algorithms.
-
-## Exact Next Commands
-
-Use `LD_LIBRARY_PATH=/home/nvidia/opt/librealsense-v4l2-2.58.4/lib` for the benchmark runtime.
-
-## Files Changed
-
-Phase 0 report and state documentation.
-
-## Latest Test Results
-
-Phase 0: PASS. Phase A: PASS. Phase B Pure Stereo VO: NOT STARTED.
-
-## Rollback Information
-
-To restore host Ethernet, set `以太网 4` to `192.168.0.200/24` with no gateway. Git changes are documentation only.
+- Root disk ~16 GiB free; avoid large downloads/builds/rosbags.
+- USB hub chain electrical marginality (see above) — verify stability over longer runs; prefer physical topology fix.

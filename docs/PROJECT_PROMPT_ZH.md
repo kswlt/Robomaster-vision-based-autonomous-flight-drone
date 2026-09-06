@@ -18,18 +18,23 @@ ssh -i C:\Users\Admin\.ssh\robomaster_nx_audit nvidia@192.168.1.53
 ## 当前硬件事实
 
 - 飞控：CUAV X7Pro，PX4 1.15.2；NX 上稳定串口为 `/dev/serial/by-id/usb-CUAV_PX4_CUAV_X7Pro_0-if00`（实际指向 `/dev/ttyACM0`）。
-- 相机：实际识别为 Orbbec Astra Pro，USB IDs `2bc5:0502`、`2bc5:0403`；当前仅看到 `/dev/video0`、`/dev/video1`。
-- 当前没有验证出可用的 Astra Pro 深度和彩色 ROS 2 话题；OpenNI 库存在，但示例没有发现可用深度设备。不能称为“D435 已连接”，也不能使用 D435 的标定、分辨率、曝光或 librealsense 参数。
+- 相机：实际识别为 Orbbec Astra Pro，USB IDs `2bc5:0502`（RGB，`/dev/astra_pro_rgb`）、`2bc5:0403`（深度，`/dev/astra_pro`）。
+- **驱动已验证（2026-09-06/07）**：官方 OrbbecSDK（v1.10.27/v1.10.35/源码）已移除原版 Astra Pro（PID 0403），改用社区路线 `Es777777/astra-pro-ros2`（legacy astra_camera，libuvc+OpenNI2），工作空间 `/home/nvidia/astra_pro_ws`。
+- **深度流已验证**：640×480@30、16UC1、~29.7 FPS 稳定；原始值即毫米（×0.001→米）。
+- **彩色流已验证**：640×480 MJPG（`uvc_camera.pid:=0x0502`），~19–20 FPS。
+- **话题**：`/camera/depth/{image_raw,camera_info}`、`/camera/color/{image_raw,camera_info}`、`/camera/extrinsic/depth_to_color`。
+- camera_info 已发布但 cx/cy 恰为图像中心，**疑似默认值，RGB-D 标定仍是必做项**；不得使用 D435 的标定、分辨率、曝光或 librealsense 参数。
+- 运行纪律：测试前后必须 `pkill -9 -f standalone_container`，否则残留容器会报 `Resource busy` 并造成伪掉线。
 - `vio-watchdog.service` 会自动重启旧版相机/IMU/MAVLink 进程；任何新程序打开 PX4 串口前，必须先检查是否已有进程占用 `/dev/ttyACM0`。
 
 ## 工作目标与执行顺序
 
 目标是先实现可靠的视觉定位和稳定悬停，再考虑更高阶功能；不自动解锁、不自动起飞、不自动切换飞行模式。
 
-1. 在 NX 上安装并验证适配 Astra Pro 的 Orbbec SDK 或 ROS 2 驱动。
-2. 枚举并记录 RGB、Depth 的真实 profile、帧率、设备序列号、时间戳和深度尺度。
-3. 获取/校验 Astra Pro RGB-D 内参、外参、畸变和深度尺度；重新生成项目自己的标定文件。
-4. 发布 ROS 2 图像/深度/相机信息，并接入 Foxglove（桥接端口 `8765`）。
+1. ~~在 NX 上安装并验证适配 Astra Pro 的 Orbbec SDK 或 ROS 2 驱动~~ ✅ 已完成：`astra_camera`（libuvc 社区路线）编译并验证。
+2. ~~枚举并记录 RGB、Depth 的真实 profile、帧率、设备序列号、时间戳和深度尺度~~ ✅ 已完成：深度 640×480@30 / 16UC1 / 29.7 FPS / 毫米尺度（0.001）；彩色 640×480 MJPG ~20 FPS。
+3. 获取/校验 Astra Pro RGB-D 内参、外参、畸变和深度尺度；**重新生成项目自己的标定文件**（当前缺口；camera_info 疑似默认值）。
+4. 发布 ROS 2 图像/深度/相机信息，并接入 Foxglove（桥接端口 `8765`，桥已在运行，需确认 `/camera/*` 话题可见）。
 5. 先做地面 RGB-D VO，再做不依赖相机 IMU 的 VIO；报告跟踪质量、有效位姿、速度和重置次数。
 6. 通过 PX4 MAVLink `ODOMETRY`/等效视觉里程计接口发送经过时间戳和坐标系核对的数据；在地面站确认 `vehicle_visual_odometry`、`vehicle_local_position` 和 EKF 外部视觉融合状态。
 7. 仅在螺旋桨拆下、定位连续稳定、方向/高度/失效保护均验证后，安排人工授权的低风险悬停测试。
