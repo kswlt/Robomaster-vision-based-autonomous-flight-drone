@@ -57,7 +57,8 @@
 
 ## 当前服务（2026-09-07 自启动化完成）
 
-- **`vision-stack.service`**（Restart=always）：foxglove_bridge(`:8765`) + Astra Pro 相机（深度+彩色）。
+- **`vision-stack.service`**（Restart=always）：foxglove_bridge(`:8765`) + Astra Pro 相机（640×480，供 VO）+ **`foxglove_image_resizer.py`**（纯 numpy 缩放 640×480→320×240，发布 `/foxglove/{color,depth}/image_raw`，仅给 Foxglove 降带宽；相机/VO 仍用原始高分辨率）。foxglove_bridge 白名单只暴露 `/foxglove/.*`+`/orb_slam3/.*`+`/tf`+`/tf_static`+`/imu/.*`，不传输原始 640×480 图像。
+  - ⚠ **foxglove_bridge 的 `topic_whitelist` 是正则表达式，不是 glob**——`/camera/**` 匹配不到实际话题，须写 `/camera/.*`。
 - **`orb-slam3.service`**（Restart=on-failure, RestartSec=8, After=vision-stack）：RGB-D VO。**已实测 VO 连续运行 ~8 万帧（~44 min）后 Sophus `SO3::exp failed (omega=NaN)` abort**——服务自动重启兜底，飞行前需长时稳定性复测。
 - **`px4-fusion-bridge.service`**（Restart=on-failure）：PX4 融合注入（ODOMETRY + IMU 转发）。wrapper 位于 `${ROOT}/scripts/run/start_{vision_stack,orb_slam3,px4_bridge_service}.sh`。
 - **`vio-watchdog.service` 已 disable**（防重启后旧 IMU 桥抢占 `/dev/ttyACM0`）；其托管内容（旧相机/IMU 链路）不再自启动。
@@ -66,7 +67,7 @@
 ## 下一步（按 PROJECT_PROMPT_ZH 顺序）
 
 1. **标定（第 3 步）**：用户决定跳过棋盘格标定，直接使用驱动默认内参（fx=fy=570.342，深度毫米×0.001→米）。已知限制：彩色/深度视为已对齐（未做外参标定），VO 冒烟可接受，若轨迹发散再补标定。
-2. **Foxglove 接入（第 4 步）**：桥 `:8765` 已确认监听运行，`/camera/*`、`/orb_slam3/*` 话题会自动被发现；需在 Foxglove 客户端确认可见。
+2. **Foxglove 接入（第 4 步）**：桥 `:8765` 已确认监听运行；图像话题为低分辨率 `/foxglove/color/image_raw`、`/foxglove/depth/image_raw`（320×240），VO 话题 `/orb_slam3/pose`、`/orb_slam3/path`，TF `map→astra`；3D 面板参考系选 `map`，勾选 `/orb_slam3/path` 显示轨迹。
 3. **地面 RGB-D VO（第 5 步）**：**已完成冒烟**——ORB-SLAM3 RGB-D（`rgbd_node`）640×480 双流，~20-25 FPS 输出位姿，每帧处理 ~30ms，1293 帧仅 1 次地图重置、无丢失事件（纯 VO smoke，无 IMU/GT）。
 4. **PX4 融合（第 6 步）**：**已完成验证**——`px4_fusion_bridge.py` ODOMETRY 注入（~23Hz），EKF 退出 const_pos 进入视觉绝对位置融合，创新比率 0.01-0.02（≪1），60s 稳定。**自启动已完成**（三个 systemd 服务，见"当前服务"）。
 5. **悬停测试（第 7 步）**：**尚未具备条件**。前置事项：① 用户用 QGC 确认/配置飞控飞行参数（机型 SYS_AUTOSTART、RC 校准与模式映射、解锁检查、失效保护、EKF 位置源）——NX 侧未改任何飞控飞行参数；② 动态移动下复测融合创新（静态已验证）；③ VO 长时稳定性复测（已发现 ~44min NaN abort，服务可自动重启）；④ 拆桨 + 人工授权；⑤ 确认 EKF2_EV_POS_* 外参 0 值可接受。
