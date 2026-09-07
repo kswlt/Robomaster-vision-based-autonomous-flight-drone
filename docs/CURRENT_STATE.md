@@ -33,7 +33,7 @@
 
 - **桥**：`px4_fusion_bridge.py`（NX `/home/nvidia/fly/vio_benchmark/scripts/run/px4_fusion_bridge.py`，Windows 母本 `C:\Users\Admin\DoubaoWork\chats\2026-09-06\new-chat\`）：订阅 `/orb_slam3/pose` → ENU→NED（`Q_EN2NED` 四元数左乘）→ MAVLink `ODOMETRY`(LOCAL_NED, 位置协方差 0.01 m², quality 省略) 注入；同时转发 HIGHRES_IMU 250Hz→`/imu/data`；ESTIMATOR_STATUS 5Hz 监测融合标志。
 - **固件参数体系（关键发现）**：该 PX4 为 **2025+ 新版 EKF2 参数体系**——有 `EKF2_EV_CTRL`（位0 水平位置 / 位1 垂直位置 / 位2 速度 / 位3 偏航），**无**旧版 `EKF2_AID_MASK`/`SYS_MC_EST_GROUP`/`MAV_ODOM`。实测 **`EKF2_EV_CTRL=15`（int，全开）**——疑似 D435 时代 AID_MASK 视觉位被固件升级自动迁移；`EKF2_EV_POS_{X,Y,Z}=0`（相机外参未标定）、`EKF2_EVP_GATE=5`、`EKF2_EVV_GATE=3`、`EKF2_EVP_NOISE=EVV_NOISE=0.1`、`COM_ARM_EKF_{POS,VEL}=0.5`。**无需改任何参数即可融合。**
-- **pymavlink 兼容补丁**（已固化进桥）：① int32 参数经 `PARAM_VALUE.param_value` 以 **float 位模式**传输（`EKF2_EV_CTRL` 读为 2.1e-44 = int 15；`MAV_TYPE`=2.8e-45=int 2）——读取整型参数需按 `param_type` 解位模式；② 该方言 `estimator_status` 为 **MAVLink1 旧版**（仅 10 字段，flags 最高 bit10，**无 vision 专用位、无 innovation_metric**）→ 融合判据用 `const_pos`(bit7)/`pos_horiz_abs`(bit4)/`pred_pos_abs`(bit9) 组合；③ PX4 新固件偶发发送 pymavlink 无法注册的消息导致 `add_message` 崩溃（间歇）→ monkey-patch 跳过坏消息；④ **PX4 不主动发 TIMESYNC**，须主动 `timesync_send` 建立 offset（offset = PX4时钟 − 本地时钟，注入时间戳 = 本地 + offset）。
+- **pymavlink 兼容补丁**（已固化进桥）：① int32 参数经 `PARAM_VALUE.param_value` 以 **float 位模式**传输（`EKF2_EV_CTRL` 读为 2.1e-44 = int 15；`MAV_TYPE`=2.8e-45=int 2）——读取整型参数需按 `param_type` 解位模式；② 该方言 `estimator_status` 为 **MAVLink1 旧版**（仅 10 字段，flags 最高 bit10，**无 vision 专用位、无 innovation_metric**）→ 融合判据用 `const_pos`(bit7)/`pos_horiz_abs`(bit4)/`pred_pos_abs`(bit9) 组合；③ PX4 新固件偶发发送 pymavlink 无法注册的消息导致 `add_message` 崩溃（间歇）→ monkey-patch 跳过坏消息；④ **PX4 不主动发 TIMESYNC**，须主动 `timesync_send` 建立 offset（offset = PX4时钟 − 本地时钟，注入时间戳 = 本地 + offset）；⑤ **pymavlink 方言坑（重启后首次暴露）**：`mavutil` 模块 import 时执行 `set_dialect(os.environ['MAVLINK_DIALECT'])`，且**默认走 v10 协议**——**v10 common 方言没有 `odometry_send`（ODOMETRY 仅 v20 有）**，导致服务重启后桥在 `on_pose` 处 `AttributeError` 崩溃循环（重启前手动环境偶然满足条件）。修复：桥在 `import mavutil` **之前**设置 `MAVLINK_DIALECT=common` + `MAVLINK20=1` 并显式 `mavutil.set_dialect("common")`，强制 v20 common。
 - **注入验证结果**（完整链路 60 s，静态场景）：EKF 从 `const_pos_mode`(flags=0xe5) **切换到视觉绝对位置融合**（flags=0x37f：`pos_horiz_abs=1`、`const_pos=0`、`vel_h=1`，持续 60 s）；**创新比率 pos_h=0.01~0.02、pos_v≈0.01、vel≈0.00（门限 1.0）**——视觉观测被 EKF 平滑接受、无拒绝无震荡。桥：IMU ~195 Hz、ODOMETRY ~23 Hz；VO：1881 帧 0 LOST；相机存活。
 - **已知边界（飞行前注意）**：相机外参 `EKF2_EV_POS_*=0`（未标定，用户决定跳过）；ORB-SLAM3 地图系朝向任意（无重力对齐，yaw 相对视觉帧）；位置为**静态验证**（无人机未动），动态下创新需复测；`EKF2_EV_CTRL` 含 bit3(yaw) 时航向相对外部视觉系。
 
@@ -61,6 +61,7 @@
 - **`orb-slam3.service`**（Restart=on-failure, RestartSec=8, After=vision-stack）：RGB-D VO。**已实测 VO 连续运行 ~8 万帧（~44 min）后 Sophus `SO3::exp failed (omega=NaN)` abort**——服务自动重启兜底，飞行前需长时稳定性复测。
 - **`px4-fusion-bridge.service`**（Restart=on-failure）：PX4 融合注入（ODOMETRY + IMU 转发）。wrapper 位于 `${ROOT}/scripts/run/start_{vision_stack,orb_slam3,px4_bridge_service}.sh`。
 - **`vio-watchdog.service` 已 disable**（防重启后旧 IMU 桥抢占 `/dev/ttyACM0`）；其托管内容（旧相机/IMU 链路）不再自启动。
+- **电池供电重启验证（2026-09-07）**：切换飞行电池供电并重启后——WiFi `ADAM_5G` 已改为**静态 IP 192.168.1.53/23**（autoconnect=yes，重启自动回连）；三个服务全部自启恢复；修复 ⑤ 方言坑后桥稳定：IMU ~193 Hz、ODOMETRY 93 Hz、`VISION_POS_ACTIVE=True`（flags=0x37f，创新 0.00~0.01）。VO ~23.7 FPS。
 
 ## 下一步（按 PROJECT_PROMPT_ZH 顺序）
 
