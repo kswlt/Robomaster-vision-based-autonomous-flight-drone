@@ -43,6 +43,18 @@
 - 重插后深度+彩色双流已稳定运行；**生产/悬停测试前建议直连 NX USB 口或改用供电 Hub**。
 - RGB 的 uvcvideo 驱动曾在测试中解绑（`unbind`），重启后会自动重新绑定；libuvc 走 `/dev/astra_pro_rgb` 不受影响。
 
+## PX4 参数快照（2026-09-07 只读检查）
+
+- 机型：`SYS_AUTOSTART=4001`（Generic Quadcopter，X 四旋翼）、`MAV_TYPE=2`。⚠ 需用户确认与实机机架/电机映射一致。
+- EKF：`EKF2_EV_CTRL=15`（视觉全开）、`EKF2_GPS_CTRL=0`（GPS 融合关，室内正确）、`EKF2_HGT_REF=0`（高度=气压计，室内漂移风险）、`EKF2_EVP_NOISE=EVV_NOISE=EVA_NOISE=0.1`、gate 5/3、`EV_POS_*=0`、`EV_QMIN=0`、`EV_DELAY=0`、`EV_NOISE_MD=0`。
+- 解锁：`COM_ARM_EKF_POS=0.5`、`VEL=0.5`、`HGT=1`、`COM_ARM_IMU_ACC=0.7`、`COM_ARM_AUTH_REQ=0`。
+- RC：`COM_RC_IN_MODE=3`、`RC_CHAN_CNT=18`、映射 ROLL=1/PITCH=2/THROTTLE=3/YAW=4/ARM=6/KILL=5、`MODE_SW=0`、`OFFB_SW=0`；`COM_RC_LOSS_T=0.5s`、`NAV_RCL_ACT=3`（RC 丢失→Land）、`COM_OF_LOSS_T=1s`。
+- 电池：6S（`BAT1_N_CELLS=6`、4.2/3.6V、24 A/V）；`COM_LOW_BAT_ACT=0`（**低压无动作，需确认**）。
+- ⚠ 安全：`CBRK_FLIGHTTERM=121212`（**飞行终止被禁用**，需用户确认是否故意/恢复）、`CBRK_SUPPLY_CHK=0`、`CBRK_VTOLARMING=0`。
+- 控制：`MPC_THR_HOVER=0.5`（默认，实机需校准）、`MPC_XY_CRUISE=5`、`MPC_Z_VEL_MAX_UP=3`、`MPC_LAND_SPEED=0.7`、`NAV_ACC_RAD=2`、`COM_DISARM_LAND=2`。
+- 串口：`SER_TEL1_BAUD=115200`、`SER_TEL2_BAUD=57600`、`GPS_1_CONFIG=201`、`MAV_0_CONFIG=101`（USB）、`MAV_1_CONFIG=102`。
+- 无旧参数：`SYS_MC_EST_GROUP`/`SYS_USE_IO`/`COM_ARM_ARSPD_EN` 等不存在（新版 EKF2 体系佐证）。
+
 ## 当前服务（2026-09-07 自启动化完成）
 
 - **`vision-stack.service`**（Restart=always）：foxglove_bridge(`:8765`) + Astra Pro 相机（深度+彩色）。
