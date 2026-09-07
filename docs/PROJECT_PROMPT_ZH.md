@@ -35,7 +35,7 @@ ssh -i C:\Users\Admin\.ssh\robomaster_nx_audit nvidia@192.168.1.53
 2. ~~枚举并记录 RGB、Depth 的真实 profile、帧率、设备序列号、时间戳和深度尺度~~ ✅ 已完成：深度 640×480@30 / 16UC1 / 29.7 FPS / 毫米尺度（0.001）；彩色 640×480 MJPG ~20 FPS。
 3. 获取/校验 Astra Pro RGB-D 内参、外参、畸变和深度尺度；**重新生成项目自己的标定文件**（当前缺口；camera_info 疑似默认值）。
 4. 发布 ROS 2 图像/深度/相机信息，并接入 Foxglove（桥接端口 `8765`，桥已在运行，需确认 `/camera/*` 话题可见）。
-5. ~~先做地面 RGB-D VO，再做不依赖相机 IMU 的 VIO；报告跟踪质量、有效位姿、速度和重置次数~~ ✅ 已完成（冒烟）：ORB-SLAM3 RGB-D（`rgbd_node`）640×480，tracking_state=2 持续跟踪、~30ms/帧、1293 帧无 LOST；无 IMU/GT，不报 ATE/RPE。
+5. ~~先做地面 RGB-D VO，再做不依赖相机 IMU 的 VIO；报告跟踪质量、有效位姿、速度和重置次数~~ ✅ 已完成（冒烟）：ORB-SLAM3 RGB-D（`rgbd_node`）640×480，tracking_state=2 持续跟踪、~30ms/帧、1293 帧无 LOST；无 IMU/GT，不报 ATE/RPE。**VIO 已启用**：ORB-SLAM3 IMU_RGBD 紧耦合模式，PX4 IMU 转发（FLU，~193Hz），外参 `IMU.T_b_c1`=camera→IMU 轴置换，`IMU.fastInit=1`。**关键修复**：IMU 时间戳比图像超前 20ms 导致 ORB-SLAM3 `PreintegrateIMU()` 只取到 1 个点 → `Empty IMU measurements vector` → NaN/段错误崩溃；修复为 IMU 回调中时间戳减 0.025s。修复后 VIO 初始化成功（500+ 点）、稳定运行不崩溃。**待验证**：重力对齐（roll/pitch≈0）、方向对应、长时稳定性。
 6. ~~通过 PX4 MAVLink `ODOMETRY`/等效视觉里程计接口发送经过时间戳和坐标系核对的数据；在地面站确认 `vehicle_visual_odometry`、`vehicle_local_position` 和 EKF 外部视觉融合状态~~ ✅ 已完成（2026-09-07）：`px4_fusion_bridge.py` ODOMETRY 注入（~23 Hz），EKF 退出 const_pos 进入视觉绝对位置融合（flags 0x37f），创新比率 0.01-0.02（≪1）稳定 60 s；桥内置 pymavlink 兼容补丁（int 参数位模式解码、旧版 estimator_status 判据、add_message 崩溃跳过、主动 TIMESYNC）。**静态验证；动态移动下需复测。**
 7. 仅在螺旋桨拆下、定位连续稳定、方向/高度/失效保护均验证后，安排人工授权的低风险悬停测试。
 

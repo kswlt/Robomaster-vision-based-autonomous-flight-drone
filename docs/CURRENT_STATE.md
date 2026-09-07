@@ -1,7 +1,7 @@
 # Current State
 
-- 当前阶段：硬件切换与 RGB-D 输入恢复；**Astra Pro 深度/彩色流已验证，地面 RGB-D VO（ORB-SLAM3）冒烟通过，PX4 EKF2 视觉位置融合已验证（第 6 步完成）**。
-- 状态：IN_PROGRESS（Phase B）；RGB-D 标定按用户决定跳过（用默认内参），视觉融合验证通过，悬停测试（第 7 步）未开始。
+- 当前阶段：**VIO 启用与稳定性验证**；Astra Pro RGB-D 输入已验证，地面 RGB-D VO 冒烟通过，PX4 EKF2 视觉融合已验证，**ORB-SLAM3 紧耦合 VIO（IMU_RGBD）已启用并解决崩溃问题**。
+- 状态：IN_PROGRESS（Phase B）；RGB-D 标定按用户决定跳过（用默认内参），视觉融合验证通过，VIO 稳定运行但重力对齐/方向对应待场景恢复后验证，悬停测试（第 7 步）未开始。
 - Windows 工作区：`C:\Users\Admin\Desktop\无人机\Robomaster-vision-based-autonomous-flight-drone`；GitHub SSH 已验证。
 - NX：`nvidia-sentry`，Ubuntu 22.04.5，kernel 5.15.148-tegra，L4T 36.4.3，CUDA 12.6。板卡 model 串实测：`NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super`（与既有文档中 Orin NX 命名并存，待用户确认后再统一）。
 - 当前连接：NX Wi-Fi `wlP1p1s0=192.168.1.53/23`（ADAM_5G）；旧有线链路 `enP8p1s0=10.42.0.2/24` 仍为 DOWN。
@@ -28,6 +28,22 @@
 - **配置**：`config/astra_rgbd.yaml`——PinHole 640×480、fx=fy=570.342、cx=319.5、cy=239.5、`Camera.RGB: 1`、`RGBD.DepthMapFactor: 1000`、`Stereo.ThDepth: 40`、`Stereo.b: 0`（此 fork 的 Settings.cc 要求这三个键，缺一即 abort）。
 - **冒烟结果**（静态场景，45s）：tracking_state=2 持续跟踪；位姿 ~21-25 FPS；每帧处理 ~29-32ms；1293 帧中 1 次地图重置（Local Mapping reset），无 LOST 事件；设备全程存活。
 - 说明：纯 VO 冒烟（无 IMU、无 GT，按项目纪律不报 ATE/RPE）。
+
+## RGB-D+IMU 紧耦合 VIO（ORB-SLAM3 IMU_RGBD）— 已启用（2026-09-07）
+
+- **动机**：用户观察到 Foxglove 中里程计方向与飞机实际方向不对应，要求启用 VIO 改善重力对齐。纯 VO 的 map 系朝向任意且无外参标定；紧耦合 VIO 能利用 IMU 做重力对齐（roll/pitch），但 yaw 仍任意。
+- **wrapper 改造**：`rgbd_node.cpp` 添加 `/imu/data` 订阅（RELIABLE QoS，10）、IMU 测量缓冲（deque+mutex，保留 5 秒）、`System::IMU_RGBD` 传感器类型、`TrackRGBD(im,depth,ts,vImu)` 调用、`use_imu` 参数。原纯视觉版备份为 `rgbd_node.cpp.bak_noimu`。
+- **配置**：`config/astra_rgbd_imu.yaml`——基于 `astra_rgbd.yaml`，添加 IMU 噪声参数（EuRoC 默认值粗略：gyro_noise=1.7e-4, acc_noise=2e-3, gyro_walk=1.7e-5, acc_walk=3e-3, freq=200）、`IMU.fastInit=1`（跳过加速度变化>0.5 m/s² 的初始化阈值）、外参 `IMU.T_b_c1`。
+- **外参**：`IMU.T_b_c1` = camera→IMU 变换（ORB-SLAM3 的 `mTcb` 定义）。PX4 转发的 IMU 为 **FLU 坐标系**（静止时 z≈-9.81，x≈0.34 bias），OpenCV 相机为 x右/y下/z前。轴置换矩阵 `[[0,0,1],[-1,0,0],[0,-1,0]]`（IMU_x=相机_z前, IMU_y=-相机_x, IMU_z=-相机_y）。**注意参数名是 `IMU.T_b_c1`（不是 `IMU.T_b_c`）**。
+- **关键修复（踩坑记录）**：
+  1. **QoS 不匹配**：桥发布 IMU 用 RELIABLE，wrapper 订阅用 SensorDataQoS(BEST_EFFORT) → 收不到 IMU（`not IMU meas`）。改为 `rclcpp::QoS(10)`。
+  2. **IMU 时间戳 bug**：桥的 `on_imu` 原计算 `t_ros = now - offset_ns*1e9` 错误，导致 IMU 时间戳变成 PX4 boot time（几百秒），与图像 Unix 时间戳差 50 年 → VIO 的 IMU 窗口永远空。修复为直接用 `now.to_msg()`（MAVLink 传输延迟~1ms 可接受）。
+  3. **IMU 时间戳超前（核心崩溃原因）**：IMU 时间戳（ROS 当前时间）比图像时间戳新约 20ms（图像采集延迟）。ORB-SLAM3 的 `PreintegrateIMU()` 提取条件为 `IMU.t < 当前帧.t - mImuPer`，IMU 超前导致第一个点就触发 else 分支（加入并 break），`mvImuFromLastFrame` 只有 1 个点 → n=0 → `Empty IMU measurements vector!!!` → 预积分失败 → `SO3::exp(omega=NaN)` abort 或 Segmentation fault。**修复：IMU 回调中时间戳减去 0.025s**，确保 IMU 时间戳略早于图像时间戳。
+  4. **初始化加速度阈值**：ORB-SLAM3 `StereoInitialization()` 在 IMU 模式下要求特征点>500 + IMU 预积分非空 + 加速度变化>0.5 m/s²（除非 fastInit）。启用 `IMU.fastInit=1` 跳过。
+  5. **深度流全 0**：曾出现深度图有效像素 0%（虽有 30Hz 但数据全 0），导致 `New Map created with 0 points`。重启 vision-stack 后恢复（50%+ 有效）。疑似相机预热或 USB 链路瞬时问题。
+- **当前状态**：VIO 初始化成功（500+ 地图点），**不再崩溃**（修复前 1-2 秒必崩，修复后稳定运行分钟级，0 丢失）。飞控融合恢复正常（VISION_POS_ACTIVE=True）。场景差（黑暗/无纹理/深度无效）时会 LOST 并自动重置，属正常行为。
+- **待验证**：① 重力对齐（roll/pitch 应接近 0）——需在有纹理场景下测量；② 里程计方向与飞机实际方向对应——VIO 只能对齐 roll/pitch，yaw 仍任意，需飞控 EKF2 融合后统一；③ 长时稳定性（纯 VO 曾 ~44min NaN abort，VIO 需复测）。
+- **IMU 数据源**：`px4_fusion_bridge.py` 转发 PX4 HIGHRES_IMU → `/imu/data`，~193 Hz，FLU 坐标系，RELIABLE QoS。
 
 ## PX4 视觉融合（第 6 步）— 已验证（2026-09-07）
 
@@ -59,7 +75,7 @@
 
 - **`vision-stack.service`**（Restart=always）：foxglove_bridge(`:8765`) + Astra Pro 相机（640×480，供 VO）+ **`foxglove_image_resizer.py`**（纯 numpy 缩放 640×480→320×240，发布 `/foxglove/{color,depth}/image_raw`，仅给 Foxglove 降带宽；相机/VO 仍用原始高分辨率）。foxglove_bridge 白名单只暴露 `/foxglove/.*`+`/orb_slam3/.*`+`/tf`+`/tf_static`+`/imu/.*`，不传输原始 640×480 图像。
   - ⚠ **foxglove_bridge 的 `topic_whitelist` 是正则表达式，不是 glob**——`/camera/**` 匹配不到实际话题，须写 `/camera/.*`。
-- **`orb-slam3.service`**（Restart=on-failure, RestartSec=8, After=vision-stack）：RGB-D VO。**已实测 VO 连续运行 ~8 万帧（~44 min）后 Sophus `SO3::exp failed (omega=NaN)` abort**——服务自动重启兜底，飞行前需长时稳定性复测。
+- **`orb-slam3.service`**（Restart=on-failure, RestartSec=8, After=vision-stack）：**RGB-D+IMU 紧耦合 VIO**（`use_imu:=true`，config `astra_rgbd_imu.yaml`，传感器类型 `IMU_RGBD`）。启动脚本 `start_orb_slam3.sh`。纯 VO 模式曾连续运行 ~8 万帧（~44 min）后 Sophus `SO3::exp failed (omega=NaN)` abort——服务自动重启兜底；VIO 模式已解决初始化后 1-2 秒崩溃问题（IMU 时间戳回调 25ms），长时稳定性待复测。
 - **`px4-fusion-bridge.service`**（Restart=on-failure）：PX4 融合注入（ODOMETRY + IMU 转发）。wrapper 位于 `${ROOT}/scripts/run/start_{vision_stack,orb_slam3,px4_bridge_service}.sh`。
 - **`vio-watchdog.service` 已 disable**（防重启后旧 IMU 桥抢占 `/dev/ttyACM0`）；其托管内容（旧相机/IMU 链路）不再自启动。
 - **电池供电重启验证（2026-09-07）**：切换飞行电池供电并重启后——WiFi `ADAM_5G` 已改为**静态 IP 192.168.1.53/23**（autoconnect=yes，重启自动回连）；三个服务全部自启恢复；修复 ⑤ 方言坑后桥稳定：IMU ~193 Hz、ODOMETRY 93 Hz、`VISION_POS_ACTIVE=True`（flags=0x37f，创新 0.00~0.01）。VO ~23.7 FPS。
@@ -69,5 +85,6 @@
 1. **标定（第 3 步）**：用户决定跳过棋盘格标定，直接使用驱动默认内参（fx=fy=570.342，深度毫米×0.001→米）。已知限制：彩色/深度视为已对齐（未做外参标定），VO 冒烟可接受，若轨迹发散再补标定。
 2. **Foxglove 接入（第 4 步）**：桥 `:8765` 已确认监听运行；图像话题为低分辨率 `/foxglove/color/image_raw`、`/foxglove/depth/image_raw`（320×240），VO 话题 `/orb_slam3/pose`、`/orb_slam3/path`，TF `map→astra`；3D 面板参考系选 `map`，勾选 `/orb_slam3/path` 显示轨迹。
 3. **地面 RGB-D VO（第 5 步）**：**已完成冒烟**——ORB-SLAM3 RGB-D（`rgbd_node`）640×480 双流，~20-25 FPS 输出位姿，每帧处理 ~30ms，1293 帧仅 1 次地图重置、无丢失事件（纯 VO smoke，无 IMU/GT）。
-4. **PX4 融合（第 6 步）**：**已完成验证**——`px4_fusion_bridge.py` ODOMETRY 注入（~23Hz），EKF 退出 const_pos 进入视觉绝对位置融合，创新比率 0.01-0.02（≪1），60s 稳定。**自启动已完成**（三个 systemd 服务，见"当前服务"）。
-5. **悬停测试（第 7 步）**：**尚未具备条件**。前置事项：① 用户用 QGC 确认/配置飞控飞行参数（机型 SYS_AUTOSTART、RC 校准与模式映射、解锁检查、失效保护、EKF 位置源）——NX 侧未改任何飞控飞行参数；② 动态移动下复测融合创新（静态已验证）；③ VO 长时稳定性复测（已发现 ~44min NaN abort，服务可自动重启）；④ 拆桨 + 人工授权；⑤ 确认 EKF2_EV_POS_* 外参 0 值可接受。
+4. **VIO（第 5 步扩展）**：**已启用并解决崩溃**——ORB-SLAM3 IMU_RGBD 紧耦合 VIO，PX4 IMU 转发，外参 FLU→OpenCV 轴置换，IMU 时间戳回调 25ms 解决 `Empty IMU vector` 崩溃。初始化成功（500+ 点），稳定运行不崩溃。**待验证**：重力对齐（roll/pitch≈0）、方向对应、长时稳定性。
+5. **PX4 融合（第 6 步）**：**已完成验证**——`px4_fusion_bridge.py` ODOMETRY 注入（~23Hz），EKF 退出 const_pos 进入视觉绝对位置融合，创新比率 0.01-0.02（≪1），60s 稳定。**自启动已完成**（三个 systemd 服务，见"当前服务"）。
+6. **悬停测试（第 7 步）**：**尚未具备条件**。前置事项：① 用户用 QGC 确认/配置飞控飞行参数（机型 SYS_AUTOSTART、RC 校准与模式映射、解锁检查、失效保护、EKF 位置源）——NX 侧未改任何飞控飞行参数；② 动态移动下复测融合创新（静态已验证）；③ VIO 重力对齐和方向对应验证；④ VO/VIO 长时稳定性复测；⑤ 拆桨 + 人工授权；⑥ 确认 EKF2_EV_POS_* 外参 0 值可接受。
