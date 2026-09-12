@@ -1,0 +1,3 @@
+# 禁用USB自动挂起（防止RealSense等USB设备休眠导致流挂起）
+ACTION=="add", SUBSYSTEM=="usb", TEST=="power/control", ATTR{power/control}="on"
+ACTION=="add", SUBSYSTEM=="usb", TEST=="power/autosuspend", ATTR{power/autosuspend}="-1"

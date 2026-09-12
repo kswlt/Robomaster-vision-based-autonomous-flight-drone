@@ -1,0 +1,17 @@
+[Unit]
+Description=VIO System (D430 + PX4 + OpenVINS)
+After=network.target local-fs.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=orangepi
+Group=orangepi
+WorkingDirectory=/home/orangepi
+ExecStart=/home/orangepi/start_vio_systemd.sh
+Restart=on-failure
+RestartSec=5
+KillMode=control-group
+
+[Install]
+WantedBy=multi-user.target
