@@ -26,31 +26,37 @@
 
 ---
 
-## 2026-09-13 — Stage 1 阻塞：D430 REC error 确认（物理硬件故障）
+## 2026-09-13 — Stage 1 阻塞确认：D430 REC error（硬件级）
 
 **完成内容**：
 1. 修复 launch 参数（`depth_module.infra_profile:=848x480x30`），仓库 + 运行时同步
 2. 新增诊断脚本 `scripts/check_camera_profile.sh`
-3. 尝试恢复手段（均无效）：
-   - 重启 vio.service（2 次）→ 同样 hwmon 错误
-   - USB authorized 重新枚举（2-1, SuperSpeed 正常）→ 同样 hwmon 错误
+3. 尝试恢复手段（均无效）：重启 vio.service ×2、USB authorized 重新枚举
 
-**已确认**：
-- 相机设备枚举正常（D400, 0x0AD1, FW 5.17.3.10, USB 3.2 SuperSpeed）
-- 启动流失败：`Error starting device: hwmon command 0x2c (9 1 0 0) failed (response -9= No expected user action)`
-- 这是 **REC 硬件级错误**，软件（参数/重启/重新枚举）无法绕过
-- 与交接文档 7.13 结论一致：需物理处理（换 USB 线/换 USB 口/改善供电）
+**已确认**：`Error starting device: hwmon command 0x2c (9 1 0 0) failed (-9)`，REC 硬件级错误，软件无法绕过。
 
-**硬件验证状态**：相机流未恢复，VIO 不可运行
+**Commit**: a0fa799
+**Push**: origin/d430 success
+
+---
+
+## 2026-09-13 — Stage 1A 硬件层诊断完成（CASE A 确认）
+
+**完成内容**：
+1. 收集完整设备身份：D400 PID 0x0AD1（RS400_PID）、FW 5.17.3.10、USB SuperSpeed 5000M
+2. **发现 librealsense 层身份异常**：module Serial = `ffffffffffff`（USB 层为 943623021659）、Recommended FW not supported
+3. 最小 librealsense C++ 测试（绕过 ROS）：
+   - Test A-E（infra1/infra2/stereo/depth，最保守 424x240@6）**全部失败**，同一 `hwmon 0x2c -9`
+   - **profile 枚举完整正常**（IR1/IR2/Depth 848x480@30 均存在）
+4. **0x2c 源码定位**：librealsense `fw_cmd::GET_ADV = 0x2C`；触发于 `RS2_OPTION_DEPTH_UNITS`(28) range 查询（option 探测仅此项失败）
+5. 内核证据：`UVC control 11 on unit 3: -32 (EPIPE)` — XU 控制传输失败（hwmon 走 XU 通道）
+6. 尝试固件 `hardware_reset()`（无破坏）：**无效**
+
+**结论**：CASE A 成立 —— 问题在 RealSense 设备/固件/module/board 硬件层；已排除 ROS/参数/带宽/USB枚举/profile/固件运行状态。
+
+**怀疑方向**：① module↔board 连接（interposer/排线）② module EEPROM 数据异常 ③ 供电 ④ firmware 组合 ⑤ module 硬件损坏
 
 **Commit**: （本次提交）
 **Push**: （本次提交）
 
-**物理阻塞点（需要用户现场执行）**：
-1. 换 USB 线（高质量、尽量短、USB3 认证线缆）
-2. 换 USB 口（板子其他 USB3 口，避开当前 2-1）
-3. 改善供电（外接带电源 USB hub）
-4. 完成后在板端执行 `bash ~/vio-improve/scripts/check_camera_profile.sh` 复查
-5. 预期：camera.log 出现 `Open profile` 且 Width=848 Height=480 FPS=30；infra1/2 Publisher count=1；topic hz ≈30Hz
-
-**下一步**：恢复 848@30 → 生成 D430_848x480_30_BASELINE.md → Stage 1.5 VIO baseline
+**物理阻塞**：需要用户现场执行（按序）：彻底断电 30s 重插 → 换 USB 线 → 换 USB 口 → 检查供电（外接供电 hub）→ 检查 interposer/排线 → 记录 module/board 丝印。每步后跑 `bash ~/vio-improve/scripts/diagnose_realsense_hwmon.sh` 回报。
