@@ -16,7 +16,7 @@
       - ^/tf_static$
       - ^/points_msckf$
       - ^/loop_feats$
-      - ^/trackhist$
+      - ^/trackhist_compressed$
       - ^/camera/camera/infra1/image_rect_raw$
       - ^/camera/camera/infra1/camera_info$
       - ^/camera/camera/infra2/image_rect_raw$
