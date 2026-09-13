@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 Compress /trackhist feature tracking visualization for low-latency Foxglove.
-Subscribes to /trackhist (848x480 BGR8 ~10Hz), downsamples to 424x240,
-throttles to 5Hz, publishes /trackhist_compressed.
+Subscribes to /trackhist (848x480 BGR8 ~10Hz), downsamples to 212x120,
+throttles to 3Hz, publishes /trackhist_compressed.
+Ultra-low bandwidth version (~0.3 Mbps).
 """
 
 import rclpy
@@ -17,9 +18,9 @@ class TrackhistCompressor(Node):
         super().__init__('trackhist_compressor')
         self.bridge = CvBridge()
         self.last_publish = 0.0
-        self.publish_interval = 0.2  # 5 Hz max
-        self.target_width = 424
-        self.target_height = 240
+        self.publish_interval = 0.33  # ~3 Hz max
+        self.target_width = 212
+        self.target_height = 120
 
         self.sub = self.create_subscription(
             Image, '/trackhist', self.callback, 10)
@@ -28,7 +29,7 @@ class TrackhistCompressor(Node):
 
         self.get_logger().info(
             f'trackhist compressor started: '
-            f'{self.target_width}x{self.target_height} @ 5Hz')
+            f'{self.target_width}x{self.target_height} @ ~3Hz')
 
     def callback(self, msg):
         now = self.get_clock().now().nanoseconds / 1e9
