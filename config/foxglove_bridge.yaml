@@ -29,3 +29,7 @@
       - ^/system/cpu_temp$
       - ^/system/load_avg$
       - ^/rosout$
+      - ^/vio/drift_distance$
+      - ^/vio/drift_xy$
+      - ^/vio/drift_z$
+      - ^/vio/velocity_norm$
