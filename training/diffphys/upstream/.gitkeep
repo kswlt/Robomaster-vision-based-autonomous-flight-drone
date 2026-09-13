@@ -1,2 +1,0 @@
-# DiffPhysDrone upstream will be cloned here by scripts/run_diffphys_wsl.ps1
-# The clone is gitignored; only upstream_commit.txt is tracked.
