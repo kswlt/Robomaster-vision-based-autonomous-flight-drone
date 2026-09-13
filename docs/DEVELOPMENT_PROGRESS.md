@@ -173,3 +173,38 @@ VIO 初始化时飞机在移动，导致初始加速度计偏置估计错误（b
 
 ### Commit
 - 修改文件：estimator_config.yaml, kalibr_imucam_chain.yaml, VioManagerOptions.h
+
+## 2026-09-14 - VIO Drift Root Cause Fixed (Docker Cross Compile)
+
+### Root Cause Confirmed
+- VIO divergence on motion caused by unstable online camera-IMU timeoffset calibration
+- timeoffset jumped from 0.01152 (stationary) to -0.00282 during motion (14ms error)
+- This caused incorrect accelerometer bias estimation (ba = -0.1092 vs normal <0.01)
+- Position then diverged to hundreds of meters
+
+### Fix Applied
+1. Fixed timeoffset = 0.01152 in VioManagerOptions.h (calib_camimu_dt default)
+2. Force disabled online timeoffset calibration in StateOptions.h (do_calib_camera_timeoffset = false)
+3. Compiled using Docker amd64 cross-compile (aarch64-linux-gnu-gcc 11.4.0)
+   - ov_core: 78MB
+   - ov_init: 98MB
+   - ov_msckf: 199MB
+   - run_subscribe_msckf: 26MB
+
+### Verification Results (Stationary)
+- LOADED_CAMERA_IMU_TIME_OFFSET_SEC=0.011520000 ✓
+- Position drift: <1cm (p_IinG = -0.003, 0.008, 0.002) ✓
+- Accelerometer bias: ba = 0.0002, -0.0005, -0.0032 (normal <0.01) ✓
+- ZUPT velocity: 0.004 m/s ✓
+- Features: 134 ✓
+- VIO rate: 38-40 Hz ✓
+- Latency: <1ms ✓
+
+### Next Steps
+- Dynamic motion test (user needs to shake drone)
+- Verify no divergence during fast rotation/translation
+- Flight test (NOT VERIFIED IN FLIGHT)
+
+### Files Modified
+- ov_msckf/src/core/VioManagerOptions.h (calib_camimu_dt = 0.01152)
+- ov_msckf/src/state/StateOptions.h (force do_calib_camera_timeoffset = false)

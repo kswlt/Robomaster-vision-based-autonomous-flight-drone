@@ -115,6 +115,7 @@ struct StateOptions {
       parser->parse_config("calib_cam_extrinsics", do_calib_camera_pose);
       parser->parse_config("calib_cam_intrinsics", do_calib_camera_intrinsics);
       parser->parse_config("calib_cam_timeoffset", do_calib_camera_timeoffset);
+      do_calib_camera_timeoffset = false; // FORCE DISABLED: online timeoffset calib causes VIO divergence
       parser->parse_config("calib_imu_intrinsics", do_calib_imu_intrinsics);
       parser->parse_config("calib_imu_g_sensitivity", do_calib_imu_g_sensitivity);
 
