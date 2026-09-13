@@ -9,14 +9,14 @@ max_cameras: 2 # how many cameras we have 1 = mono, 2 = stereo, >2 = binocular (
 
 calib_cam_extrinsics: false # use the fixed mount transform below; do not optimize it during startup
 calib_cam_intrinsics: false # D430 factory intrinsics are fixed for the active 848x480 profile
-calib_cam_timeoffset: true # if timeoffset between camera and IMU should be optimized
+calib_cam_timeoffset: false # if timeoffset between camera and IMU should be optimized
 calib_imu_intrinsics: false # if imu intrinsics should be calibrated (rotation and skew-scale matrix)
 calib_imu_g_sensitivity: false # if gyroscope gravity sensitivity (Tg) should be calibrated
 
 max_clones: 11 # how many clones in the sliding window
 max_slam: 40 # number of features in our state vector
 max_slam_in_update: 25 # update can be split into sequential updates of batches, how many in a batch
-max_msckf_in_update: 35 # how many MSCKF features to use in the update
+max_msckf_in_update: 50 # how many MSCKF features to use in the update
 dt_slam_delay: 1 # delay before initializing (helps with stability from bad initialization...)
 
 gravity_mag: 9.81 # magnitude of gravity in this location
@@ -78,13 +78,13 @@ filepath_gt: "/tmp/ov_groundtruth.txt"
 # our front-end feature tracking parameters
 # we have a KLT and descriptor based (KLT is better implemented...)
 use_klt: true # if true we will use KLT, otherwise use a ORB descriptor + robust matching
-num_pts: 120 # number of points (per camera) we will extract and try to track
-fast_threshold: 18 # threshold for fast extraction (warning: lower threshs can be expensive)
+num_pts: 150 # number of points (per camera) we will extract and try to track
+fast_threshold: 15 # threshold for fast extraction (warning: lower threshs can be expensive)
 grid_x: 6 # extraction sub-grid count for horizontal direction (uniform tracking)
 grid_y: 6 # extraction sub-grid count for vertical direction (uniform tracking)
 min_px_dist: 8 # distance between features (features near each other provide less information)
 knn_ratio: 0.70 # descriptor knn threshold for the top two descriptor matches
-track_frequency: 25.0 # frequency we will perform feature tracking at (in frames per second / hertz)
+track_frequency: 30.0 # frequency we will perform feature tracking at (in frames per second / hertz)
 downsample_cameras: false # will downsample image in half if true
 num_opencv_threads: 1 # -1: auto, 0-1: serial, >1: number of threads
 histogram_method: "HISTOGRAM" # NONE, HISTOGRAM, CLAHE
