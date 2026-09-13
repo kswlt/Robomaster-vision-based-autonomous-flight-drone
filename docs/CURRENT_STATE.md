@@ -14,10 +14,13 @@
 | Armor image analysis | ✅ Done | Bracket 135×38mm, rigidity 60N/2.5°, plate dims TODO |
 | Project skeleton | ✅ Done | configs/, docs/, sim/, training/, deployment/, scripts/, tests/ |
 | Configs | ✅ Done | 7 YAML files with real data |
-| Isaac Sim scene code | 🔶 Written | sim/isaac/*.py — cannot run (Isaac not installed) |
-| Scripted baseline | 🔶 Written | controller.py + episode.py — untested (needs Isaac) |
-| Headless eval | 🔶 Written | evaluate.py + run_eval.ps1 — untested (needs Isaac) |
-| DiffPhys upstream | ⏳ Pending | Clone + reproduce in WSL2 |
+| Isaac Sim install | ✅ Done | 6.1.0 standalone at C:\isaacsim, post_install complete |
+| Isaac Sim scene code | 🔶 Written | sim/isaac/*.py — not yet executed in real Isaac |
+| Scripted baseline | 🔶 Written | controller.py + episode.py — kinematic fallback tested, real Isaac pending |
+| Headless eval | 🔶 Written | evaluate.py + run_eval.ps1 — kinematic fallback 20ep 100% hit, real Isaac pending |
+| DiffPhys env build | ✅ Done | WSL2: PyTorch 2.2.2+cu118, CUDA 11.8, quadsim_cuda built & verified |
+| DiffPhys upstream training | 🔄 Running | 3000 iters, loss 27→6 in 200 iters, ~2 it/s |
+| Target-impact training | ⏳ Pending | Code written, after upstream repro verified |
 | RK3588 export | ⏳ Pending | After policy training |
 
 ## Verified
@@ -28,17 +31,21 @@
 - WSL2 GPU access confirmed (nvidia-smi works inside Ubuntu)
 - GitHub remote accessible via Clash proxy (repo-local config)
 - Python 3.14 + numpy 2.5.2 + trimesh 5.1.0 + matplotlib 3.11.2 on Windows
+- **quadsim_cuda extension built and importable**: all 6 functions verified
+- **DiffPhys training starts and loss decreases**: 27.3→6.0 in 200 iters
+- **Isaac Sim 6.1.0 installed**: standalone ZIP at C:\isaacsim, post_install done
+- **Kinematic fallback eval**: 20 episodes, 100% hit rate, full metrics pipeline
 
 ## Current Blockers
 
-1. **Isaac Sim not installed** — disk space insufficient (C: 30.9GB free, need ~40GB for 9.66GB download + ~30GB extraction). sim/isaac code is written but cannot be executed. All Isaac-dependent milestones (1, 4) blocked until disk freed or install moved to another drive.
-2. **Armor module exact dimensions** — not in provided images; using placeholder 0.135×0.055m. Need official RMUC 2026 armor module spec.
-3. **Armor plate normal/orientation** — defaulted to face -x; needs STL face normal analysis or user confirmation.
+1. **Armor module exact dimensions** — not in provided images; using placeholder 0.135×0.055m. Need official RMUC 2026 armor module spec.
+2. **Armor plate normal/orientation** — defaulted to face -x; needs STL face normal analysis or user confirmation.
+3. **Real Isaac Sim execution not yet done** — Isaac installed but sim/isaac code not yet run against real Isaac Python env. Need to verify Isaac Python API compatibility (6.1.0 uses newer omni.isaac.* API).
 
 ## Next Steps
 
-1. ✅ Push clean skeleton to origin/E2E-RL (force-with-lease)
-2. Clone DiffPhysDrone in WSL2, pin commit, reproduce original training (milestone 2)
-3. Modify DiffPhys objective for target-impact (milestone 3)
-4. When disk space available: install Isaac Sim 6.1.0, run scripted baseline 20 episodes (milestone 1)
+1. 🔄 Wait for DiffPhys upstream 3000-iter training to complete, verify checkpoint save/load
+2. Run target-impact training (train_target_impact.py) in WSL2 (milestone 3)
+3. Test Isaac Sim Python environment: run simple scene load with real STL
+4. Run scripted baseline in real Isaac Headless (milestone 1)
 5. Checkpoint → Isaac validation (milestone 4)
