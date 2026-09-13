@@ -24,7 +24,9 @@
 | Isaac real physics eval | ✅ Done | **Milestone 1: 20/20 hit, 100% rate, 0 wrong, 0 timeout** |
 | Checkpoint→Isaac eval | ✅ Done | **Milestone 4: 1000ep 100% hit, impact angle 23.6°, vel 0.84m/s** |
 | RK3588 ONNX export | ✅ Done | **35.9KB ONNX, validated, ORT diff 9.5e-07** |
-| Sim-to-Real noise test | 🔄 In Progress | depth noise, frame drop, latency, mass var, camera perturb |
+| Sim-to-Real noise test | ✅ Done | **100% hit across none/light/moderate/heavy**, angle 23.6°→58.1° |
+| RK3588 ONNX export | ✅ Done | **35.9KB ONNX, validated, ORT diff 9.5e-07** |
+| RKNN conversion | ⏳ Pending | ONNX ready, needs RKNN Toolkit2 + RK3588 hardware |
 
 ## Verified
 

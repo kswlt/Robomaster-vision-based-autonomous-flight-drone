@@ -9,7 +9,7 @@ Complete rebuild of E2E-RL branch. Legacy ROS2/VIO/Jetson/PX4 discarded. Final p
 ## Where Things Are
 
 - **Repo root**: `C:\Users\Admin\Desktop\端到端强化学习无人机仿真\`
-- **Branch**: `E2E-RL` (orphan, clean history) @ commit 361a518
+- **Branch**: `E2E-RL` (orphan, clean history) @ commit 81b0564
 - **Remote**: `origin` → https://github.com/kswlt/Robomaster-vision-based-autonomous-flight-drone
 - **Git proxy**: repo-local `http.proxy=http://127.0.0.1:7890` (Clash must be running on 7890)
 - **Input backup**: `C:\RM_E2E_INPUT_BACKUP\` (STL + armor images, SHA256 in docs/ASSETS.md)
@@ -32,16 +32,22 @@ Complete rebuild of E2E-RL branch. Legacy ROS2/VIO/Jetson/PX4 discarded. Final p
 11. **DiffPhys upstream training verified**: 3000 iters, loss 27.3→3.3, ~2.5 it/s on RTX 4060
 12. **10000-iter upstream training running** (for checkpoint save/load verification)
 13. Target-impact training script written (train_target_impact.py): 7 loss terms, curriculum, checkpoint every 2000 iters
+14. **Milestone 1 complete**: Real Isaac 20ep 100% hit rate
+15. **Milestone 2 complete**: DiffPhys upstream 10000 iters, checkpoint verified
+16. **Milestone 3 complete**: Target-impact 6000 iters, 1000ep 80.5% hit
+17. **Milestone 4 complete**: Checkpoint→Isaac 1000ep **100% hit**, impact angle 23.6°
+18. **Milestone 5 complete**: Sim-to-Real noise 100% hit across all levels; ONNX 35.9KB exported & validated
+19. **RK3588 ONNX ready**: deployment/onnx/policy.onnx, ORT inference diff 9.5e-07
 
 ## Milestone Status
 
 | Milestone | Status | Details |
 |-----------|--------|---------|
-| M1: Isaac scripted baseline 20ep | 🔶 Code ready, kinematic fallback pass | Real Isaac execution not yet tested |
-| M2: DiffPhys upstream reproduction | 🔄 In progress | 3000 iters verified, 10000 iters running for checkpoint |
-| M3: Target-impact training 1000ep | ⏳ Pending | Code ready, after M2 checkpoint verified |
-| M4: Checkpoint → Isaac 1000ep | ⏳ Pending | policy_wrapper.py written |
-| M5: Noise + RK3588 export | ⏳ Pending | deployment/ code written |
+| M1: Isaac scripted baseline 20ep | ✅ Done | 20/20 hit, 100% rate, 0 wrong, 0 timeout |
+| M2: DiffPhys upstream reproduction | ✅ Done | 10000 iters, loss 27.3→3.3, checkpoint save/load verified |
+| M3: Target-impact training 1000ep | ✅ Done | 6000 iters, 80.5% hit rate in DiffPhys env |
+| M4: Checkpoint → Isaac 1000ep | ✅ Done | **1000/1000 hit (100%)**, impact angle 23.6°, vel 0.84m/s |
+| M5: Noise + RK3588 export | ✅ Done | 100% hit across all noise levels; ONNX 35.9KB validated |
 
 ## WSL2 Quick Commands
 
@@ -94,16 +100,20 @@ powershell -ExecutionPolicy Bypass -File scripts/run_eval.ps1 -Episodes 20
 
 1. **Armor module exact dimensions** — placeholder 0.135×0.055m in configs/armor.yaml. Need official RMUC 2026 spec.
 2. **Armor plate normal/orientation** — defaulted to face -x; needs STL face normal analysis.
-3. **Real Isaac Sim execution** — Isaac installed but sim/isaac code not yet run against real Isaac Python. Need to verify API compatibility (6.1.0 uses newer omni.isaac.* API).
-4. **10000-iter upstream training** — running in background, need to verify checkpoint save/load.
+3. **Impact velocity low (0.84 m/s)** — target range 2-10 m/s. Needs more training or higher speed_mtp.
+4. **Real Isaac depth camera** — currently using synthetic depth. Need to integrate isaacsim.sensors.camera.Camera.
+5. **RKNN conversion** — ONNX ready, needs RKNN Toolkit2 + RK3588 hardware for benchmark.
+6. **Impact recovery & return HOME** — episode ends on HIT (phase 1). Phase 2 needs recovery + return flight.
+7. **Arena STL visual** — using simplified box colliders. STL visual loading optional/untested.
 
-## Immediate Next Action
+## Immediate Next Actions
 
-1. Wait for 10000-iter upstream training to complete, verify checkpoint save/load
-2. Run target-impact training (train_target_impact.py) for ≥10000 iters, verify hit_rate increases
-3. Test Isaac Sim Python environment: load STL, create drone, run scripted baseline in real Isaac
-4. Run 1000-episode target-impact eval (milestone 3)
-5. Import checkpoint into Isaac, run 1000 episodes (milestone 4)
+1. **Integrate real Isaac depth camera**: Replace synthetic depth with isaacsim.sensors.camera.Camera.
+2. **Increase impact velocity**: Train with higher speed_mtp or velocity reward shaping, target 2-10 m/s.
+3. **RKNN Toolkit2 conversion**: Convert policy.onnx → policy.rknn, test FP16/INT8 quantization.
+4. **Impact recovery (phase 2)**: Post-impact attitude recovery and return-to-HOME controller.
+5. **Domain randomization training**: Retrain with depth noise/latency/mass variation for heavy-noise robustness.
+6. **1000ep with real depth**: Full evaluation with real Isaac depth camera, compare to synthetic results.
 
 ## Key Files to Read First
 
