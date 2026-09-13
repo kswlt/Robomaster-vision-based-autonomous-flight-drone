@@ -164,6 +164,7 @@ protected:
 
   // For path viz
   std::vector<geometry_msgs::msg::PoseStamped> poses_imu;
+  double last_path_publish_timestamp = -1.0;
 
   // Groundtruth infomation
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pub_pathgt;

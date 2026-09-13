@@ -1,0 +1,24 @@
+/**:
+  ros__parameters:
+    address: 0.0.0.0
+    port: 8765
+    send_buffer_limit: 4000000
+    min_qos_depth: 1
+    max_qos_depth: 2
+    use_compression: false
+    topic_whitelist:
+      - ^/odomimu$
+      - ^/poseimu$
+      - ^/pathimu$
+      - ^/imu$
+      - ^/tf$
+      - ^/tf_static$
+      - ^/points_msckf$
+      - ^/loop_feats$
+      - ^/camera/camera/infra1/image_rect_raw$
+      - ^/camera/camera/infra1/camera_info$
+      - ^/rosout$
+    service_whitelist:
+      - ^$
+    client_topic_whitelist:
+      - ^$

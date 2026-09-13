@@ -110,7 +110,11 @@ bool UpdaterZeroVelocity::try_update(std::shared_ptr<State> state, double timest
   // Also if we should still inflate the bias based on their random walk noises
   bool integrated_accel_constraint = false; // untested
   bool model_time_varying_bias = true;
-  bool override_with_disparity_check = true;
+  // A low image disparity is useful evidence that the platform is still, but
+  // it must never override contradictory raw-IMU evidence. Estimated velocity
+  // is handled separately below because it can itself be the failed state that
+  // a guarded ZUPT needs to recover.
+  const bool use_disparity_check = (_zupt_max_disparity > 0.0);
   bool explicitly_enforce_zero_motion = false;
 
   // Order of our Jacobian
@@ -216,8 +220,8 @@ bool UpdaterZeroVelocity::try_update(std::shared_ptr<State> state, double timest
   }
 
   // Check if the image disparity
-  bool disparity_passed = false;
-  if (override_with_disparity_check) {
+  bool disparity_passed = !use_disparity_check;
+  if (use_disparity_check) {
 
     // Get the disparity statistics from this image to the previous
     double time0_cam = state->_timestamp;
@@ -236,17 +240,39 @@ bool UpdaterZeroVelocity::try_update(std::shared_ptr<State> state, double timest
     }
   }
 
-  // Check if we are currently zero velocity
-  // We need to pass the chi2 and not be above our velocity threshold
-  if (!disparity_passed && (chi2 > _options.chi2_multipler * chi2_check || state->_imu->vel().norm() > _zupt_max_velocity)) {
+  // Require agreement between the camera and IMU. Estimated velocity is not
+  // sensor evidence: once it is wrong, using it as a permanent reject gate
+  // prevents ZUPT from ever recovering after the platform becomes stationary.
+  const double chi2_limit = _options.chi2_multipler * chi2_check;
+  const double velocity = state->_imu->vel().norm();
+  const bool inertial_passed = (chi2 <= chi2_limit);
+  if (!disparity_passed || !inertial_passed) {
     last_zupt_state_timestamp = 0.0;
     last_zupt_count = 0;
-    PRINT_DEBUG(YELLOW "[ZUPT]: rejected |v_IinG| = %.3f (chi2 %.3f > %.3f)\n" RESET, state->_imu->vel().norm(), chi2,
-                _options.chi2_multipler * chi2_check);
+    high_velocity_stationary_count = 0;
+    PRINT_DEBUG(YELLOW "[ZUPT]: rejected disparity=%d |v_IinG| = %.3f/%.3f (chi2 %.3f/%.3f)\n" RESET,
+                disparity_passed, velocity, _zupt_max_velocity, chi2, chi2_limit);
     return false;
   }
-  PRINT_INFO(CYAN "[ZUPT]: accepted |v_IinG| = %.3f (chi2 %.3f < %.3f)\n" RESET, state->_imu->vel().norm(), chi2,
-             _options.chi2_multipler * chi2_check);
+
+  // At high estimated velocity, wait for half a second of continuous camera
+  // and IMU agreement before trusting the zero-motion hypothesis. This avoids
+  // turning a single low-disparity frame during real motion into a hard stop.
+  const bool recovering_velocity = (velocity > _zupt_max_velocity);
+  if (recovering_velocity) {
+    constexpr int recovery_confirmation_frames = 15;
+    high_velocity_stationary_count++;
+    if (high_velocity_stationary_count < recovery_confirmation_frames) {
+      last_zupt_state_timestamp = 0.0;
+      last_zupt_count = 0;
+      PRINT_DEBUG(YELLOW "[ZUPT]: confirming stationary recovery %d/%d at |v_IinG| = %.3f\n" RESET,
+                  high_velocity_stationary_count, recovery_confirmation_frames, velocity);
+      return false;
+    }
+  } else {
+    high_velocity_stationary_count = 0;
+  }
+  PRINT_INFO(CYAN "[ZUPT]: accepted |v_IinG| = %.3f (chi2 %.3f < %.3f)\n" RESET, velocity, chi2, chi2_limit);
 
   // Do our update, only do this update if we have previously detected
   // If we have succeeded, then we should remove the current timestamp feature tracks
@@ -272,8 +298,24 @@ bool UpdaterZeroVelocity::try_update(std::shared_ptr<State> state, double timest
       StateHelper::EKFPropagation(state, Phi_order, Phi_order, Phi_bias, Q_bias);
     }
 
-    // Finally move the state time forward
     StateHelper::EKFUpdate(state, Hx_order, H, res, R);
+
+    // The regular OpenVINS stationary update constrains angular rate and
+    // acceleration but does not directly observe velocity.  During guarded
+    // recovery, add the actual zero-velocity pseudo-measurement so a stale
+    // velocity estimate cannot survive indefinitely and cause linear drift.
+    if (recovering_velocity) {
+      std::vector<std::shared_ptr<Type>> Hx_velocity_order;
+      Hx_velocity_order.push_back(state->_imu->v());
+      Eigen::MatrixXd H_velocity = Eigen::MatrixXd::Identity(3, 3);
+      Eigen::VectorXd res_velocity = -state->_imu->vel();
+      Eigen::MatrixXd R_velocity = std::pow(1e-1, 2) * Eigen::MatrixXd::Identity(3, 3);
+      StateHelper::EKFUpdate(state, Hx_velocity_order, H_velocity, res_velocity, R_velocity);
+      PRINT_WARNING(YELLOW "[ZUPT]: recovering stale velocity %.3f -> %.3f m/s\n" RESET, velocity,
+                    state->_imu->vel().norm());
+    }
+
+    // Finally move the state time forward
     state->_timestamp = timestamp;
 
   } else {

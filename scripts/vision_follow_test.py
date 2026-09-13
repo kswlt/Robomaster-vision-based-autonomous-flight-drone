@@ -8,7 +8,7 @@ master = mavutil.mavlink_connection(port, baud=921600)
 master.wait_heartbeat(timeout=10)
 print(f"连接成功")
 master.srcSystem = 42
-master.srcComponent = 191
+master.srcComponent = 197  # MAV_COMP_ID_VISUAL_INERTIAL_ODOMETRY
 
 # 请求LOCAL_POSITION_NED流 (10Hz)
 master.mav.command_long_send(
@@ -59,7 +59,8 @@ print("\n=== 测试3: 读ESTIMATOR_STATUS确认视觉融合位 ===")
 msg = master.recv_match(type='ESTIMATOR_STATUS', blocking=True, timeout=3)
 if msg:
     print(f"flags={msg.flags} posH={msg.pos_horiz_ratio} posV={msg.pos_vert_ratio}")
-    print(f"  bit4(16)=POS_HORIZ_REL(视觉水平位置): {'YES' if msg.flags & 16 else 'NO'}")
-    print(f"  bit2(4)=VELOCITY_HORIZ: {'YES' if msg.flags & 4 else 'NO'}")
+    print(f"  bit3(8)=POS_HORIZ_REL(水平相对位置有效): {'YES' if msg.flags & 8 else 'NO'}")
+    print(f"  bit1(2)=VELOCITY_HORIZ(水平速度有效): {'YES' if msg.flags & 2 else 'NO'}")
+    print("  注意：这些是解状态有效位，不代表特定的视觉/光流融合源。")
 
 print("\n=== 完成 ===")

@@ -69,7 +69,7 @@ vio-status
 ## 关键技术点
 
 ### 消息编码（易踩坑）
-- 必须用 **pymavlink 2.4.41** + `v20.common` 方言（9 字段含 21 元素协方差，实际 96 字节）
+- 必须用 **pymavlink 2.4.41** + `v20.common` 方言（9 字段含 21 元素协方差，完整 MAVLink2 包最大 129 字节）
 - 旧 `ardupilotmega` 方言 7 字段 40 字节**无协方差，不可用**
 - `VISION_POSITION_ESTIMATE` msgid=102, CRC=158
 
@@ -79,31 +79,38 @@ vio-status
 
 ### 无磁力计/无视觉偏航下的航向初始化（方案A）
 EKF2 在无磁力计+无偏航融合时偏航永不对齐，水平位置融合无法启动（flags=229 卡死）。
-桥接节点在首个 odom 到达时发送一次 `MAV_CMD_EXTERNAL_ATTITUDE_ESTIMATE`(605) 将 EKF 航向对齐 VIO，之后 flags 变为 303/367，视觉位置融合激活。
+桥接节点在 VIO 通过启动健康检查后发送 `MAV_CMD_EXTERNAL_ATTITUDE_ESTIMATE`(620)，并且只有收到 PX4 的 `COMMAND_ACK=ACCEPTED` 才认为航向初始化成功。
+
+### VIO 健康门控
+- 启动后连续 30 个有限、低协方差、原点附近的样本通过检查，才开始向 PX4 发送视觉位置。
+- 持续检查 NaN/Inf、四元数、位置协方差、绝对位置和位置跳变。
+- 检测到发散后立即停止发送，不再发送“冻结位置”；看门狗会重启完整 VIO 链路。
+- IMU 使用 PX4 `HIGHRES_IMU.time_usec` 的采样间隔，不再给每帧写入串口到达时间。
 
 ### 融合状态位（ESTIMATOR_STATUS, PX4 v1.17）
 | bit | 含义 |
 |---|---|
-| bit1(2) | velocity_horiz（光流速度融合） |
-| bit3(8) | pos_horiz_rel（视觉水平位置融合） |
-| bit7(128) | 恒定位置模式（无位置源，融合失败标志） |
+| bit1(2) | velocity_horiz（水平速度估计有效） |
+| bit3(8) | pos_horiz_rel（水平相对位置估计有效） |
+| bit8(256) | const_pos_mode（恒定位置模式） |
 
-- flags=229 → 恒定位置模式卡死（未融合）
-- flags=303/367 → 视觉位置 + 光流速度融合成功
+这些是估计器解状态标志，不编码具体融合来源；不能仅凭 bit1/bit3 宣称视觉或光流融合成功。视觉融合应通过 `vehicle_visual_odometry`、EV innovation/control status 和 ULog 验证。
 
-## 验证结果（真实飞行）
+## 历史飞行记录
 
-三次室外真实飞行验证，第三次（52.3m / 3分16秒 / 多次起降）ulog 解析：
+旧配置曾完成三次室外飞行，第三次（52.3m / 3分16秒 / 多次起降）ulog 解析：
 - EKF 视觉位置融合标志：**976/976 条置位 (100%)**
 - EKF 光流速度融合标志：**976/976 条置位 (100%)**
 - 视觉位置创新比率 **0.000**（视觉测量被 EKF 完全采纳）
 - 假位置(fake_pos) 仅 0.5%
 
 > 查看 vehicle_visual_odom 曲线需在 QGC 将 `SDLOG_PROFILE` 设为 129（Bit0+Bit7 Computer Vision）。
+>
+> 这不是当前 D430 配置的放飞许可。每次修改相机 profile、内外参、时间戳或桥接代码后，都必须重新完成静态、手持三轴和系留测试。
 
 ## 已知限制与待办
 
-- [x] VIO 位置/光流速度融合打通并飞行验证
+- [ ] 当前 D430 848×480 配置重新完成手持、系留和真实飞行验证
 - [ ] **免晃动初始化**：OpenVINS(MSCKF) 必须运动初始化。自动机场场景（落地插电即起飞、不晃动）需方案A（调低初始化阈值，靠起飞爬升初始化）或方案B（起降坪 Apriltag 绝对定位）
 - [ ] 长时间悬停无磁力计下偏航漂移量评估
 - [ ] 视觉日志（SDLOG_PROFILE=129）下的完整 Flight Review 分析

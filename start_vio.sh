@@ -28,7 +28,7 @@ echo "[2/4] 启动D430双目相机..."
 nohup ros2 launch realsense2_camera rs_launch.py \
     enable_infra1:=true enable_infra2:=true \
     enable_color:=false enable_depth:=false \
-    infra_fps:=30 infra_width:=848 infra_height:=480 \
+    depth_module.infra_profile:=848x480x30 \
     > /tmp/camera.log 2>&1 &
 sleep 6
 

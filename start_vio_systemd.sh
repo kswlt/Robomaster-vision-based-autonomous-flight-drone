@@ -2,6 +2,12 @@
 # VIO系统启动脚本（供systemd调用）
 # 设计：flock防止多实例 + 前台跟随VIO生命周期（VIO退出→脚本退出→systemd重启）
 
+FAULT_LATCH=/tmp/vio_fault_latched
+if [ -f "$FAULT_LATCH" ]; then
+    echo "[$(date)] 检测到VIO故障锁存，拒绝自动启动；人工确认后删除 $FAULT_LATCH" >> /tmp/vio_restart.log
+    exit 0
+fi
+
 # 加锁防止多实例堆积
 exec 9>/tmp/vio_restart.lock
 flock -n 9 || { echo "[$(date)] 已有VIO实例在运行，退出" >> /tmp/vio_restart.log; exit 0; }
@@ -41,7 +47,7 @@ sleep 6
 
 # 启动合并桥接节点（自动检测串口）
 nohup python3 /home/orangepi/vio_ws/vio_bridge/vio_bridge_combined.py \
-    --ros-args -p serial_port:=$SERIAL_PORT \
+    --ros-args -p serial_port:=$SERIAL_PORT -p send_vision_to_px4:=false \
     > /tmp/vio_bridge.log 2>&1 &
 
 sleep 4

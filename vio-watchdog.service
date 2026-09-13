@@ -1,0 +1,14 @@
+[Unit]
+Description=VIO health watchdog and fault latch
+After=vio.service
+Wants=vio.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/home/orangepi/vio-improve/watchdog_camera.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

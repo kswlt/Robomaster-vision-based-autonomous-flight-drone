@@ -624,21 +624,47 @@ void ROS2Visualizer::publish_state() {
   //=========================================================
   //=========================================================
 
-  // Append to our pose vector
+  // Keep the remote visualization path bounded and meaningful. Publishing the
+  // full camera-rate history makes each Path message grow without bound and can
+  // saturate foxglove_bridge before the client gets a chance to render it.
   geometry_msgs::msg::PoseStamped posetemp;
   posetemp.header = poseIinM.header;
   posetemp.pose = poseIinM.pose.pose;
+
+  constexpr double min_path_spacing_m = 0.005;
+  constexpr double stationary_keepalive_s = 2.0;
+  bool append_to_path = poses_imu.empty();
+  if (!append_to_path) {
+    const auto &last = poses_imu.back();
+    const double dx = posetemp.pose.position.x - last.pose.position.x;
+    const double dy = posetemp.pose.position.y - last.pose.position.y;
+    const double dz = posetemp.pose.position.z - last.pose.position.z;
+    const double last_timestamp = static_cast<double>(last.header.stamp.sec) + 1e-9 * last.header.stamp.nanosec;
+    append_to_path = (dx * dx + dy * dy + dz * dz >= min_path_spacing_m * min_path_spacing_m) ||
+                     (timestamp_inI - last_timestamp >= stationary_keepalive_s);
+  }
+  if (!append_to_path)
+    return;
+
   poses_imu.push_back(posetemp);
+  constexpr size_t max_path_poses = 2048;
+  if (poses_imu.size() > max_path_poses) {
+    poses_imu.erase(poses_imu.begin(), poses_imu.begin() + (poses_imu.size() - max_path_poses));
+  }
+
+  // During fast motion several distance samples can arrive per camera frame.
+  // Limit full Path serialization to 10 Hz; the newest sample is included in
+  // the next publication (or in the stationary keepalive publication).
+  constexpr double min_path_publish_period_s = 0.1;
+  if (last_path_publish_timestamp >= 0.0 && timestamp_inI - last_path_publish_timestamp < min_path_publish_period_s)
+    return;
+  last_path_publish_timestamp = timestamp_inI;
 
   // Create our path (imu)
-  // NOTE: We downsample the number of poses as needed to prevent rviz crashes
-  // NOTE: https://github.com/ros-visualization/rviz/issues/1107
   nav_msgs::msg::Path arrIMU;
-  arrIMU.header.stamp = _node->now();
+  arrIMU.header.stamp = poseIinM.header.stamp;
   arrIMU.header.frame_id = "global";
-  for (size_t i = 0; i < poses_imu.size(); i += std::floor((double)poses_imu.size() / 16384.0) + 1) {
-    arrIMU.poses.push_back(poses_imu.at(i));
-  }
+  arrIMU.poses = poses_imu;
   pub_pathimu->publish(arrIMU);
 }
 

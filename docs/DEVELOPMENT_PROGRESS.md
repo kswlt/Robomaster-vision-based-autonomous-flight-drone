@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-09-13 — 运行态安全修复
+
+发现运行中的 OpenVINS 在静止场景漂移到 600m 以上，桥接直到位置模长超过 150m 才进入保护。根因调查确认运行配置仍使用 640×480 内参，而 D430 实际输出已恢复为 848×480。
+
+修复内容：
+- 运行态与仓库统一为 D430 848×480 工厂内参，并保留当前安装方向外参；关闭在线内外参标定。
+- 同步增强版 bridge 到仓库和运行目录。
+- 修正 MAVLink 位姿协方差对角索引；使用 OpenVINS 位置协方差并增加启动/运行健康门控。
+- 发散后 fail-closed，停止发送视觉位置并由 watchdog 重启整条链路。
+- 外部航向命令改为 620，并等待 `COMMAND_ACK`；IMU 改用 PX4 采样时间映射。
+- 修复手动启动脚本的 RealSense profile 参数。
+
+验证结果见 `docs/RUNTIME_SAFETY_REPAIR.md`。
+
+---
+
 ## 2026-09-13 — Stage 0 完成：仓库与运行态审计
 
 **关键发现**：相机流未运行（REC 硬件错误）；launch 参数名错误（已修复 infra_profile）；仓库代码/配置过期（bridge、estimator_config、imucam_chain 待同步）；ESTIMATOR_STATUS flags 运行版正确。

@@ -12,6 +12,8 @@ ExecStart=/home/orangepi/start_vio_systemd.sh
 Restart=on-failure
 RestartSec=5
 KillMode=control-group
+KillSignal=SIGINT
+TimeoutStopSec=15
 
 [Install]
 WantedBy=multi-user.target

@@ -154,6 +154,11 @@ protected:
 
   /// Number of times we have called update
   int last_zupt_count = 0;
+
+  /// Consecutive visual/inertial stationary detections while the estimated
+  /// velocity is above the normal ZUPT gate.  This provides a guarded path
+  /// for recovering from a bad velocity estimate after the platform stops.
+  int high_velocity_stationary_count = 0;
 };
 
 } // namespace ov_msckf
