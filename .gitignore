@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Large assets (keep source STL, ignore processed/derived)
+assets/processed/*
+!assets/processed/.gitkeep
+
+# DiffPhys upstream clone (track only commit SHA)
+training/diffphys/upstream/*
+!training/diffphys/upstream/.gitkeep
+training/diffphys/upstream_commit.txt
+
+# Results (keep structure, ignore run data)
+results/*
+!results/.gitkeep
+results/checkpoints/
+results/depth_frames/
+
+# Isaac Sim cache
+*.kit
+isaac-sim-*.zip
+__pycache__
+
+# RKNN build
+*.rknn
+*.onnx
+!deployment/onnx/.gitkeep
+!deployment/rk3588/.gitkeep
+
+# Temp
+*.tmp
+*.log
+C:\RM_E2E_INPUT_BACKUP\

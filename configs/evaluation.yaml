@@ -1,0 +1,53 @@
+# Evaluation configuration (Isaac Sim headless, independent validator)
+
+evaluation:
+  platform: "windows_isaac_sim_headless"
+  isaac_sim_version: "6.1.0"
+  headless: true
+
+  # Episode
+  episodes: 20  # default; override via CLI
+  max_steps_per_episode: 1500  # 30s at 50Hz
+  dt: 0.02
+
+  # Metrics (all required)
+  metrics:
+    - episodes
+    - target_hits
+    - target_hit_rate
+    - center_hits
+    - center_hit_rate
+    - wrong_collisions
+    - wrong_collision_rate
+    - timeouts
+    - timeout_rate
+    - impact_velocity_mean
+    - impact_velocity_std
+    - impact_angle_mean
+    - impact_angle_p95
+    - impact_center_error_mean
+    - time_to_target_mean
+    - post_impact_recovery_rate
+    - home_return_rate
+    - complete_mission_success_rate
+
+  # Mission state machine
+  mission:
+    states: ["TAKEOFF", "ATTACK", "HIT", "RECOVER", "RETURN", "HOME"]
+    takeoff_height_m: 1.0
+    hit_detection: "contact_with_armor_target"
+    recovery_time_s: 2.0
+    return_goal: "home_position"
+
+  # Output
+  output:
+    json_path: "results/eval_results.json"
+    csv_path: "results/eval_results.csv"
+    per_episode_log: true
+    save_depth_frames: false  # only on failure for debugging
+
+  # Thresholds for pass/fail
+  thresholds:
+    target_hit_rate_min: 0.95
+    wrong_collision_rate_max: 0.05
+    timeout_rate_max: 0.05

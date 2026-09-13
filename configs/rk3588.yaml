@@ -1,0 +1,64 @@
+# RK3588 deployment configuration
+# Final competition platform: RK3588 (NOT Jetson Orin NX)
+# Training on PC NVIDIA GPU -> PyTorch checkpoint -> ONNX -> RKNN -> RK3588 inference
+
+rk3588:
+  soc: "RK3588"
+  npu_cores: 3
+  os: "Debian/Ubuntu (Rockchip)"
+  inference_framework: "RKNN Toolkit2"
+  fallback_framework: "ONNX Runtime (ARM CPU)"
+
+  # Model export pipeline
+  export:
+    pytorch_checkpoint: "results/checkpoints/best.pt"
+    onnx_path: "deployment/onnx/policy.onnx"
+    rknn_path: "deployment/rk3588/policy.rknn"
+    opset_version: 17
+    input_names: ["depth", "state", "gru_hidden"]
+    output_names: ["action", "gru_hidden_out"]
+    dynamic_axes: false  # fixed batch=1 for edge
+
+  # Quantization (INT8 NOT default; must compare FP32/FP16/INT8)
+  quantization:
+    default: "fp16"
+    candidates: ["fp32", "fp16", "int8"]
+    int8_calibration_samples: 500
+    compare_metrics:
+      - policy_output_mse
+      - task_success_rate
+      - target_hit_rate
+
+  # Inference on device
+  inference:
+    preprocessing:
+      depth_resize: [320, 240]
+      depth_normalization: "inverse_depth"
+      state_normalization: "match_training"
+    postprocessing:
+      action_denormalization: "match_drone_action_scale"
+    target_fps: 30
+    max_latency_ms: 50
+
+  # Benchmark
+  benchmark:
+    metrics: ["latency_ms", "fps", "cpu_usage", "npu_usage", "ram_mb"]
+    warmup_iterations: 50
+    measurement_iterations: 500
+
+  # GRU handling
+  gru:
+    prefer_npu: true
+    fallback_cpu: true  # if RKNN GRU support is poor
+
+  # Responsibilities on RK3588 (flight controller handles the rest)
+  rk3588_tasks:
+    - "depth_preprocessing"
+    - "policy_inference"
+    - "target_info_processing"
+    - "armor_visual_detection (if needed)"
+  flight_controller_tasks:
+    - "attitude_stabilization"
+    - "low_level_control_loop"
+    - "motor_output"
+  no_training_on_device: true

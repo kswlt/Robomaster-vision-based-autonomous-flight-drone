@@ -1,0 +1,63 @@
+# Armor Target configuration
+# The ArmorTarget is an INDEPENDENT simulation object (not part of arena STL).
+# It has its own collider so Drone<->ArmorTarget = TARGET_HIT,
+# while Drone<->Arena = WRONG_COLLISION.
+
+armor_target:
+  enabled: true
+  name: "enemy_armor_plate"
+
+  # --- Geometry (from armor bracket spec drawing) ---
+  # Source images:
+  #   assets/source/armor/armor_bracket_spec_1.png  (bracket: 135 x 38, diag 125)
+  #   assets/source/armor/armor_rigid_mount_spec_2.png (rigidity: 60N, alpha<=2.5deg)
+  # Unit: meters
+  bracket:
+    width_m: 0.135    # 135 mm from drawing
+    height_m: 0.038   # 38 mm from drawing
+    diagonal_m: 0.125 # 125 mm from drawing
+    thickness_m: null # TODO: not specified in source images
+    installation_faces:
+      - "rear_mount"       # [1] 后部安装面
+      - "bottom_mount"     # [2] 底部安装面
+      - "armor_module_mount" # [3] 装甲模块安装面
+      - "electrical_contact" # [4] 电气连接触点
+      - "jst_6pin"         # [5] JST-6Pin 接线端口
+
+  # Armor module (the actual hit plate) — dimensions NOT fully confirmed from images
+  # Standard RM armor plate effective area; marked TODO for official verification
+  plate:
+    width_m: 0.135   # TODO: verify against official RMUC 2026 armor module spec
+    height_m: 0.055  # TODO: verify
+    thickness_m: 0.01
+    center_hit_radius_m: 0.03  # radius for "center hit" scoring
+
+  # Rigidity spec (from source image 2)
+  rigidity:
+    test_force_n: 60.0
+    max_angle_change_deg: 2.5
+    relative_movement_allowed: false
+
+  # --- Placement ---
+  # Default: central structure armor plate location derived from STL scan
+  # Candidate from scan: component near (3.08, 3.84, z~1.5-2.0)
+  # Position = center of armor plate face
+  position: [3.08, 3.84, 1.5]
+  # Orientation: normal vector pointing outward (toward attacker)
+  # TODO: derive exact normal from STL face analysis; default faces -x (toward home)
+  normal: [-1.0, 0.0, 0.0]
+  yaw_deg: 180.0  # plate faces -x direction
+
+  # Independent collider
+  collider:
+    type: "box"
+    size: [0.01, 0.135, 0.055]  # thickness x width x height
+    collision_group: "armor_target"
+    report_contacts: true
+
+  # Scoring
+  scoring:
+    target_hit: true
+    center_hit_radius_m: 0.03
+    min_impact_velocity_mps: 2.0
+    max_impact_angle_deg: 45.0  # acceptable angle from normal

@@ -1,0 +1,53 @@
+# Depth camera configuration
+# Phase 1: Isaac Sim ideal depth (no noise). All params YAML-driven.
+
+depth_camera:
+  name: "front_depth"
+  type: "isaac_ideal_depth"  # phase 1; real camera later
+
+  # Resolution
+  width: 320
+  height: 240
+
+  # Optics
+  fov_deg: 90.0
+  near_m: 0.1
+  far_m: 30.0
+  fps: 30
+
+  # Mount (relative to drone body frame)
+  mount:
+    position: [0.15, 0.0, 0.05]  # forward, centered, slightly above CG
+    rotation: [0.0, 0.0, 0.0]    # roll, pitch, yaw in degrees; facing forward
+    coordinate_frame: "body_FLU"
+
+  # Output
+  output:
+    unit: "meters"
+    dtype: "float32"
+    save_png: true
+    save_npy: true
+    log_min_max: true
+    log_valid_pixel_ratio: true
+    log_timestamp: true
+
+  # Normalization for policy input (must match DiffPhys preprocessing)
+  normalization:
+    mode: "inverse_depth"  # 1/depth, common in DiffPhys
+    scale: 1.0
+    clip_min: 0.0
+    clip_max: 10.0
+
+  # Phase 2: domain randomization (disabled initially)
+  randomization:
+    enabled: false
+    gaussian_noise_std: 0.0
+    hole_probability: 0.0
+    range_clip_probability: 0.0
+    frame_drop_probability: 0.0
+    latency_ms: 0.0
+    fov_perturbation_deg: 0.0
+    extrinsic_perturbation:
+      position_std: [0.0, 0.0, 0.0]
+      rotation_std_deg: [0.0, 0.0, 0.0]
+    fps_variation: 0.0

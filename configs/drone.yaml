@@ -1,0 +1,52 @@
+# Drone model configuration
+# Phase 1: simplified rigid body with high-level velocity/acceleration control.
+# Aligned with DiffPhysDrone action definition (acceleration + yaw rate).
+
+drone:
+  name: "rm_impact_drone"
+  model: "simplified_rigid_body"  # phase 1; no 4-motor aerodynamics
+
+  # Physical parameters (placeholder; tune to match real aircraft later)
+  mass_kg: 1.2
+  inertia:
+    ixx: 0.01
+    iyy: 0.01
+    izz: 0.02
+  drag_coefficient: 0.1
+
+  # Limits
+  max_velocity_mps: 15.0
+  max_acceleration_mps2: 8.0
+  max_yaw_rate_dps: 180.0
+  max_thrust_n: 30.0
+
+  # Control interface (high-level, NOT PWM)
+  control:
+    mode: "acceleration_yaw_rate"  # matches DiffPhys action: [ax, ay, az, yaw_rate]
+    action_dim: 4
+    action_scale:
+      ax: 8.0   # m/s^2
+      ay: 8.0
+      az: 8.0
+      yaw_rate: 3.14159  # rad/s
+
+  # State representation
+  state:
+    include_position: true
+    include_velocity: true
+    include_attitude: true  # quaternion or gravity vector
+    include_angular_velocity: true
+    attitude_representation: "gravity_vector"  # DiffPhys uses gravity direction in body frame
+
+  # Collision
+  collider:
+    type: "sphere"
+    radius_m: 0.15
+    collision_group: "drone"
+
+  # Initial state
+  initial:
+    position: [-12.0, -6.0, 0.3]  # matches arena.home
+    velocity: [0.0, 0.0, 0.0]
+    attitude: [0.0, 0.0, 0.0, 1.0]  # identity quaternion
+    yaw_deg: 45.0

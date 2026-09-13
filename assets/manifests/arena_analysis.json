@@ -1,0 +1,37 @@
+{
+  "file": "C:\\Users\\Admin\\Desktop\\\u7aef\u5230\u7aef\u5f3a\u5316\u5b66\u4e60\u65e0\u4eba\u673a\u4eff\u771f\\assets\\source\\arena\\rmuc_2026_arena.stl",
+  "sha256": "D7DBB7DD0862D81BE6FF2DFA004A20ED8839E39636E475E97EB06EF61E25CEF6",
+  "file_size_bytes": 6249834,
+  "triangle_count": 124995,
+  "vertex_count": 116893,
+  "bounds_min": [
+    -14.581449508666992,
+    -8.043791770935059,
+    0.2275390625
+  ],
+  "bounds_max": [
+    14.568551063537598,
+    8.006208419799805,
+    18.268882751464844
+  ],
+  "extents_xyz": [
+    29.15000057220459,
+    16.050000190734863,
+    18.041343688964844
+  ],
+  "watertight": false,
+  "volume_valid": false,
+  "volume": null,
+  "winding_consistent": false,
+  "component_count": null,
+  "component_error": "no graph engines available!",
+  "surface_area": 5031.098698576559,
+  "zero_area_faces": 0,
+  "scale_hints": {
+    "max_extent_raw": 29.15000057220459,
+    "if_mm_side_m": 0.02915000057220459,
+    "if_cm_side_m": 0.2915000057220459,
+    "if_m_side_m": 29.15000057220459,
+    "closest_to_14m_assuming_unit": "cm"
+  }
+}

@@ -1,0 +1,101 @@
+# Training configuration (DiffPhys-based differentiable physics training)
+# Training runs in WSL2 with PyTorch + CUDA custom extension.
+# Isaac Sim is the independent validator, NOT the training env.
+
+training:
+  backend: "diffphys_cuda"
+  platform: "wsl2_ubuntu_cuda"
+  python_version: "3.10"
+
+  # Upstream reference
+  upstream:
+    repo: "https://github.com/HenryHuYu/DiffPhysDrone"
+    commit_sha: null  # pinned after clone
+    branch: "main"
+
+  # Policy architecture (small CNN + GRU + MLP, RK3588-friendly)
+  policy:
+    type: "cnn_gru_mlp"
+    cnn:
+      input_channels: 1  # depth
+      conv_layers:
+        - {out_channels: 16, kernel: 5, stride: 2}
+        - {out_channels: 32, kernel: 3, stride: 2}
+        - {out_channels: 64, kernel: 3, stride: 2}
+      output_dim: 128
+    gru:
+      hidden_dim: 128
+      num_layers: 1
+    mlp:
+      state_input_dim: 12  # relative_goal(3) + velocity(3) + gravity(3) + angular_vel(3)
+      hidden_dims: [128, 64]
+    action_dim: 4  # ax, ay, az, yaw_rate (matches drone.control)
+
+  # Observation
+  observation:
+    depth: true
+    depth_resolution: [320, 240]
+    relative_goal: true
+    velocity: true
+    attitude_gravity: true
+    angular_velocity: true
+    dt: 0.02  # 50 Hz control
+
+  # Loss / objective (target-impact specific, NOT obstacle avoidance)
+  objective:
+    l_goal: 1.0          # approach target
+    l_target_hit: 10.0   # hit specified ArmorTarget
+    l_wrong_collision: -20.0  # huge penalty for hitting non-target structures
+    l_center_hit: 5.0    # reward for hitting center region
+    l_impact_angle: 2.0  # reward for good impact direction
+    l_impact_velocity: 1.0  # reward for velocity in target range
+    l_control: 0.01      # control smoothness
+    l_time: 0.1          # fast completion
+    # CRITICAL: ArmorTarget must NOT be in obstacle avoidance loss
+    armor_in_avoidance: false
+
+  # Curriculum
+  curriculum:
+    stage_1:
+      name: "no_obstacle_fixed"
+      obstacles: false
+      random_init: false
+      random_target: false
+    stage_2:
+      name: "random_init"
+      obstacles: false
+      random_init: true
+      init_position_std: [2.0, 2.0, 1.0]
+      init_yaw_std_deg: 180.0
+    stage_3:
+      name: "with_obstacles"
+      obstacles: true
+    stage_4:
+      name: "dynamics_randomization"
+      mass_randomization: true
+      init_velocity_random: true
+      control_delay_ms: 0
+      depth_delay_ms: 0
+    stage_5:
+      name: "full_rm_arena"
+      use_full_stl: true
+    stage_6:
+      name: "depth_domain_randomization"
+      depth_noise: true
+
+  # Optimizer
+  optimizer:
+    type: "adam"
+    learning_rate: 0.0003
+    weight_decay: 0.0001
+  batch_size: 256
+  num_envs: 1024  # parallel envs in DiffPhys CUDA
+  max_iterations: 100000
+  checkpoint_interval: 1000
+  validation_interval: 500
+
+  # Checkpoint
+  checkpoint:
+    dir: "results/checkpoints"
+    format: "pytorch"
+    export_onnx_after_training: true

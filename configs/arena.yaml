@@ -1,0 +1,47 @@
+# RoboMaster 2026 Arena configuration
+# Unit: meters (calibrated against official RMUC 2026 battlefield: 28m x 15m)
+# Source STL: assets/source/arena/rmuc_2026_arena.stl
+# SHA256: D7DBB7DD0862D81BE6FF2DFA004A20ED8839E39636E475E97EB06EF61E25CEF6
+
+arena:
+  name: "rmuc_2026_battlefield"
+  unit: "m"
+  # Raw STL extents: 29.15 x 16.05 x 18.04 (includes wall thickness; z=18 is stray artifact)
+  # Official battlefield: 28m long x 15m wide, 2.4m steel perimeter wall
+  official_length_m: 28.0
+  official_width_m: 15.0
+  wall_height_m: 2.4
+  arena_scale: 1.0  # explicit scale multiplier; 1.0 = meters
+  stl_path: "assets/source/arena/rmuc_2026_arena.stl"
+  stl_sha256: "D7DBB7DD0862D81BE6FF2DFA004A20ED8839E39636E475E97EB06EF61E25CEF6"
+  triangle_count: 124995
+  vertex_count: 116893
+  watertight: false
+  volume_valid: false
+  surface_area: 5031.1
+
+  # Stray artifact: 8 vertices at z ~ 18.0 (export error), must be clipped
+  stray_artifact:
+    present: true
+    z_min: 17.98
+    z_max: 18.27
+    vertex_count: 8
+    action: "clip_z_max"
+    clip_z_max: 4.0  # everything above 4m is artifact
+
+  # Collision strategy: visual mesh high-poly, collision simplified
+  collision:
+    visual_mesh: "assets/source/arena/rmuc_2026_arena.stl"
+    collision_mode: "convex_decomposition"  # box / convex / triangle_mesh
+    max_triangles_per_collider: 256
+    simplify_visual: false
+    z_clip: 4.0
+
+  # Coordinate system: world frame, x=length, y=width, z=up
+  # Origin at arena center (STL is centered: x ~[-14.58,14.57], y ~[-8.04,8.01])
+  coordinate_frame: "world_FLU"  # Forward-Left-Up convention; z up
+
+  # HOME position for the drone (takeoff / return point)
+  home:
+    position: [-12.0, -6.0, 0.3]
+    yaw_deg: 45.0  # facing toward arena center
