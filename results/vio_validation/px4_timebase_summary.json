@@ -1,0 +1,278 @@
+{
+  "duration_requested_sec": 60.0,
+  "imu_count": 11607,
+  "system_time_count": 0,
+  "sample_dt_sec": {
+    "count": 11606,
+    "mean": 0.0052692622781319995,
+    "median": 0.0049369999999999995,
+    "std": 0.009333772817890624,
+    "min": 0.0049299999999999995,
+    "max": 0.997864,
+    "p95": 0.005556,
+    "p99": 0.009873999999999999
+  },
+  "negative_timestamp_count": 0,
+  "duplicate_timestamp_count": 0,
+  "arrival_lag_vs_system_time_sec": {
+    "count": 0,
+    "mean": null,
+    "median": null,
+    "std": null,
+    "min": null,
+    "max": null,
+    "p95": null,
+    "p99": null
+  },
+  "arrival_offset_minus_min_sec": {
+    "count": 11607,
+    "mean": 0.030680813817714158,
+    "median": 0.029319286346435547,
+    "std": 0.04124256483171756,
+    "min": 0.0,
+    "max": 1.1568114757537842,
+    "p95": 0.05411133766174316,
+    "p99": 0.05705955028533936
+  },
+  "arrival_offset_linear_slope_sec_per_sec": -0.0010580041838525271,
+  "caveat": "Arrival-offset slope includes transport/scheduler delay; it is not independently established oscillator drift. SYSTEM_TIME mapping includes sender clock synchronization uncertainty.",
+  "raw_trace_path": "/home/orangepi/vio_data/px4_timebase_audit.json",
+  "offset_trend_approximately_1hz": [
+    {
+      "elapsed_sec": 0.0,
+      "arrival_minus_sensor_sec": 1789296592.7753541
+    },
+    {
+      "elapsed_sec": 1.762479193001127,
+      "arrival_minus_sensor_sec": 1789296591.676914
+    },
+    {
+      "elapsed_sec": 2.780702220999956,
+      "arrival_minus_sensor_sec": 1789296591.671343
+    },
+    {
+      "elapsed_sec": 3.8003780060007557,
+      "arrival_minus_sensor_sec": 1789296591.6728084
+    },
+    {
+      "elapsed_sec": 4.827370943999995,
+      "arrival_minus_sensor_sec": 1789296591.6710806
+    },
+    {
+      "elapsed_sec": 5.841972144000465,
+      "arrival_minus_sensor_sec": 1789296591.669303
+    },
+    {
+      "elapsed_sec": 6.866275398000653,
+      "arrival_minus_sensor_sec": 1789296591.6704404
+    },
+    {
+      "elapsed_sec": 7.886326257001201,
+      "arrival_minus_sensor_sec": 1789296591.666707
+    },
+    {
+      "elapsed_sec": 8.914232965000338,
+      "arrival_minus_sensor_sec": 1789296591.6658962
+    },
+    {
+      "elapsed_sec": 9.938447263000853,
+      "arrival_minus_sensor_sec": 1789296591.6694121
+    },
+    {
+      "elapsed_sec": 10.954294724000647,
+      "arrival_minus_sensor_sec": 1789296591.6676226
+    },
+    {
+      "elapsed_sec": 11.968757677999747,
+      "arrival_minus_sensor_sec": 1789296591.6651232
+    },
+    {
+      "elapsed_sec": 12.984214899001017,
+      "arrival_minus_sensor_sec": 1789296591.6629574
+    },
+    {
+      "elapsed_sec": 14.017702803001157,
+      "arrival_minus_sensor_sec": 1789296591.6615646
+    },
+    {
+      "elapsed_sec": 15.045681551000598,
+      "arrival_minus_sensor_sec": 1789296591.6620555
+    },
+    {
+      "elapsed_sec": 16.06505371700041,
+      "arrival_minus_sensor_sec": 1789296591.660102
+    },
+    {
+      "elapsed_sec": 17.08916651800064,
+      "arrival_minus_sensor_sec": 1789296591.660423
+    },
+    {
+      "elapsed_sec": 18.10511635200055,
+      "arrival_minus_sensor_sec": 1789296591.6605904
+    },
+    {
+      "elapsed_sec": 19.1288777030004,
+      "arrival_minus_sensor_sec": 1789296591.6605883
+    },
+    {
+      "elapsed_sec": 20.14909043300031,
+      "arrival_minus_sensor_sec": 1789296591.6563993
+    },
+    {
+      "elapsed_sec": 21.167977278000762,
+      "arrival_minus_sensor_sec": 1789296591.6552074
+    },
+    {
+      "elapsed_sec": 22.188913322999724,
+      "arrival_minus_sensor_sec": 1789296591.6554425
+    },
+    {
+      "elapsed_sec": 23.22247530900131,
+      "arrival_minus_sensor_sec": 1789296591.652885
+    },
+    {
+      "elapsed_sec": 24.258372903001145,
+      "arrival_minus_sensor_sec": 1789296591.6538692
+    },
+    {
+      "elapsed_sec": 25.271836632000486,
+      "arrival_minus_sensor_sec": 1789296591.6528137
+    },
+    {
+      "elapsed_sec": 26.28845786600141,
+      "arrival_minus_sensor_sec": 1789296591.6518278
+    },
+    {
+      "elapsed_sec": 27.306780934000926,
+      "arrival_minus_sensor_sec": 1789296591.6506765
+    },
+    {
+      "elapsed_sec": 28.32134917700023,
+      "arrival_minus_sensor_sec": 1789296591.6501062
+    },
+    {
+      "elapsed_sec": 29.332728706000125,
+      "arrival_minus_sensor_sec": 1789296591.650032
+    },
+    {
+      "elapsed_sec": 30.35634014400057,
+      "arrival_minus_sensor_sec": 1789296591.6467795
+    },
+    {
+      "elapsed_sec": 31.36975895700016,
+      "arrival_minus_sensor_sec": 1789296591.643805
+    },
+    {
+      "elapsed_sec": 32.40805836800064,
+      "arrival_minus_sensor_sec": 1789296591.6478174
+    },
+    {
+      "elapsed_sec": 33.42862254700049,
+      "arrival_minus_sensor_sec": 1789296591.6433697
+    },
+    {
+      "elapsed_sec": 34.45160954200037,
+      "arrival_minus_sensor_sec": 1789296591.643802
+    },
+    {
+      "elapsed_sec": 35.47373351600072,
+      "arrival_minus_sensor_sec": 1789296591.6415212
+    },
+    {
+      "elapsed_sec": 36.505603293000604,
+      "arrival_minus_sensor_sec": 1789296591.6428025
+    },
+    {
+      "elapsed_sec": 37.53851925300114,
+      "arrival_minus_sensor_sec": 1789296591.6408339
+    },
+    {
+      "elapsed_sec": 38.556489120999686,
+      "arrival_minus_sensor_sec": 1789296591.6411862
+    },
+    {
+      "elapsed_sec": 39.56451981600003,
+      "arrival_minus_sensor_sec": 1789296591.6383882
+    },
+    {
+      "elapsed_sec": 40.585628523000196,
+      "arrival_minus_sensor_sec": 1789296591.6381717
+    },
+    {
+      "elapsed_sec": 41.62046710300092,
+      "arrival_minus_sensor_sec": 1789296591.6381197
+    },
+    {
+      "elapsed_sec": 42.63741703699998,
+      "arrival_minus_sensor_sec": 1789296591.6349833
+    },
+    {
+      "elapsed_sec": 43.64436567499979,
+      "arrival_minus_sensor_sec": 1789296591.6366577
+    },
+    {
+      "elapsed_sec": 44.691350998000416,
+      "arrival_minus_sensor_sec": 1789296591.632703
+    },
+    {
+      "elapsed_sec": 45.70417161700061,
+      "arrival_minus_sensor_sec": 1789296591.6353116
+    },
+    {
+      "elapsed_sec": 46.72633613200014,
+      "arrival_minus_sensor_sec": 1789296591.6324534
+    },
+    {
+      "elapsed_sec": 47.7653349430002,
+      "arrival_minus_sensor_sec": 1789296591.6328514
+    },
+    {
+      "elapsed_sec": 48.79540868100048,
+      "arrival_minus_sensor_sec": 1789296591.6317253
+    },
+    {
+      "elapsed_sec": 49.8015602129999,
+      "arrival_minus_sensor_sec": 1789296591.6313627
+    },
+    {
+      "elapsed_sec": 50.81220505300007,
+      "arrival_minus_sensor_sec": 1789296591.6281013
+    },
+    {
+      "elapsed_sec": 51.816164181000204,
+      "arrival_minus_sensor_sec": 1789296591.6267824
+    },
+    {
+      "elapsed_sec": 52.83715360000133,
+      "arrival_minus_sensor_sec": 1789296591.6270685
+    },
+    {
+      "elapsed_sec": 53.867304044000775,
+      "arrival_minus_sensor_sec": 1789296591.627253
+    },
+    {
+      "elapsed_sec": 54.894391480000195,
+      "arrival_minus_sensor_sec": 1789296591.625592
+    },
+    {
+      "elapsed_sec": 55.90646253399973,
+      "arrival_minus_sensor_sec": 1789296591.6249962
+    },
+    {
+      "elapsed_sec": 56.917099498001335,
+      "arrival_minus_sensor_sec": 1789296591.6241946
+    },
+    {
+      "elapsed_sec": 57.94706298900019,
+      "arrival_minus_sensor_sec": 1789296591.624198
+    },
+    {
+      "elapsed_sec": 58.97000390100038,
+      "arrival_minus_sensor_sec": 1789296591.6214988
+    },
+    {
+      "elapsed_sec": 59.971978870000385,
+      "arrival_minus_sensor_sec": 1789296591.6218991
+    }
+  ]
+}

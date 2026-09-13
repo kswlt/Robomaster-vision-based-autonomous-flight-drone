@@ -1,0 +1,55 @@
+Setting printing level to: INFO
+LOADED_CONFIG_PATH=/home/orangepi/vio_ws/src/open_vins/config/d430/estimator_config.yaml
+LOADED_CAMERA_IMU_TIME_OFFSET_SEC=0.000000000
+FIXED_CAMERA_IMU_OFFSET_MISSING: timeshift_cam_imu absent; using default 0.000000000 sec
+LOADED_CAMERA_1_INTRINSICS=422.216 422.216 423.231 240.207       0       0       0       0 EXTRINSICS_Q_ItoC_P_IinC= -0.5   0.5  -0.5   0.5 -0.05     0 -0.08
+LOADED_CAMERA_0_INTRINSICS=422.216 422.216 423.231 240.207       0       0       0       0 EXTRINSICS_Q_ItoC_P_IinC= -0.5   0.5  -0.5   0.5     0     0 -0.08
+subscribing to IMU: /imu
+subscribing to cam (stereo): /camera/camera/infra1/image_rect_raw
+subscribing to cam (stereo): /camera/camera/infra2/image_rect_raw
+[INFO] [1789311775.292256235] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+Failed to delete datawriter, at ./src/publisher.cpp:48 during '__function__'
+[ERROR] [1789311775.419922413] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl publisher handle: cannot publish data, at ./src/rmw_publish.cpp:62, at ./src/rcl/publisher.c:187
+Failed to delete datawriter, at ./src/publisher.cpp:48 during '__function__'
+[ERROR] [1789311775.419991245] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl publisher handle: cannot publish data, at ./src/rmw_publish.cpp:62, at ./src/rcl/publisher.c:187
+cannot publish data, at ./src/rmw_publish.cpp:62 during '__function__'
+[ERROR] [1789311775.420189575] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl subscription handle: Failed to delete datareader, at ./src/subscription.cpp:52, at ./src/rcl/subscription.c:184
+cannot publish data, at ./src/rmw_publish.cpp:62 during '__function__'
+[ERROR] [1789311775.420234491] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl subscription handle: Failed to delete datareader, at ./src/subscription.cpp:52, at ./src/rcl/subscription.c:184
+cannot publish data, at ./src/rmw_publish.cpp:62 during '__function__'
+[ERROR] [1789311775.420307115] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl subscription handle: Failed to delete datareader, at ./src/subscription.cpp:52, at ./src/rcl/subscription.c:184
+Failed to delete datawriter, at ./src/publisher.cpp:48 during '__function__'
+[ERROR] [1789311775.420345906] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl publisher handle: cannot publish data, at ./src/rmw_publish.cpp:62, at ./src/rcl/publisher.c:187
+Failed to delete datawriter, at ./src/publisher.cpp:48 during '__function__'
+[ERROR] [1789311775.420380613] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl publisher handle: cannot publish data, at ./src/rmw_publish.cpp:62, at ./src/rcl/publisher.c:187
+Failed to delete datawriter, at ./src/publisher.cpp:48 during '__function__'
+[ERROR] [1789311775.420412696] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl publisher handle: cannot publish data, at ./src/rmw_publish.cpp:62, at ./src/rcl/publisher.c:187
+Failed to delete datawriter, at ./src/publisher.cpp:48 during '__function__'
+[ERROR] [1789311775.420444779] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl publisher handle: cannot publish data, at ./src/rmw_publish.cpp:62, at ./src/rcl/publisher.c:187
+Failed to delete datawriter, at ./src/publisher.cpp:48 during '__function__'
+[ERROR] [1789311775.420476570] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl publisher handle: cannot publish data, at ./src/rmw_publish.cpp:62, at ./src/rcl/publisher.c:187
+Failed to delete datawriter, at ./src/publisher.cpp:48 during '__function__'
+[ERROR] [1789311775.420509236] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl publisher handle: cannot publish data, at ./src/rmw_publish.cpp:62, at ./src/rcl/publisher.c:187
+Failed to delete datawriter, at ./src/publisher.cpp:48 during '__function__'
+[ERROR] [1789311775.420540736] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl publisher handle: cannot publish data, at ./src/rmw_publish.cpp:62, at ./src/rcl/publisher.c:187
+Failed to delete datawriter, at ./src/publisher.cpp:48 during '__function__'
+[ERROR] [1789311775.420573110] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl publisher handle: cannot publish data, at ./src/rmw_publish.cpp:62, at ./src/rcl/publisher.c:187
+Failed to delete datawriter, at ./src/publisher.cpp:48 during '__function__'
+[ERROR] [1789311775.420626193] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl publisher handle: cannot publish data, at ./src/rmw_publish.cpp:62, at ./src/rcl/publisher.c:187
+Failed to delete datawriter, at ./src/publisher.cpp:48 during '__function__'
+[ERROR] [1789311775.420657984] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl publisher handle: cannot publish data, at ./src/rmw_publish.cpp:62, at ./src/rcl/publisher.c:187
+Failed to delete datawriter, at ./src/publisher.cpp:48 during '__function__'
+[ERROR] [1789311775.420689775] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl publisher handle: cannot publish data, at ./src/rmw_publish.cpp:62, at ./src/rcl/publisher.c:187
+Failed to delete datawriter, at ./src/publisher.cpp:48 during '__function__'
+[ERROR] [1789311775.420720399] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl publisher handle: cannot publish data, at ./src/rmw_publish.cpp:62, at ./src/rcl/publisher.c:187
+Failed to delete datawriter, at ./src/publisher.cpp:48 during '__function__'
+[ERROR] [1789311775.420752190] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl publisher handle: cannot publish data, at ./src/rmw_publish.cpp:62, at ./src/rcl/publisher.c:187
+Failed to delete datawriter, at ./src/publisher.cpp:48 during '__function__'
+[ERROR] [1789311775.420783982] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl publisher handle: cannot publish data, at ./src/rmw_publish.cpp:62, at ./src/rcl/publisher.c:187
+Failed to delete datawriter, at ./src/publisher.cpp:48 during '__function__'
+[ERROR] [1789311775.420813731] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl publisher handle: cannot publish data, at ./src/rmw_publish.cpp:62, at ./src/rcl/publisher.c:187
+cannot publish data, at ./src/rmw_publish.cpp:62 during '__function__'
+[ERROR] [1789311775.420875563] [run_subscribe_msckf.rclcpp]: Error in destruction of rcl subscription handle: Failed to delete datareader, at ./src/subscription.cpp:52, at ./src/rcl/subscription.c:184
+cannot publish data, at ./src/rmw_publish.cpp:62 during '__function__'
+Fail in delete datareader, at ./src/rmw_service.cpp:104 during '__function__'
+timeout: the monitored command dumped core

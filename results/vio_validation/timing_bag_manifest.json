@@ -1,0 +1,35 @@
+{
+  "motion": "TIMING_ONLY",
+  "requested_seconds": 60.0,
+  "notes": "No operator motion labels; UDP diagnostic transport; not STATIC validation",
+  "status": "RECORDED_UNVALIDATED",
+  "ground_truth": "NO EXTERNAL GROUND TRUTH",
+  "validation": "RELATIVE VALIDATION",
+  "topics": [
+    "/imu",
+    "/camera/camera/infra1/image_rect_raw",
+    "/camera/camera/infra2/image_rect_raw",
+    "/camera/camera/infra1/camera_info",
+    "/camera/camera/infra2/camera_info",
+    "/odomimu",
+    "/poseimu",
+    "/tf",
+    "/tf_static"
+  ],
+  "usb_speed_mbps": 5000.0,
+  "serial": "938422073656",
+  "usb_descriptor_serial": "943623021659",
+  "start_unix": 1789312389.5910742,
+  "end_unix": 1789312449.8061302,
+  "recorder_exit": 0,
+  "sha256": {
+    "bag/bag_0.db3": "e30a0e053750b2443d4b9c6c09f5fed3ec476de42e24bc6779b4ae349994e0d8",
+    "bag/metadata.yaml": "9a17fa94a470c8e7542c53f1b6252bad76cf9db8cac57261d0ec1d32938c4920",
+    "device_enumeration.txt": "3f614058d37444f3bc2b97a35a43e31a2ee30c4522353e6eeb9dbb9b6eeae433",
+    "estimator_config.yaml": "a6ad7efa812f7dc32e7bd27122c8e1bfdbe9badb9cc7c274ae51912ebb437fad",
+    "kalibr_imu_chain.yaml": "9ca51c5f848cf21b332c683a51c98c27ed518896e36c06fde1c7d164d8f24101",
+    "kalibr_imucam_chain.yaml": "12ed30799e88a8db14222cf1344e3afbb3897f03bbdda901056563f0d19784cf",
+    "qos.yaml": "4baa911fd61af41f076f56998e357184b6e715efc206b822a0f52df78a96edc0",
+    "recorder.log": "a0edd9d4de28303e828f6eb96d7c37ec462eb5cc72719c93726d6a09ee828403"
+  }
+}

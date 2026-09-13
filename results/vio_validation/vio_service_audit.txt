@@ -1,0 +1,25 @@
+# /etc/systemd/system/vio.service
+[Unit]
+Description=VIO System (D430 + PX4 + OpenVINS)
+After=network.target local-fs.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=orangepi
+Group=orangepi
+WorkingDirectory=/home/orangepi
+ExecStart=/home/orangepi/start_vio_systemd.sh
+Restart=on-failure
+RestartSec=5
+KillMode=control-group
+KillSignal=SIGINT
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target
+
+# /run/systemd/system/vio.service.d/90-vio-audit-transport.conf
+[Service]
+Environment=VIO_ROS_LOCALHOST_ONLY=0
+Environment=FASTRTPS_DEFAULT_PROFILES_FILE=/home/orangepi/fastdds_udp_diagnostic.xml

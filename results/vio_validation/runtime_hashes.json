@@ -1,0 +1,37 @@
+[
+  {
+    "file": "config\\d430\\estimator_config.yaml",
+    "repo_sha256": "7127d46f5c97a6fcf24be2391836f9605c726f85cab0d9788467fb6f5fb75e16",
+    "runtime_sha256": "a6ad7efa812f7dc32e7bd27122c8e1bfdbe9badb9cc7c274ae51912ebb437fad",
+    "equal": false,
+    "equal_lf": false
+  },
+  {
+    "file": "config\\d430\\kalibr_imucam_chain.yaml",
+    "repo_sha256": "8f8de37baa684fa8e4a3c0b91c44e6d1aa6c1682456dee77ae8c515a86234af5",
+    "runtime_sha256": "12ed30799e88a8db14222cf1344e3afbb3897f03bbdda901056563f0d19784cf",
+    "equal": false,
+    "equal_lf": true
+  },
+  {
+    "file": "config\\d430\\kalibr_imu_chain.yaml",
+    "repo_sha256": "db8e6618a762017a97b144661f905af5655fdecc97d00f60b1aa9edea1ab7ee5",
+    "runtime_sha256": "9ca51c5f848cf21b332c683a51c98c27ed518896e36c06fde1c7d164d8f24101",
+    "equal": false,
+    "equal_lf": true
+  },
+  {
+    "file": "vio_bridge_combined.py",
+    "repo_sha256": "373dfc85ed1001145a7b30e0bf15ba646ca4cfc995d7d74d218ba4947ab4ca8e",
+    "runtime_sha256": "5b687937dd66908d68f64a31aea36b8d566a81066831d18afc01dd21af06f7eb",
+    "equal": false,
+    "equal_lf": true
+  },
+  {
+    "file": "start_vio_systemd.sh",
+    "repo_sha256": "1e0a0f8a1706c81d95a4486649c03d6d475f8555ec97bca0358c23d8f5ac581a",
+    "runtime_sha256": "66b9fd1896eebc62da7ec0999253f81e4dbf0125d172b1510db965cc60d6dfdc",
+    "equal": false,
+    "equal_lf": true
+  }
+]

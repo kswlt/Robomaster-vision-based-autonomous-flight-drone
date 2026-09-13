@@ -20,6 +20,8 @@
  */
 
 #include <memory>
+#include <cmath>
+#include <limits>
 
 #include "core/VioManager.h"
 #include "core/VioManagerOptions.h"
@@ -82,6 +84,21 @@ int main(int argc, char **argv) {
   // Create our VIO system
   VioManagerOptions params;
   params.print_and_load(parser);
+  PRINT_INFO("LOADED_CONFIG_PATH=%s\n", config_path.c_str());
+  PRINT_INFO("LOADED_CAMERA_IMU_TIME_OFFSET_SEC=%.9f\n", params.calib_camimu_dt);
+  // Probe through the same parser, including ROS overrides. NaN is only a
+  // presence sentinel and is never passed to the estimator.
+  double explicit_offset = std::numeric_limits<double>::quiet_NaN();
+  parser->parse_external("relative_config_imucam", "cam0", "timeshift_cam_imu", explicit_offset, false);
+  if (!params.state_options.do_calib_camera_timeoffset && std::isnan(explicit_offset)) {
+    PRINT_WARNING("FIXED_CAMERA_IMU_OFFSET_MISSING: timeshift_cam_imu absent; using default %.9f sec\n", params.calib_camimu_dt);
+  }
+  for (const auto &camera : params.camera_intrinsics) {
+    std::stringstream loaded;
+    loaded << "LOADED_CAMERA_" << camera.first << "_INTRINSICS=" << camera.second->get_value().transpose()
+           << " EXTRINSICS_Q_ItoC_P_IinC=" << params.camera_extrinsics.at(camera.first).transpose() << "\n";
+    PRINT_INFO("%s", loaded.str().c_str());
+  }
   params.use_multi_threading_subs = true;
   sys = std::make_shared<VioManager>(params);
 #if ROS_AVAILABLE == 1
