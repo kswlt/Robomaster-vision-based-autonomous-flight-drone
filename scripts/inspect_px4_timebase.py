@@ -4,6 +4,10 @@
 import argparse
 import statistics
 import time
+import json
+from pathlib import Path
+import numpy as np
+from analyze_sensor_timing import distribution
 
 from pymavlink import mavutil
 
@@ -12,8 +16,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", default="/dev/ttyACM0")
     parser.add_argument("--baud", type=int, default=921600)
-    parser.add_argument("--seconds", type=float, default=8.0)
+    parser.add_argument("--seconds", type=float, default=60.0)
+    parser.add_argument("--output", default="results/vio_validation/px4_timebase.json")
+    parser.add_argument("--exclusive-serial", action="store_true", help="Required: stop the bridge before opening its serial port")
     args = parser.parse_args()
+    if not args.exclusive_serial or args.seconds < 60:
+        parser.error('Stop the bridge, use --exclusive-serial, and record >=60 seconds')
 
     master = mavutil.mavlink_connection(args.port, baud=args.baud)
     heartbeat = master.wait_heartbeat(timeout=10)
@@ -39,6 +47,7 @@ def main():
     boot_epoch = None
     arrival_lag = []
     raw_offsets = []
+    offset_times = []
     imu_intervals = []
     accel_norms = []
     gyro_norms = []
@@ -80,6 +89,7 @@ def main():
         )
         if 0 < imu_us < 1_000_000_000_000:
             raw_offsets.append(arrival - imu_us * 1e-6)
+            offset_times.append(time.monotonic())
         if last_imu_us is not None:
             imu_dt = (imu_us - last_imu_us) * 1e-6
             imu_intervals.append(imu_dt)
@@ -135,6 +145,21 @@ def main():
         )
 
     master.close()
+    elapsed = np.asarray(offset_times) - offset_times[0] if offset_times else np.array([])
+    slope = float(np.polyfit(elapsed, np.asarray(raw_offsets)-raw_offsets[0], 1)[0]) if len(elapsed)>1 else None
+    out = dict(duration_requested_sec=args.seconds, imu_count=imu_count, system_time_count=system_count,
+               requested_imu_interval_us=10000, stream_request_ack_verified=False,
+               sample_dt_sec=distribution(imu_intervals),
+               negative_timestamp_count=sum(x<0 for x in imu_intervals),
+               duplicate_timestamp_count=sum(x==0 for x in imu_intervals),
+               arrival_lag_vs_system_time_sec=distribution(arrival_lag),
+               arrival_offset_minus_min_sec=distribution(np.asarray(raw_offsets)-min(raw_offsets) if raw_offsets else []),
+               arrival_offset_linear_slope_sec_per_sec=slope,
+               caveat='Arrival-offset slope includes transport/scheduler delay; it is not independently established oscillator drift. SYSTEM_TIME mapping includes sender clock synchronization uncertainty.',
+               offset_trend=[dict(elapsed_sec=float(t), arrival_minus_sensor_sec=o) for t,o in zip(elapsed,raw_offsets)])
+    target=Path(args.output)
+    target.parent.mkdir(parents=True,exist_ok=True)
+    target.write_text(json.dumps(out,indent=2,allow_nan=False))
 
 
 if __name__ == "__main__":

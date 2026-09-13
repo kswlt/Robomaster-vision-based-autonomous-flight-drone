@@ -3,7 +3,7 @@
 > 审计日期：2026-09-13
 > 审计对象：GitHub `kswlt/Robomaster-vision-based-autonomous-flight-drone` @ `d430`（c64aadd）+ 板子 orangepi5（192.168.1.215）实际运行态
 > 方法：以代码 + 真实运行结果为准，不信任 README/docs 描述
-> 历史说明：本文记录修复前状态，已由 `RUNTIME_SAFETY_REPAIR.md` 取代，不可作为当前运行配置说明。
+> 历史说明：本文记录修复前状态，已由 `VIO_ROOT_CAUSE_AND_VALIDATION.md` 取代，不可作为当前运行配置说明。
 
 ---
 

@@ -8,6 +8,7 @@ from pathlib import Path
 import signal
 import subprocess
 import time
+import os
 
 TOPICS = ['/imu', '/camera/camera/infra1/image_rect_raw',
           '/camera/camera/infra2/image_rect_raw', '/camera/camera/infra1/camera_info',
@@ -26,28 +27,34 @@ def main():
     devices = [d for d in Path('/sys/bus/usb/devices').glob('*')
                if (d / 'idProduct').exists() and (d / 'idVendor').read_text().strip() == '8086'
                and (d / 'idProduct').read_text().strip() == '0ad4']
-    devices = [d for d in devices if (d / 'serial').read_text().strip() == '938422073656']
     if len(devices) != 1 or float((devices[0] / 'speed').read_text()) < 5000:
-        raise SystemExit('INVALID: expected D430 serial at USB3 >=5000M')
+        raise SystemExit('INVALID: expected exactly one D430 at USB3 >=5000M')
+    enumeration = subprocess.check_output(['/opt/ros/humble/bin/rs-enumerate-devices', '-s'], timeout=15, text=True)
+    if '938422073656' not in enumeration:
+        raise SystemExit('INVALID: expected SDK D430 serial 938422073656')
     run = Path(a.root) / (datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S_%fZ_') + a.motion)
     run.mkdir(parents=True, exist_ok=False)
+    (run / 'device_enumeration.txt').write_text(enumeration)
     cfg = Path('/home/orangepi/vio_ws/src/open_vins/config/d430')
     for name in ('estimator_config.yaml', 'kalibr_imucam_chain.yaml', 'kalibr_imu_chain.yaml'):
         (run / name).write_bytes((cfg / name).read_bytes())
     qos = run / 'qos.yaml'
     qos.write_text('/tf_static:\n  durability: transient_local\n  reliability: reliable\n  history: keep_last\n  depth: 100\n')
     manifest = dict(motion=a.motion, requested_seconds=a.seconds, notes=a.notes,
+                    startup_allowance_seconds=5,
+                    transport_environment={k: os.environ.get(k) for k in ('ROS_DOMAIN_ID','ROS_LOCALHOST_ONLY','FASTRTPS_DEFAULT_PROFILES_FILE')},
                     status='RECORDING', ground_truth='NO EXTERNAL GROUND TRUTH',
                     validation='RELATIVE VALIDATION', topics=TOPICS,
                     usb_speed_mbps=float((devices[0] / 'speed').read_text()),
-                    serial='938422073656', start_unix=time.time())
+                    serial='938422073656', usb_descriptor_serial=(devices[0] / 'serial').read_text().strip(),
+                    start_unix=time.time())
     (run / 'manifest.json').write_text(json.dumps(manifest, indent=2))
     print(f'RECORDING {run}', flush=True)
     with (run / 'recorder.log').open('w') as log:
         proc = subprocess.Popen(['ros2', 'bag', 'record', '-s', 'sqlite3', '-o', str(run / 'bag'),
                                  '--qos-profile-overrides-path', str(qos), *TOPICS], stdout=log, stderr=log)
         try:
-            proc.wait(timeout=a.seconds)
+            proc.wait(timeout=a.seconds+5)
         except (subprocess.TimeoutExpired, KeyboardInterrupt):
             proc.send_signal(signal.SIGINT)
             try:

@@ -18,7 +18,7 @@ sleep 3
 # 设置ROS环境
 source /opt/ros/humble/setup.bash
 source /home/orangepi/vio_ws/install/setup.bash
-export ROS_LOCALHOST_ONLY=1
+export ROS_LOCALHOST_ONLY="${VIO_ROS_LOCALHOST_ONLY:-1}"
 export ROS_DOMAIN_ID=42
 
 # 清理旧进程（脚本自身命令行不含这些字符串，安全）

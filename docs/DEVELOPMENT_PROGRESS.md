@@ -92,6 +92,17 @@
 3. 仓库代码同步（运行版 bridge + 稳定 config）
 # 2026-09-13: reproducible VIO investigation, first milestone
 
+Second milestone: all-sample timing + CameraInfo verification + DDS diagnosis.
+First milestone SHA `e7ffdb0` pushed. Synthetic timing regression tests: 4 PASS
+on board (local Windows Python lacks numpy). Real ~58 s timing bag analyzed;
+17 unmatched stereo frames, IMU 195.06 Hz, actual camera intrinsics match YAML.
+60 s serial audit measured significant arrival-offset variation and no
+SYSTEM_TIME; absolute mapping and best camera offset still unknown. See current
+authoritative document for exact metrics, temporary UDP transport and paths.
+Watchdog restored, then latched VIO_FATAL variance=4.071 m² and stopped VIO;
+latch remains set. No PX4 visual output enabled. Awaiting operator stationary
+setup for labeled raw-sensor recordings. No parameter tuning or flight done.
+
 - Initial d430 b89b761; no reset, no parameter edits. Detailed current status:
   [VIO_ROOT_CAUSE_AND_VALIDATION.md](VIO_ROOT_CAUSE_AND_VALIDATION.md).
 - e45a673 tightened static ZUPT; 3c93dad disabled online time calibration but

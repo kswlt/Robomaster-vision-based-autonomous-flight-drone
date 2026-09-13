@@ -1,0 +1,177 @@
+{
+  "camera_left": {
+    "frame_count": 1736,
+    "duration_sec": 57.947204834000004,
+    "rate_hz": 29.94104728554576,
+    "dt_sec": {
+      "count": 1735,
+      "mean": 0.0333989653221902,
+      "median": 0.03334082,
+      "std": 0.0013852986232436842,
+      "min": 0.03333667,
+      "max": 0.06668847700000001,
+      "p95": 0.0333487062,
+      "p99": 0.0333588037
+    },
+    "fps": {
+      "count": 1735,
+      "mean": 29.9668906426264,
+      "median": 29.993263513014977,
+      "std": 0.6230743264044412,
+      "min": 14.995094279930846,
+      "max": 29.996997300570214,
+      "p95": 29.99567912242241,
+      "p99": 29.996118202343432
+    },
+    "negative_timestamp_count": 0,
+    "duplicate_timestamp_count": 0
+  },
+  "camera_right": {
+    "frame_count": 1719,
+    "duration_sec": 57.947204834000004,
+    "rate_hz": 29.64767679341073,
+    "dt_sec": {
+      "count": 1718,
+      "mean": 0.03372945566589057,
+      "median": 0.03334082,
+      "std": 0.0035766406255637153,
+      "min": 0.03333667,
+      "max": 0.06672045900000001,
+      "p95": 0.033349121,
+      "p99": 0.06667858639
+    },
+    "fps": {
+      "count": 1718,
+      "mean": 29.818257891226164,
+      "median": 29.993263513014977,
+      "std": 1.6086631983670054,
+      "min": 14.9879064830774,
+      "max": 29.996997300570214,
+      "p95": 29.99567912242241,
+      "p99": 29.996118202343432
+    },
+    "negative_timestamp_count": 0,
+    "duplicate_timestamp_count": 0
+  },
+  "imu": {
+    "frame_count": 11352,
+    "duration_sec": 58.19175148,
+    "rate_hz": 195.06200984346106,
+    "dt_sec": {
+      "count": 11351,
+      "mean": 0.005126574881508239,
+      "median": 0.0049369340000000005,
+      "std": 0.0008581999869631705,
+      "min": 0.003898382,
+      "max": 0.01110816,
+      "p95": 0.005556584,
+      "p99": 0.009873867000000001
+    },
+    "fps": {
+      "count": 11351,
+      "mean": 198.10724057786,
+      "median": 202.55486502351457,
+      "std": 18.391624077963467,
+      "min": 90.0239103505891,
+      "max": 256.5166779448499,
+      "p95": 202.5940547964244,
+      "p99": 202.67235662552147
+    },
+    "negative_timestamp_count": 0,
+    "duplicate_timestamp_count": 0
+  },
+  "stereo": {
+    "pair_tolerance_sec": 0.001,
+    "paired_count": 1719,
+    "unmatched_left_count": 17,
+    "unmatched_right_count": 0,
+    "frame_pairing_mismatch_count": 17,
+    "paired_left_minus_right_sec": {
+      "count": 1719,
+      "mean": 0.0,
+      "median": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "paired_absolute_skew_sec": {
+      "count": 1719,
+      "mean": 0.0,
+      "median": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "all_left_nearest_right_sec": {
+      "count": 1736,
+      "mean": 0.00032651009850230415,
+      "median": 0.0,
+      "std": 0.003283296483610997,
+      "min": 0.0,
+      "max": 0.033360107,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  "camera_nearest_imu_sec": {
+    "left": {
+      "count": 1736,
+      "mean": 0.0012897869400921658,
+      "median": 0.0012529300000000002,
+      "std": 0.0008038461232855928,
+      "min": 4.47e-07,
+      "max": 0.004736685,
+      "p95": 0.0024287650000000003,
+      "p99": 0.003638022400000002
+    },
+    "right": {
+      "count": 1719,
+      "mean": 0.0012932237643979061,
+      "median": 0.001257201,
+      "std": 0.0008044756663052921,
+      "min": 4.47e-07,
+      "max": 0.004736685,
+      "p95": 0.0024301503999999995,
+      "p99": 0.003641629119999999
+    }
+  },
+  "interpretation": "Nearest sampling distance is NOT camera-IMU time calibration; paired skew is tolerance-censored. Inspect unmatched counts and all-left nearest-right distribution.",
+  "bag": "/home/orangepi/vio_data/20260913T151309_590262Z_TIMING_ONLY/bag",
+  "bag_receipt_minus_header_sec": {
+    "/camera/camera/infra1/image_rect_raw": {
+      "count": 1736,
+      "mean": 0.01258587441359447,
+      "median": 0.010933145000000002,
+      "std": 0.004030086950720867,
+      "min": 0.008711545000000001,
+      "max": 0.031608316000000004,
+      "p95": 0.020458085,
+      "p99": 0.022475011550000003
+    },
+    "/camera/camera/infra2/image_rect_raw": {
+      "count": 1719,
+      "mean": 0.014983279084933103,
+      "median": 0.012817194,
+      "std": 0.004517788119928153,
+      "min": 0.009311258000000001,
+      "max": 0.032910908,
+      "p95": 0.0225964739,
+      "p99": 0.024359900019999995
+    },
+    "/imu": {
+      "count": 11352,
+      "mean": 0.0036810271479915434,
+      "median": 0.0035117805,
+      "std": 0.001987266399377011,
+      "min": 0.00018025000000000002,
+      "max": 0.026323307,
+      "p95": 0.0066966867499999964,
+      "p99": 0.011052005829999996
+    }
+  },
+  "core_topics_present": true
+}
