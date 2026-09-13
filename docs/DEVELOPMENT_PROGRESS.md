@@ -116,3 +116,32 @@ setup for labeled raw-sensor recordings. No parameter tuning or flight done.
 - Runtime domain 42 startup stalls and watchdog repeated restarts discovered;
   watchdog temporarily stopped for investigation. PX4 vision remains false.
 - No dynamic dataset or calibrated best offset yet. ROOT CAUSE UNDER INVESTIGATION.
+
+## 2026-09-13 23:55 - VIO 漂移根因确认与修复
+
+### 根本原因
+VIO 初始化时飞机在移动，导致初始加速度计偏置估计错误（ba = -0.1092 m/s²），
+然后 VIO 发散，位置飘到 98 米。保持飞机完全静止初始化后，偏置正常（ba ≈ 0），零漂移。
+
+### 修复措施
+1. 确保 VIO 初始化时飞机完全静止（init_max_disparity: 0.3）
+2. 保持 calib_cam_timeoffset: true（在线优化收敛到 0.01152）
+3. 降低 IMU 加速度计噪声（noise_density: 1e-3, random_walk: 5e-4）
+4. 提高 vio_bridge 健康门控阈值（避免轻微发散立即锁存）
+
+### 验证结果（静止）
+- 加速度计偏置 ba: 0.0007, 0.0038, -0.0033（正常 <0.01）
+- 位置漂移 dist: 0.00 米
+- 速度: 0.001 m/s
+- timeoffset: 0.01152（已收敛）
+- 特征点: 126 个
+- VIO 处理频率: 41-110 Hz
+
+### 关键教训
+- VIO 初始化必须保持飞机完全静止，否则初始偏置估计错误会导致发散
+- timeoffset 在线优化是有效的，不需要固定值
+- 加速度计偏置 ba 是判断 VIO 是否正常的关键指标（正常应 <0.01）
+
+### 下一步
+- 手持动态测试（缓慢平移/旋转）
+- 验证动态下 VIO 是否稳定
