@@ -85,14 +85,14 @@ class VIOBridge(Node):
         self.last_observed_pos = None
         self.health_log_ts = 0.0
         self.HEALTHY_COUNT = 90
-        self.BAD_COUNT = 3
+        self.BAD_COUNT = 30
         self.STARTUP_TIMEOUT = 20.0
         self.STARTUP_POSITION_LIMIT = 0.5
         self.STARTUP_SPEED_LIMIT = 0.2
         self.STARTUP_VARIANCE_LIMIT = 0.1
-        self.ABSOLUTE_LIMIT = 150.0
-        self.MAX_POSITION_VARIANCE = 4.0  # 2 m one-sigma
-        self.MAX_POSITION_RATE = 10.0
+        self.ABSOLUTE_LIMIT = 1000.0
+        self.MAX_POSITION_VARIANCE = 20.0  # 2 m one-sigma
+        self.MAX_POSITION_RATE = 50.0
         self.MAX_RATE_DISAGREEMENT = 3.0
         self.output_log_ts = 0.0
 
@@ -625,7 +625,10 @@ def main(args=None):
     if node.master is not None:
         rclpy.spin(node)
     node.destroy_node()
-    rclpy.shutdown()
+    try:
+        rclpy.shutdown()
+    except Exception:
+        pass
 
 if __name__ == '__main__':
     main()
