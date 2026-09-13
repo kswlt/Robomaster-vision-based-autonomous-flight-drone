@@ -19,8 +19,8 @@
 | Scripted baseline | 🔶 Written | controller.py + episode.py — kinematic fallback tested, real Isaac pending |
 | Headless eval | 🔶 Written | evaluate.py + run_eval.ps1 — kinematic fallback 20ep 100% hit, real Isaac pending |
 | DiffPhys env build | ✅ Done | WSL2: PyTorch 2.2.2+cu118, CUDA 11.8, quadsim_cuda built & verified |
-| DiffPhys upstream training | 🔄 Running | 3000 iters, loss 27→6 in 200 iters, ~2 it/s |
-| Target-impact training | ⏳ Pending | Code written, after upstream repro verified |
+| DiffPhys upstream training | ✅ Done | 3000 iters: loss 27.3→3.3; checkpoint save/load verified (514K params) |
+| Target-impact training | 🔄 Running | 10000 iters, loss 63→6.9 at 288 iter, dist 21.9→2.6m |
 | RK3588 export | ⏳ Pending | After policy training |
 
 ## Verified
@@ -32,7 +32,9 @@
 - GitHub remote accessible via Clash proxy (repo-local config)
 - Python 3.14 + numpy 2.5.2 + trimesh 5.1.0 + matplotlib 3.11.2 on Windows
 - **quadsim_cuda extension built and importable**: all 6 functions verified
-- **DiffPhys training starts and loss decreases**: 27.3→6.0 in 200 iters
+- **DiffPhys training starts and loss decreases**: 27.3→3.3 in 3000 iters
+- **Checkpoint save/load verified**: checkpoint0003.pth (3000 iters), 514,496 params, CPU+GPU forward pass OK
+- **Target-impact training running**: loss 63→6.9, distance 21.9→2.6m at 288 iters
 - **Isaac Sim 6.1.0 installed**: standalone ZIP at C:\isaacsim, post_install done
 - **Kinematic fallback eval**: 20 episodes, 100% hit rate, full metrics pipeline
 
