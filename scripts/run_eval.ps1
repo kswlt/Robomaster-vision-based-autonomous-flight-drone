@@ -1,8 +1,8 @@
 # run_eval.ps1 - Headless automated evaluation (milestone 1 acceptance)
 # Usage: powershell -ExecutionPolicy Bypass -File scripts/run_eval.ps1 -Episodes 20
 #
-# If Isaac Sim is not installed, falls back to kinematic-only evaluation
-# to validate the metrics pipeline (docs/KNOWN_ISSUES.md).
+# If Isaac Sim is installed, uses Isaac's python.bat for full physics evaluation.
+# Otherwise falls back to kinematic-only evaluation with system Python.
 
 param(
     [int]$Episodes = 20,
@@ -14,18 +14,26 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $RepoRoot
 
-$useIsaac = Test-Path (Join-Path $IsaacPath "isaac-sim.bat")
+$isaacPython = Join-Path $IsaacPath "python.bat"
+$useIsaac = Test-Path $isaacPython
 
-if ($useIsaac -and -not $GUI) {
-    Write-Output "=== Running Isaac Sim headless evaluation: $Episodes episodes ==="
+if ($useIsaac) {
+    $mode = if ($GUI) { "GUI" } else { "headless" }
+    Write-Output "=== Running Isaac Sim $mode evaluation: $Episodes episodes ==="
+    Write-Output "=== Using Isaac Python: $isaacPython ==="
     $env:ISAAC_PATH = $IsaacPath
-    python -m sim.isaac.evaluate --episodes $Episodes
-} elseif ($useIsaac -and $GUI) {
-    Write-Output "=== Running Isaac Sim GUI evaluation: $Episodes episodes ==="
-    python -m sim.isaac.evaluate --episodes $Episodes --gui
+    $env:CARB_APP_PATH = Join-Path $IsaacPath "kit"
+    $env:EXP_PATH = Join-Path $IsaacPath "apps"
+
+    if ($GUI) {
+        & $isaacPython -m sim.isaac.evaluate --episodes $Episodes --gui
+    } else {
+        & $isaacPython -m sim.isaac.evaluate --episodes $Episodes
+    }
 } else {
-    Write-Output "=== Isaac Sim not installed. Running kinematic fallback: $Episodes episodes ==="
-    Write-Output "=== (This validates logic/metrics, not real physics. Install Isaac for full eval.) ==="
+    Write-Output "=== Isaac Sim not found at $IsaacPath ==="
+    Write-Output "=== Running kinematic fallback: $Episodes episodes ==="
+    Write-Output "=== (This validates logic/metrics, not real physics.) ==="
     python -m sim.isaac.evaluate --episodes $Episodes
 }
 

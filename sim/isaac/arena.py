@@ -1,4 +1,8 @@
-"""RMUC 2026 Arena: STL import with z-clip and simplified collision."""
+"""RMUC 2026 Arena: simplified collision geometry (floor + perimeter walls).
+
+Phase 1: Uses box colliders for physics. STL visual mesh is optional.
+The official dimensions are 28m x 15m with 2.4m walls.
+"""
 from __future__ import annotations
 
 from typing import Any
@@ -9,11 +13,10 @@ from sim.common.config import asset_path
 
 
 class Arena:
-    """Loads the RMUC STL as visual mesh with simplified collision geometry.
+    """Arena with simplified box colliders.
 
-    The STL is NOT watertight (124995 triangles). We use it for visual rendering
-    and create simplified colliders (boxes / convex) for physics.
-    Stray artifact at z > 4.0 is clipped.
+    Floor + 4 perimeter walls as FixedCuboids.
+    STL visual mesh is loaded optionally if available.
     """
 
     def __init__(self, cfg: dict[str, Any]):
@@ -22,41 +25,19 @@ class Arena:
         self.scale = self.cfg["arena_scale"]
         self.z_clip = self.cfg["stray_artifact"]["clip_z_max"]
         self._prim = None
+        self._colliders = []
 
     def build(self, world):
         """Add arena to the Isaac world."""
-        from omni.isaac.core.utils.stage import add_reference_to_stage
-        from omni.isaac.core.prims import XFormPrim
-        from pxr import UsdGeom, Gf
+        from isaacsim.core.api.objects import FixedCuboid
 
-        # Add STL reference (visual only initially)
-        prim_path = "/World/Arena"
-        add_reference_to_stage(self.stl_path, prim_path)
-
-        # Apply scale and clip via XForm
-        xform = XFormPrim(prim_path)
-        xform.set_scale(np.array([self.scale, self.scale, self.scale]))
-
-        self._prim = xform
-        self._setup_collision(world, prim_path)
-        return self
-
-    def _setup_collision(self, world, prim_path: str):
-        """Create simplified collision for the arena.
-
-        Strategy: perimeter walls as boxes, floor as plane.
-        Full triangle-mesh collision is avoided for performance.
-        """
-        from omni.isaac.core.objects import FixedCuboid
-        import numpy as np
-
-        L = self.cfg["official_length_m"]   # 28
-        W = self.cfg["official_width_m"]    # 15
-        H = self.cfg["wall_height_m"]       # 2.4
-        t = 0.2  # wall thickness estimate
+        L = float(self.cfg["official_length_m"])   # 28
+        W = float(self.cfg["official_width_m"])    # 15
+        H = float(self.cfg["wall_height_m"])       # 2.4
+        t = 0.2  # wall thickness
 
         # Floor
-        world.scene.add(
+        floor = world.scene.add(
             FixedCuboid(
                 prim_path="/World/Arena/Floor",
                 name="arena_floor",
@@ -66,6 +47,7 @@ class Arena:
                 color=np.array([0.2, 0.2, 0.2]),
             )
         )
+        self._colliders.append(floor)
 
         # Four perimeter walls
         wall_specs = [
@@ -75,7 +57,7 @@ class Arena:
             ("/World/Arena/WallW", [-L / 2 - t / 2, 0, H / 2], [t, W, H]),
         ]
         for path, pos, scale in wall_specs:
-            world.scene.add(
+            wall = world.scene.add(
                 FixedCuboid(
                     prim_path=path,
                     name=path.split("/")[-1],
@@ -83,9 +65,30 @@ class Arena:
                     scale=np.array(scale, dtype=float),
                     size=1.0,
                     color=np.array([0.3, 0.3, 0.35]),
-                    collision_group="arena",
                 )
             )
+            self._colliders.append(wall)
+
+        # Try to add STL visual (optional, non-critical for phase 1)
+        self._try_add_stl_visual()
+        return self
+
+    def _try_add_stl_visual(self):
+        """Attempt to add STL as visual reference. Fail silently if unavailable."""
+        try:
+            from isaacsim.core.api.utils.stage import add_reference_to_stage
+            add_reference_to_stage(str(self.stl_path), "/World/Arena/STL")
+            self._prim = True
+        except Exception:
+            try:
+                from omni.isaac.core.utils.stage import add_reference_to_stage
+                add_reference_to_stage(str(self.stl_path), "/World/Arena/STL")
+                self._prim = True
+            except Exception:
+                pass  # STL visual not critical for physics baseline
+
+    def get_colliders(self):
+        return self._colliders
 
     def get_prim(self):
         return self._prim

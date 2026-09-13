@@ -26,7 +26,7 @@ class ArmorTarget:
 
     def build(self, world):
         """Add armor target as a fixed cuboid with its own collision group."""
-        from omni.isaac.core.objects import FixedCuboid
+        from isaacsim.core.api.objects import FixedCuboid
 
         self._prim = world.scene.add(
             FixedCuboid(
@@ -36,7 +36,6 @@ class ArmorTarget:
                 scale=self.size,
                 size=1.0,
                 color=np.array([1.0, 0.2, 0.2]),  # red = target
-                collision_group="armor_target",
             )
         )
         self._hit = False

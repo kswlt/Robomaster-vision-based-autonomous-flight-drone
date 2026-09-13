@@ -29,7 +29,7 @@ class SceneBuilder:
         from isaacsim import SimulationApp
 
         self._app = SimulationApp({"headless": self.headless})
-        from omni.isaac.core import World
+        from isaacsim.core.api.world import World
 
         self._world = World(stage_units_in_meters=1.0)
         self._world.scene.add_default_ground_plane()

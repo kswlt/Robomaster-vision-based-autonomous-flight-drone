@@ -40,7 +40,7 @@ class Drone:
 
     def build(self, world):
         """Add drone as dynamic sphere."""
-        from omni.isaac.core.objects import DynamicSphere
+        from isaacsim.core.api.objects import DynamicSphere
 
         self._prim = world.scene.add(
             DynamicSphere(
@@ -50,7 +50,6 @@ class Drone:
                 radius=self.radius,
                 mass=self.mass,
                 color=np.array([0.2, 0.6, 1.0]),
-                collision_group="drone",
             )
         )
         return self

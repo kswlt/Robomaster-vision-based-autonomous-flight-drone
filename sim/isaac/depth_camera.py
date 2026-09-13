@@ -34,19 +34,35 @@ class DepthCamera:
 
     def build(self, world):
         """Attach depth camera to drone prim."""
-        from omni.isaac.sensor import Camera
-
         drone_pos = self.drone.get_position()
         cam_pos = drone_pos + self.mount_pos
 
-        self._camera = Camera(
-            prim_path="/World/Sensors/DepthCamera",
-            name="front_depth",
-            position=cam_pos,
-            resolution=(self.width, self.height),
-        )
-        self._camera.set_focal_length(self._fov_to_focal())
-        self._camera.set_clipping_range(self.near, self.far)
+        # Try Isaac Sim 6.x import first, then legacy
+        Camera = None
+        try:
+            from isaacsim.sensors.camera import Camera
+        except ImportError:
+            try:
+                from omni.isaac.sensor import Camera
+            except ImportError:
+                pass
+
+        if Camera is not None:
+            try:
+                self._camera = Camera(
+                    prim_path="/World/Sensors/DepthCamera",
+                    name="front_depth",
+                    position=cam_pos,
+                    resolution=(self.width, self.height),
+                )
+                self._camera.set_focal_length(self._fov_to_focal())
+                self._camera.set_clipping_range(self.near, self.far)
+            except Exception as e:
+                print(f"[WARN] Depth camera build failed: {e}, using synthetic depth")
+                self._camera = None
+        else:
+            print("[WARN] Camera class not available, using synthetic depth")
+            self._camera = None
         return self
 
     def _fov_to_focal(self) -> float:
