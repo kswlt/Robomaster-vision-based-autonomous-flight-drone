@@ -22,8 +22,9 @@
 | DiffPhys upstream training | ✅ Done | 3000 iters: loss 27.3→3.3; checkpoint save/load verified (514K params) |
 | Target-impact training | ✅ Done | 6000 iters, 1000ep eval: **80.5% hit rate**, impact_vel 0.8m/s, angle 41.9° |
 | Isaac real physics eval | ✅ Done | **Milestone 1: 20/20 hit, 100% rate, 0 wrong, 0 timeout** |
-| Checkpoint→Isaac eval | 🔶 In Progress | **100ep: 100% hit, impact angle 23.6°, vel 0.84m/s**; 1000ep running |
-| RK3588 export | ⏳ Pending | After 1000ep validation |
+| Checkpoint→Isaac eval | ✅ Done | **Milestone 4: 1000ep 100% hit, impact angle 23.6°, vel 0.84m/s** |
+| RK3588 ONNX export | ✅ Done | **35.9KB ONNX, validated, ORT diff 9.5e-07** |
+| Sim-to-Real noise test | 🔄 In Progress | depth noise, frame drop, latency, mass var, camera perturb |
 
 ## Verified
 

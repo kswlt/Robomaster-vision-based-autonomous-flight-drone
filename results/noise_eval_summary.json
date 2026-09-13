@@ -1,0 +1,30 @@
+{
+  "metrics": {
+    "episodes": 50,
+    "target_hits": 50,
+    "target_hit_rate": 1.0,
+    "wrong_collisions": 0,
+    "wrong_collision_rate": 0.0,
+    "timeouts": 0,
+    "timeout_rate": 0.0,
+    "impact_velocity_mean": 0.8429512493440621,
+    "impact_velocity_std": 0.0,
+    "impact_angle_mean": 23.5884958673504,
+    "impact_angle_p95": 23.588495867350396,
+    "impact_center_error_mean": 0.3975294798639269,
+    "time_to_target_mean": 70.0,
+    "checkpoint": "C:\\Users\\Admin\\Desktop\\\u7aef\u5230\u7aef\u5f3a\u5316\u5b66\u4e60\u65e0\u4eba\u673a\u4eff\u771f\\training\\diffphys\\results\\checkpoints\\target_impact_0006k.pth",
+    "use_synthetic_depth": true,
+    "hit_radius": 0.4,
+    "max_steps": 500,
+    "noise_config": {
+      "depth_noise_std": 0.0,
+      "depth_drop_prob": 0.0,
+      "latency_steps": 0,
+      "mass_variation": 0.0,
+      "camera_pos_noise": 0.0,
+      "camera_rot_noise": 0.0
+    }
+  },
+  "timestamp": 1789339843.2938943
+}

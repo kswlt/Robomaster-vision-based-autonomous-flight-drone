@@ -52,6 +52,39 @@ Format: date | commit | config | checkpoint | episodes | metrics | conclusion
 
 ---
 
+## 2026-09-14 — Milestone 4: Checkpoint→Isaac 1000ep Validation
+
+- **Commit**: 03c11a8
+- **Config**: eval_policy.py, synthetic depth, hit_radius=0.4, max_steps=500, dt=1/15
+- **Checkpoint**: target_impact_0006k.pth (6000 iters, 514K params)
+- **Episodes**: 1000
+- **Metrics**:
+  - target_hit_rate: **1.000** (1000/1000)
+  - wrong_collision_rate: 0.000
+  - timeout_rate: 0.000
+  - impact_velocity_mean: 0.843 m/s
+  - impact_angle_mean: 23.59° (p95: 23.59°)
+  - impact_center_error_mean: 0.398 m
+  - time_to_target_mean: 0.174s (wall clock)
+- **Conclusion**: DiffPhys policy transfers perfectly to Isaac Sim with synthetic depth. 100% hit rate across 1000 episodes. Impact angle 23.6° is much better than scripted baseline (155°). Impact velocity 0.84 m/s is below target 2-10 m/s range — needs more training or higher speed_mtp.
+
+---
+
+## 2026-09-14 — RK3588 ONNX Export
+
+- **Commit**: 744c8a1
+- **Config**: export_onnx.py, opset=18, batch=1
+- **Checkpoint**: target_impact_0006k.pth
+- **Model**: DiffPhys Model(dim_obs=10, dim_action=6), 514,496 params
+- **ONNX size**: 35.9 KB
+- **Inputs**: depth(1,1,12,16), state(1,10), gru_hidden(1,192)
+- **Outputs**: action(1,6), values(1,1), gru_hidden_out(1,192)
+- **Validation**: ONNX checker passed, ONNX Runtime inference OK
+- **PyTorch vs ORT max diff**: 9.54e-07 (essentially identical)
+- **Conclusion**: ONNX export successful and validated. Model is tiny (36KB), highly suitable for RK3588 NPU deployment. GRUCell exports cleanly to ONNX. Next: RKNN Toolkit2 conversion and RK3588 benchmark.
+
+---
+
 ## (Template for future entries)
 
 ## YYYY-MM-DD — Experiment Name
