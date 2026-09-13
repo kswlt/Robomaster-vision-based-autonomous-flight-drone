@@ -1,0 +1,20 @@
+{
+  "episodes": 20,
+  "target_hits": 20,
+  "target_hit_rate": 1.0,
+  "center_hits": 0,
+  "center_hit_rate": 0.0,
+  "wrong_collisions": 0,
+  "wrong_collision_rate": 0.0,
+  "timeouts": 0,
+  "timeout_rate": 0.0,
+  "impact_velocity_mean": 1.1839738613669657,
+  "impact_velocity_std": 2.220446049250313e-16,
+  "impact_angle_mean": 155.42403300166774,
+  "impact_angle_p95": 155.42403300166774,
+  "impact_center_error_mean": 0.3911867288502157,
+  "time_to_target_mean": 0.00768958330154419,
+  "post_impact_recovery_rate": 0.0,
+  "home_return_rate": 0.0,
+  "complete_mission_success_rate": 0.0
+}

@@ -1,0 +1,16 @@
+{
+  "episodes": 1000,
+  "target_hits": 805,
+  "target_hit_rate": 0.805,
+  "center_hits": 0,
+  "center_hit_rate": 0.0,
+  "wrong_collisions": 956,
+  "wrong_collision_rate": 0.956,
+  "timeouts": 195,
+  "timeout_rate": 0.195,
+  "impact_velocity_mean": 0.8003352002824963,
+  "impact_velocity_std": 0.26357575708922887,
+  "impact_angle_mean": 41.88528428825533,
+  "impact_angle_p95": 67.40523071289061,
+  "time_to_target_mean": 81.64472049689441
+}

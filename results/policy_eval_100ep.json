@@ -1,0 +1,1623 @@
+{
+  "metrics": {
+    "episodes": 100,
+    "target_hits": 100,
+    "target_hit_rate": 1.0,
+    "wrong_collisions": 0,
+    "wrong_collision_rate": 0.0,
+    "timeouts": 0,
+    "timeout_rate": 0.0,
+    "impact_velocity_mean": 0.8429512493440623,
+    "impact_velocity_std": 2.220446049250313e-16,
+    "impact_angle_mean": 23.5884958673504,
+    "impact_angle_p95": 23.588495867350396,
+    "impact_center_error_mean": 0.3975294798639269,
+    "time_to_target_mean": 0.1888939619064331,
+    "checkpoint": "C:\\Users\\Admin\\Desktop\\\u7aef\u5230\u7aef\u5f3a\u5316\u5b66\u4e60\u65e0\u4eba\u673a\u4eff\u771f\\training\\diffphys\\results\\checkpoints\\target_impact_0006k.pth",
+    "use_synthetic_depth": true,
+    "hit_radius": 0.4,
+    "max_steps": 500
+  },
+  "episodes": [
+    {
+      "episode_id": 0,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.22980189323425293,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 1,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.16376447677612305,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 2,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.14675378799438477,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 3,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.21513056755065918,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 4,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.231231689453125,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 5,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.28589630126953125,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 6,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.18589258193969727,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 7,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.17403793334960938,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 8,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.2543783187866211,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 9,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.19109106063842773,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 10,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.18362879753112793,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 11,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.22635245323181152,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 12,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.1831350326538086,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 13,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.18750858306884766,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 14,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.21074986457824707,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 15,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.17642593383789062,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 16,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.17358732223510742,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 17,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.17396020889282227,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 18,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.15030527114868164,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 19,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.18133759498596191,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 20,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.19251060485839844,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 21,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.15473103523254395,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 22,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.17800188064575195,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 23,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.14493298530578613,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 24,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.19536137580871582,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 25,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.17283368110656738,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 26,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.14841651916503906,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 27,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.16967105865478516,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 28,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.1668076515197754,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 29,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.15506792068481445,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 30,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.17612123489379883,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 31,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.17077183723449707,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 32,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.18303990364074707,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 33,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.15501785278320312,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 34,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.13629674911499023,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 35,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.16383910179138184,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 36,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.16245031356811523,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 37,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.19739985466003418,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 38,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.19400238990783691,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 39,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.19338607788085938,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 40,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.17902851104736328,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 41,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.17244696617126465,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 42,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.1577928066253662,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 43,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.16471481323242188,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 44,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.1564638614654541,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 45,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.1768953800201416,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 46,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.19410347938537598,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 47,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.1731548309326172,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 48,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.18020176887512207,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 49,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.20781254768371582,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 50,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.20626258850097656,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 51,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.1816565990447998,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 52,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.16687774658203125,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 53,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.1625685691833496,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 54,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.21476316452026367,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 55,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.2149052619934082,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 56,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.2073662281036377,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 57,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.1818239688873291,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 58,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.2067852020263672,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 59,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.2692403793334961,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 60,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.2027115821838379,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 61,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.1543138027191162,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 62,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.15984559059143066,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 63,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.18426132202148438,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 64,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.21202635765075684,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 65,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.2032921314239502,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 66,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.18713045120239258,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 67,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.19084596633911133,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 68,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.19236969947814941,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 69,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.25957822799682617,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 70,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.24446940422058105,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 71,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.23257112503051758,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 72,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.19922924041748047,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 73,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.21467065811157227,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 74,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.226959228515625,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 75,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.2061305046081543,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 76,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.16672897338867188,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 77,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.1653001308441162,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 78,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.16516590118408203,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 79,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.1522541046142578,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 80,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.1854724884033203,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 81,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.19520926475524902,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 82,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.17504286766052246,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 83,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.20372581481933594,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 84,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.196946382522583,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 85,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.17220425605773926,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 86,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.16213011741638184,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 87,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.1846632957458496,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 88,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.16096949577331543,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 89,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.21073222160339355,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 90,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.21673345565795898,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 91,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.20203280448913574,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 92,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.23566532135009766,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 93,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.17261743545532227,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 94,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.18451380729675293,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 95,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.17403793334960938,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 96,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.16325998306274414,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 97,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.22234058380126953,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 98,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.2179105281829834,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    },
+    {
+      "episode_id": 99,
+      "hit": true,
+      "wrong_collision": false,
+      "timeout": false,
+      "impact_velocity": 0.8429512493440621,
+      "impact_angle": 23.588495867350396,
+      "impact_center_error": 0.39752947986392695,
+      "time_to_target": 0.22283935546875,
+      "steps": 71,
+      "final_pos": [
+        2.814008196039742,
+        3.8754132195919118,
+        1.2067015999617676
+      ]
+    }
+  ]
+}

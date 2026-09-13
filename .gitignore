@@ -33,9 +33,10 @@ training/diffphys/upstream/*
 !training/diffphys/upstream/.gitkeep
 training/diffphys/upstream_commit.txt
 
-# Results (keep structure, ignore run data)
+# Results (keep structure, ignore run data but track key JSON metrics)
 results/*
 !results/.gitkeep
+!results/*.json
 results/checkpoints/
 results/depth_frames/
 
