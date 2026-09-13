@@ -19,12 +19,19 @@
 - [x] Install PyTorch 2.2.2+cu118 in WSL2 Python 3.10 venv
 - [x] Install CUDA Toolkit 11.8 (nvcc V11.8.89)
 - [x] Build custom CUDA extension `quadsim_cuda` (10.3MB .so)
-- [x] Run `main_cuda.py` with single_agent config (3000 iters, in progress)
-- [ ] Verify: loss decreases over iterations (observed: 27→6 in 200 iters)
-- [ ] Verify: checkpoint saved to expected path
+- [x] Run `main_cuda.py` with single_agent config (3000 iters completed, 10000 iters running)
+- [x] Verify: loss decreases over iterations (27.3 → 3.3 in 3000 iters)
+- [ ] Verify: checkpoint saved to expected path (upstream saves every 10000 iters; modified version saves every 1000)
 - [ ] Verify: checkpoint can be reloaded (load_state_dict)
 - [ ] Verify: validation run produces metrics
 - [x] Record: upstream commit SHA, patches, environment
+
+## Training Results (3000 iters, single_agent config)
+- **Loss trajectory**: 27.25 (iter 0) → 9.4 (iter 50) → 5.8 (iter 200) → 3.5 (iter 1000) → 3.3 (iter 3000)
+- **Training speed**: ~2.5 it/s on RTX 4060 Laptop (8GB)
+- **Total time**: 19m34s for 3000 iters
+- **Config**: batch=64, lr=1e-3, AdamW+CosineAnnealing, ctl_dt=1/15, timesteps=150
+- **Note**: Upstream only saves checkpoint every 10000 iters. Modified version (main_upstream_ckpt.py) saves every 1000 iters. 10000-iter run in progress.
 
 ## Build Notes (Critical)
 
