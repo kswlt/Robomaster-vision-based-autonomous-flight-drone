@@ -1,8 +1,8 @@
-# D430 Depth Integration — Stage 2 诊断报告
+# D430 Depth Integration — Stage 2 诊断报告（更新版）
 
 > 日期：2026-09-13
-> 设备：Orange Pi 5 (RK3588) + Intel RealSense D430
-> 状态：**Depth 开启导致 IR 流死锁，已回退为 depth 关闭**
+> 设备：Orange Pi 5 (RK3588) + Intel RealSense D430 (FW 5.17.3.10)
+> **关键结论：D430 固件不支持 IR 和 Depth 同时输出帧**
 
 ---
 
@@ -11,95 +11,98 @@
 | 项 | 值 |
 |---|---|
 | IR profile | 848×480 @ 30 FPS（stereo, Y8） |
-| Depth profile | 480×270 @ 15 FPS（Z16） |
+| Depth profile（尝试） | 480×270@15, 424×240@6 |
 | USB | SuperSpeed 5000M (Bus 02) |
 | librealsense | 2.58.3 |
 | realsense2_camera | 4.58.3 |
-| launch 参数 | `enable_depth:=true depth_module.depth_profile:=480x270x15` |
 
-## 2. 测试结果
+## 2. ROS realsense2_camera 测试结果
 
 ### 2.1 启动阶段（前 ~22 秒）
-- Open profile 全部成功：
-  - Infra(1): 848×480 @ 30 ✅
-  - Infra(2): 848×480 @ 30 ✅
-  - Depth(0): 480×270 @ 15 (Z16) ✅
-- RealSense Node Is Up ✅
-- Depth topic 正常发布（/camera/camera/depth/image_rect_raw）
+- Open profile 全部成功：Infra(1/2) 848×480@30 + Depth 480×270@15 (Z16)
+- Depth topic 正常发布
 
 ### 2.2 故障阶段（约 22 秒后）
-- 出现持续报错：**"Frames didn't arrived within 5 seconds"**（每 5 秒一次）
-- IR 流完全死锁（ros2 topic hz 无输出）
-- Depth 流看似仍在发布（~30Hz），但 IR 已停止
-- OpenVINS 无法初始化：`init=0 init_time=-1.000`
-- VIO odom 不发布
-- 无 REC error，无 hwmon error，无 USB reset
+- 持续报错：**"Frames didn't arrived within 5 seconds"**（每 5 秒一次）
+- IR 流完全死锁，VIO 无法初始化（init=0）
+- 无 REC/hwmon/USB 错误
 
-### 2.3 回退阶段（关闭 depth 后）
-- `enable_depth:=false`，重启服务
-- IR 流立即恢复：848×480 @ 30 ✅
-- "Frames didn't arrived" 计数 = 0 ✅
-- OpenVINS 初始化正常：ZUPT accepted, |v|=0.001, chi2=0.731 ✅
-- vio_bridge 正常发送 VISION_POSITION_ESTIMATE，EKF 正常 ✅
+### 2.3 回退（关闭 depth）
+- IR 立即恢复 848×480@30，VIO 正常（ZUPT accepted, |v|=0.001）
 
-## 3. 前后对比
+## 3. librealsense 裸测试（绕过 ROS）—— 关键发现
 
-| 指标 | Depth 关闭（正常） | Depth 开启（故障） |
-|---|---|---|
-| Infra1 帧率 | 30 Hz 稳定 | 死锁（0 Hz） |
-| Infra2 帧率 | 30 Hz 稳定 | 死锁 |
-| Depth 帧率 | — | ~30 Hz（异常） |
-| Frame timeout | 0 | 持续（每 5 秒） |
-| VIO 初始化 | 正常（ZUPT accepted） | init=0，无法初始化 |
-| VIO odom | 147 Hz 发布 | 不发布 |
-| REC/hwmon error | 0 | 0 |
+使用最小 C++ 程序（`scripts/test_realsense_combos.cpp`），停止 vio.service 后测试：
 
-## 4. 可能原因分析
+| 组合 | Pipeline 启动 | 收到帧数 | 结论 |
+|---|---|---|---|
+| IR1 only 848×480@30 | ✅ | 15 | 正常 |
+| IR2 only 848×480@30 | ✅ | 15 | 正常 |
+| IR1+IR2 848×480@30 | ✅ | 15 | 正常 |
+| Depth only 480×270@15 | ✅ | 7 | 正常 |
+| Depth only 424×240@6 | ✅ | 2 | 正常 |
+| **IR1+Depth 848×480@30 + 424×240@6** | ✅ | **0** | **无帧输出** |
+| **IR1+IR2+Depth + 424×240@6** | ✅ | **0** | **无帧输出** |
+| **IR1+IR2+Depth + 480×270@15** | ✅ | **0** | **无帧输出** |
 
-### 4.1 最可能：realsense2_camera 的 IR+Depth 同步问题
-D430 的 IR 和 Depth 共享同一个 Stereo Depth Module。Depth 是设备内部从 IR 计算得出的，理论上不需要额外 USB 带宽。但 realsense2_camera 在同时发布 IR1+IR2+Depth 时，可能存在帧同步或缓冲区管理问题，导致 IR 流死锁。
+### 3.1 结论
+- **单独开 IR 或单独开 Depth 都正常**
+- **同时开 IR+Depth 时，pipeline 启动成功（不报错），但收不到任何帧（0 frames）**
+- 这解释了 ROS 中 "Frames didn't arrived within 5 seconds" 的根因
+- **这是 D430 固件/硬件限制，不是 ROS wrapper 问题，也不是 USB 带宽问题**
+- 降低 depth 分辨率/帧率（424×240@6）也无法解决
 
-### 4.2 Depth profile 兼容性
-480×270@15 可能不是 D430 的标准 depth profile，或者与 848×480@30 IR 组合不兼容。D430 的标准 depth profile 通常是 848×480、640×480、424×240 等。
+## 4. 根因分析
 
-### 4.3 固件/硬件问题
-D430 固件 5.17.3.10 在同时开启 IR+Depth 时可能存在已知 bug。
+D430 的 IR 和 Depth 共享同一个 Stereo Depth Module。Depth 是设备内部从 IR 计算得出的。在当前固件（5.17.3.10）下，同时启用 IR 输出和 Depth 输出时，设备内部可能发生：
+1. Depth 计算阻塞了 IR 帧输出
+2. IR 和 Depth 共享缓冲区，导致死锁
+3. 固件不支持同时输出原始 IR 和计算后的 Depth
 
-### 4.4 供电问题
-Depth 开启后设备功耗增加，可能导致供电不足（虽然用户已解决供电问题，但同时开更多流可能仍有边际影响）。
+这可能是 D430（而非 D435/D455）的特定限制，因为 D430 是更简化的模块。
 
-## 5. 后续排查计划
+## 5. 替代方案（2D Map 深度数据来源）
 
-### 5.1 用 librealsense 裸测试（排除 ROS wrapper）
-写最小 C++ 程序，同时开启 IR1+IR2+Depth，运行 60 秒，观察是否出现帧丢失。如果裸测试正常，说明是 realsense2_camera 的问题；如果裸测试也失败，说明是固件/硬件问题。
+既然 D430 不能同时输出 IR+Depth，2D Rolling Occupancy Map 的深度数据需要其他来源：
 
-### 5.2 尝试不同的 depth profile
-- 424×240 @ 6（最低 profile，最不可能导致带宽问题）
-- 640×480 @ 6
-- 848×480 @ 6
-- 关闭 IR2，只开 IR1+Depth（减少流数量）
+### 方案 A：从 Stereo IR 计算深度（推荐）
+- D430 的 IR1/IR2 是已校准的立体相机对
+- 用 OpenCV SGBM 或 LIBELAS 计算视差图，转换为深度
+- 优点：不影响 VIO，IR 持续输出；可以控制计算帧率（8-15Hz）
+- 缺点：需要额外 CPU 计算立体匹配；RK3588 有 NPU/GPU 可加速
+- 实现：新增 `stereo_depth_mapper` 节点，输入 IR1+IR2+camera_info，输出 depth image + 2D map
 
-### 5.3 检查 D430 depth+IR 同时运行的官方支持
-查阅 Intel RealSense 文档，确认 D430 是否支持同时发布 IR 和 Depth（某些配置下 depth 会替代 IR 输出）。
+### 方案 B：用 OpenVINS 稀疏点云
+- OpenVINS 输出 `/points_msckf`（三角化的 3D 特征点）
+- 直接用稀疏点构建 2D Occupancy Grid
+- 优点：零额外计算，已有数据
+- 缺点：点云稀疏（~100-200 点），可能不够用于避障；特征点集中在纹理丰富区域
 
-### 5.4 更新固件（需用户确认）
-当前固件 5.17.3.10。如果有更新版本，可能修复了 IR+Depth 同时运行的 bug。但固件更新有风险，需用户确认后执行。
+### 方案 C：时分复用（不推荐）
+- VIO 运行时开 IR，需要建图时切换到 depth
+- 缺点：VIO 中断，不可接受
+
+### 方案 D：更新固件（需用户确认）
+- 可能新版固件修复了 IR+Depth 同时输出的问题
+- 风险：固件更新可能丢失校准，需用户确认
 
 ## 6. 当前决策
 
-**按任务原则：VIO > Depth > Mapping。不能为了地图牺牲 VIO。**
+**推荐方案 A：从 Stereo IR 计算深度。**
 
-当前保持 `enable_depth:=false`，确保 VIO 稳定运行。Depth 集成的后续排查在 VIO baseline 完全验证后进行。
+理由：
+1. 不影响 VIO（IR 持续 30Hz 输出）
+2. RK3588 有足够算力（6 核 CPU + Mali GPU + NPU）
+3. 可以控制深度计算帧率（8-15Hz），满足 2D Map 需求
+4. 不需要额外硬件
 
-如果后续 2D Map 需要 depth，可以考虑：
-1. 用 IR 视差直接计算深度（不依赖 depth stream）
-2. 只在需要建图时短暂开启 depth，建图完成后关闭
-3. 排查并修复 IR+Depth 同时运行的问题
+下一步：实现 `stereo_depth_mapper` 节点（Stage 3 调整为基于 IR 立体匹配的深度建图）。
 
 ## 7. 相关文件
 
 | 文件 | 说明 |
 |---|---|
+| scripts/test_realsense_combos.cpp | 流组合兼容性裸测试 |
+| scripts/test_realsense_depth_ir.cpp | IR+Depth 同时开启测试 |
 | start_vio_systemd.sh | 当前 depth 关闭（enable_depth:=false） |
 | docs/D430_848x480_30_BASELINE.md | Stage 1B 相机+VIO 静态基线 |
-| docs/REALSENSE_HWMON_REC_ERROR_DIAGNOSIS.md | 排线故障根因分析 |
