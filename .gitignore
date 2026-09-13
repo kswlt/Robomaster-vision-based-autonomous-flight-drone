@@ -48,6 +48,7 @@ __pycache__
 # RKNN build
 *.rknn
 *.onnx
+!deployment/onnx/policy.onnx
 !deployment/onnx/.gitkeep
 !deployment/rk3588/.gitkeep
 
