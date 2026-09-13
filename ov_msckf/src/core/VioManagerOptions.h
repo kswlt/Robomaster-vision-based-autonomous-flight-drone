@@ -205,7 +205,7 @@ struct VioManagerOptions {
   Eigen::Matrix<double, 4, 1> q_GYROtoIMU;
 
   /// Time offset between camera and IMU.
-  double calib_camimu_dt = 0.0;
+  double calib_camimu_dt = 0.01152;
 
   /// Map between camid and camera intrinsics (fx, fy, cx, cy, d1...d4, cam_w, cam_h)
   std::unordered_map<size_t, std::shared_ptr<ov_core::CamBase>> camera_intrinsics;

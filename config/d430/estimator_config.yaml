@@ -9,7 +9,7 @@ max_cameras: 2 # how many cameras we have 1 = mono, 2 = stereo, >2 = binocular (
 
 calib_cam_extrinsics: false # use the fixed mount transform below; do not optimize it during startup
 calib_cam_intrinsics: false # D430 factory intrinsics are fixed for the active 848x480 profile
-calib_cam_timeoffset: true # if timeoffset between camera and IMU should be optimized
+calib_cam_timeoffset: false # if timeoffset between camera and IMU should be optimized
 calib_imu_intrinsics: false # if imu intrinsics should be calibrated (rotation and skew-scale matrix)
 calib_imu_g_sensitivity: false # if gyroscope gravity sensitivity (Tg) should be calibrated
 

@@ -145,3 +145,31 @@ VIO 初始化时飞机在移动，导致初始加速度计偏置估计错误（b
 ### 下一步
 - 手持动态测试（缓慢平移/旋转）
 - 验证动态下 VIO 是否稳定
+
+## 2026-09-14 OpenVINS 编译成功 + VIO 稳定验证
+
+### 编译问题解决
+- **问题**：板子并行编译 OpenVINS 时 OOM（cc1plus 占用 2.3GB 虚拟内存被 OOM killer 杀死）
+- **解决**：使用 `MAKEFLAGS=-j1` 单线程编译，用时 1 分 11 秒成功
+- **编译产物**：libov_msckf_lib.so 199MB，时间戳 2026-09-14 02:00
+
+### timeoffset 固定修改
+- 修改 `ov_msckf/src/core/VioManagerOptions.h`：`calib_camimu_dt = 0.01152`（默认值）
+- 在 `kalibr_imucam_chain.yaml` cam0 下添加 `timeshift_cam_imu: 0.01152`
+- 配置 `calib_cam_timeoffset: false` 禁用在线优化
+- **验证**：LOADED_CAMERA_IMU_TIME_OFFSET_SEC=0.011520000 确认初始值已加载
+
+### VIO 稳定状态（静止）
+- 位置漂移：0.01 米（极小）
+- 加速度计偏置：ba = 0.0009, 0.0043, -0.0040（正常 <0.01）
+- timeoffset：稳定在 -0.00282（在线优化似乎仍在运行，但已收敛）
+- 特征点：145-147 个
+- ZUPT：正常工作
+
+### 待调查问题
+- `calib_cam_timeoffset: false` 配置似乎没有完全生效（日志仍输出 camera-imu timeoffset）
+- timeoffset 初始值 0.01152，但运行时收敛到 -0.00282，差异较大
+- 需要验证动态晃动时 VIO 是否稳定
+
+### Commit
+- 修改文件：estimator_config.yaml, kalibr_imucam_chain.yaml, VioManagerOptions.h
