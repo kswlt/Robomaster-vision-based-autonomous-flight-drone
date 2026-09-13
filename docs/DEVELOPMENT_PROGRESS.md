@@ -29,18 +29,48 @@
 
 **根因确认**：module↔board 排线（interposer）脱落/接触不良 → 设备 fallback 识别为 D400(0x0AD1)、EEPROM/校准读取失败（serial ffffffff、Depth Units 不可读）→ hwmon 0x2c (GET_ADV) -9 → 所有流启动失败。
 
-**修复**：用户重新插好排线 → 全部恢复：
-- 正确识别 **D430（PID 0x0AD4）**，serial 938422073656
-- Depth Units 恢复可读（def=0.001）、Laser Power 支持（D430 有激光）
-- **最小 librealsense 流测试 A-E 全部 PASS**（infra1/infra2/depth/全开）
-- **VIO 恢复运行**：OpenVINS ZUPT 正常、97 features、chi2 达标
-- hwmon 0x2c 错误消失、无持续 REC error
+**修复**：用户重新插好排线 → 全部恢复：D430(0x0AD4)、serial 938422073656、Depth Units 可读、流测试 A-E 全 PASS、VIO 恢复运行。
 
-**硬件验证状态**：Stage 1A Gate 全过（枚举✅ 身份✅ 流启动✅ 0x2c消失✅ 收帧✅ USB SuperSpeed 曾确认✅）
+**遗留**：相机被插到 USB2.0 口（Bus 04），需换 USB3 口。
+**Commit**: c16639b / **Push**: success
 
-**遗留 ⚠️**：相机被插到 **USB2.0 口（Bus 04, 480M）** → profile 表被裁剪（848x480 仅@10/8/6）、realsense2_camera 报 `848x480x30 invalid` 回退 640x480@15。需换插 USB3 口（Bus 02, 5000M）后重启 vio.service 进入 Stage 1B。
+---
 
+## 2026-09-13 — ✅ Stage 1B PASS：D430 848×480@30 恢复 + VIO 静态验证
+
+**关键过程**：
+1. 板子多次重启 + 网络不稳定（WiFi 断连 3 次，最终确认是供电不足导致）
+2. 飞控 USB 反复断开重连（供电不足导致），供电解决后稳定
+3. 相机冷启动时枚举到 USB2（Bus 05），热插拔后恢复 SuperSpeed（Bus 02, 5000M）
+4. 供电问题解决后，全链路稳定
+
+**实测结果**：
+| 指标 | 值 |
+|---|---|
+| 相机 | D430 (8086:0ad4), serial 938422073656 |
+| USB | Bus 02 SuperSpeed **5000M** |
+| infra1 | **848×480 @ 29.995 Hz** |
+| infra2 | 848×480 稳定（std dev 0.001s） |
+| IMU | **146.4 Hz**（PX4 /dev/ttyACM0） |
+| VIO odom (/odomimu) | **146.7 Hz** |
+| VIO pose (/poseimu) | **15.0 Hz** |
+| OpenVINS ZUPT | accepted, chi2=0.817, \|v\|=0.004 m/s |
+| vio_bridge → PX4 | VISION_POSITION_ESTIMATE 正常发送，EKF 视位/视速=True |
+| REC error | 0 |
+| CPU | ~14%（84% idle） |
+| RAM | 715Mi / 3.8Gi |
+
+**已知问题**：
+- 冷启动时相机可能枚举到 USB2（Bus 05），需热插拔恢复 SuperSpeed
+- WiFi 不稳定（供电不足导致），建议后续用有线网络
+- 手持动态 VIO 测试：NOT VERIFIED（需用户操作）
+- 真实飞行 VIO：NOT VERIFIED IN FLIGHT
+
+**产出**：docs/D430_848x480_30_BASELINE.md
 **Commit**: （本次提交）
 **Push**: （本次提交）
 
-**下一步**：① 用户换插 USB3 口 ② 重启 vio.service 验证 848x480@30 ③ D430_848x480_30_BASELINE.md ④ Stage 1.5 VIO baseline
+**下一步**：
+1. Stage 1.5：手持动态 VIO 测试
+2. Stage 2：开启 D430 Depth，确认不破坏 VIO
+3. 仓库代码同步（运行版 bridge + 稳定 config）
