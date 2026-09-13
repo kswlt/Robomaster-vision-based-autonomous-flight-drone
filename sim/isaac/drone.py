@@ -131,3 +131,22 @@ class Drone:
 
     def check_wrong_collision(self, arena_contact: bool) -> bool:
         return arena_contact
+
+    def set_acceleration(self, acc_world: np.ndarray):
+        """Set world-frame acceleration for policy-driven dynamics."""
+        self._pending_acc = np.clip(acc_world, -self.max_acc, self.max_acc)
+
+    def step_dynamics(self, dt: float = 1.0 / 15.0):
+        """Step kinematic dynamics with pending world-frame acceleration."""
+        if not hasattr(self, "_pending_acc"):
+            self._pending_acc = np.zeros(3)
+
+        self._velocity += self._pending_acc * dt
+        speed = np.linalg.norm(self._velocity)
+        if speed > self.max_vel:
+            self._velocity = self._velocity / speed * self.max_vel
+        self._position += self._velocity * dt
+
+        if self._prim is not None:
+            self._prim.set_world_pose(position=self._position)
+            self._prim.set_linear_velocity(self._velocity)

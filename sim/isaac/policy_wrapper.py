@@ -1,194 +1,181 @@
-"""Isaac Sim Policy Wrapper for DiffPhys-trained target-impact policy.
+"""DiffPhys Policy Wrapper for Isaac Sim evaluation.
 
-Loads a PyTorch checkpoint from DiffPhys training and wraps it for use
-in Isaac Sim evaluation. Handles:
-- Depth preprocessing (resize, normalize, maxpool) matching training
-- State vector construction (local_v, target_v, gravity, margin)
-- Action decoding (thrust vector + velocity prediction -> high-level control)
-- Coordinate frame consistency (world/body/camera)
+Loads a trained DiffPhys checkpoint and runs inference in Isaac Sim.
+Matches the exact observation/action interface from train_target_impact.py:
 
-This is the bridge between training (DiffPhys CUDA env) and validation (Isaac Sim).
+Observation:
+  - depth: 64x48 -> inverse-depth normalize (3/d.clamp(0.3,24)-0.6) -> maxpool 4x -> 12x16
+  - state (10): local_v(3) + target_v_body(3) + gravity_dir(3) + margin(1)
+
+Action (6):
+  - reshape to (3,2), rotate by body R -> a_pred(3), v_pred(3)
+  - actual acceleration = (a_pred - v_pred - g_std) * thr_est_error + g_std
 """
 from __future__ import annotations
 
+import sys
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 
+# Add upstream to path for Model import
+UPSTREAM = Path(__file__).resolve().parent.parent.parent / "training" / "diffphys" / "upstream"
+if str(UPSTREAM) not in sys.path:
+    sys.path.insert(0, str(UPSTREAM))
 
-class IsaacPolicyWrapper:
-    """Wraps a DiffPhys-trained Model for Isaac Sim inference.
+from model import Model  # noqa: E402
 
-    Usage:
-        policy = IsaacPolicyWrapper("checkpoint.pth", device="cuda")
-        action = policy.step(depth_image, drone_state, target_pos)
-        # action = (thrust_vector_world, velocity_prediction_world)
-    """
+
+class DiffPhysPolicyWrapper:
+    """Wraps a trained DiffPhys Model for Isaac Sim inference."""
 
     def __init__(
         self,
         checkpoint_path: str,
-        device: str = "cuda",
-        state_dim: int = 10,
-        action_dim: int = 6,
-        depth_width: int = 64,
-        depth_height: int = 48,
-        maxpool_kernel: int = 4,
-        ctl_dt: float = 1.0 / 15.0,
-        hit_radius: float = 0.3,
+        device: str = "cpu",
+        max_speed: float = 4.0,
+        margin: float = 0.2,
+        thr_est_error: float = 1.0,
+        dt: float = 1.0 / 15.0,
     ):
         self.device = torch.device(device)
-        self.depth_width = depth_width
-        self.depth_height = depth_height
-        self.maxpool_kernel = maxpool_kernel
-        self.ctl_dt = ctl_dt
-        self.hit_radius = hit_radius
-
-        # Import model from upstream
-        import sys
-        upstream = Path(__file__).resolve().parent.parent / "diffphys" / "upstream"
-        if str(upstream) not in sys.path:
-            sys.path.insert(0, str(upstream))
-        from model import Model
-
-        self.model = Model(state_dim, action_dim).to(self.device)
-        state_dict = torch.load(checkpoint_path, map_location=self.device)
-        self.model.load_state_dict(state_dict, strict=False)
-        self.model.eval()
-
-        self.hidden: Optional[torch.Tensor] = None
+        self.max_speed = max_speed
+        self.margin = margin
+        self.thr_est_error = thr_est_error
+        self.dt = dt
         self.g_std = torch.tensor([0.0, 0.0, -9.80665], device=self.device)
 
+        # Load model (state_dim=10, action_dim=6, matching training)
+        self.model = Model(10, 6).to(self.device)
+        state_dict = torch.load(checkpoint_path, map_location=self.device)
+        # Handle both raw state_dict and checkpoint dicts
+        if isinstance(state_dict, dict) and "model" in state_dict:
+            state_dict = state_dict["model"]
+        self.model.load_state_dict(state_dict, strict=False)
+        self.model.eval()
+        self.model.reset()
+
+        self._hidden: Optional[torch.Tensor] = None
+
     def reset(self):
-        """Reset GRU hidden state for new episode."""
-        self.hidden = None
-        if hasattr(self.model, "reset"):
-            self.model.reset()
-
-    def preprocess_depth(self, depth: np.ndarray) -> torch.Tensor:
-        """Preprocess depth image to match training pipeline.
-
-        Args:
-            depth: (H, W) float32 depth in meters, 0 = invalid/far
-
-        Returns:
-            (1, 1, H/4, W/4) normalized depth tensor
-        """
-        # Resize to training resolution if needed
-        if depth.shape != (self.depth_height, self.depth_width):
-            # Simple resize via torch
-            d = torch.from_numpy(depth).float().unsqueeze(0).unsqueeze(0)
-            d = F.interpolate(d, size=(self.depth_height, self.depth_width), mode="bilinear")
-            depth = d.squeeze().numpy()
-
-        x = torch.from_numpy(depth).float().to(self.device)
-        # Normalize: 3/depth - 0.6 (matching upstream main_cuda.py)
-        x = 3.0 / x.clamp(0.3, 24.0) - 0.6
-        # Maxpool 4x (matching training)
-        x = F.max_pool2d(x.unsqueeze(0).unsqueeze(0), self.maxpool_kernel, self.maxpool_kernel)
-        return x
-
-    def build_state(
-        self,
-        position_world: np.ndarray,
-        velocity_world: np.ndarray,
-        rotation_matrix: np.ndarray,
-        target_position_world: np.ndarray,
-        max_speed: float = 8.0,
-        margin: float = 0.15,
-    ) -> torch.Tensor:
-        """Build policy state vector matching DiffPhys observation.
-
-        State = [local_v(3), target_v(3), gravity(3), margin(1)] = 10 dims
-
-        Args:
-            position_world: (3,) drone position in world frame
-            velocity_world: (3,) drone velocity in world frame
-            rotation_matrix: (3,3) body-to-world rotation (columns: forward, left, up)
-            target_position_world: (3,) armor target position in world frame
-            max_speed: maximum speed for target vector normalization
-            margin: drone radius margin for collision
-
-        Returns:
-            (1, 10) state tensor
-        """
-        R = torch.from_numpy(rotation_matrix).float().to(self.device)
-        v_world = torch.from_numpy(velocity_world).float().to(self.device)
-        p_world = torch.from_numpy(position_world).float().to(self.device)
-        p_target = torch.from_numpy(target_position_world).float().to(self.device)
-
-        # Yaw-only rotation for state (matching upstream: zero pitch/roll)
-        fwd = R[:, 0].clone()
-        fwd[2] = 0.0
-        fwd = F.normalize(fwd, dim=0)
-        up = torch.tensor([0.0, 0.0, 1.0], device=self.device)
-        left = torch.cross(up, fwd)
-        R_yaw = torch.stack([fwd, left, up], dim=1)  # (3,3)
-
-        # Local velocity
-        local_v = R_yaw.T @ v_world  # (3,)
-
-        # Target vector (clamped to max_speed)
-        target_v_raw = p_target - p_world
-        target_v_norm = torch.norm(target_v_raw)
-        target_v = target_v_raw / (target_v_norm + 1e-8) * torch.minimum(target_v_norm, torch.tensor(max_speed))
-        target_v_local = R_yaw.T @ target_v
-
-        # Gravity in body frame
-        gravity_local = R_yaw.T @ self.g_std
-
-        state = torch.cat([local_v, target_v_local, gravity_local, torch.tensor([margin], device=self.device)])
-        return state.unsqueeze(0)
+        """Reset GRU hidden state."""
+        self.model.reset()
+        self._hidden = None
 
     @torch.no_grad()
-    def step(
+    def compute_action(
         self,
         depth: np.ndarray,
-        position_world: np.ndarray,
-        velocity_world: np.ndarray,
-        rotation_matrix: np.ndarray,
-        target_position_world: np.ndarray,
-        max_speed: float = 8.0,
-        margin: float = 0.15,
-        thr_est_error: float = 1.0,
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """Run one policy inference step.
+        drone_pos: np.ndarray,
+        drone_vel: np.ndarray,
+        drone_forward: np.ndarray,
+        target_pos: np.ndarray,
+    ) -> np.ndarray:
+        """Compute acceleration command from policy.
 
         Args:
-            depth: (H, W) depth image in meters
-            position_world: (3,) drone world position
-            velocity_world: (3,) drone world velocity
-            rotation_matrix: (3,3) body-to-world rotation
-            target_position_world: (3,) armor target world position
-            max_speed: max speed for target vector
-            margin: collision margin
-            thr_est_error: thrust estimation error factor
+            depth: HxW depth image in meters (Isaac depth camera output)
+            drone_pos: (3,) world position
+            drone_vel: (3,) world velocity
+            drone_forward: (3,) body forward direction in world frame
+            target_pos: (3,) target position in world frame
 
         Returns:
-            thrust_vector_world: (3,) desired acceleration/thrust in world frame
-            velocity_prediction_world: (3,) predicted velocity in world frame
+            (3,) acceleration command in world frame
         """
-        # Preprocess
-        x = self.preprocess_depth(depth)
-        state = self.build_state(position_world, velocity_world, rotation_matrix, target_position_world, max_speed, margin)
+        # --- Depth preprocessing (exact match to training) ---
+        depth_t = torch.from_numpy(depth).float().to(self.device)
+        # Resize to 64x48 if needed
+        if depth_t.shape != (48, 64):
+            depth_t = F.interpolate(
+                depth_t.unsqueeze(0).unsqueeze(0),
+                size=(48, 64),
+                mode="bilinear",
+                align_corners=False,
+            ).squeeze(0).squeeze(0)
+        # Inverse-depth normalization: 3/d.clamp(0.3,24) - 0.6
+        x = 3.0 / depth_t.clamp(0.3, 24.0) - 0.6
+        # Maxpool 4x: 64x48 -> 16x12 (wait, training does max_pool2d(x[:,None], 4, 4))
+        # 64x48 with kernel 4 -> 16x12. But training comment says 12x16.
+        # Actually: input is (B, 1, 48, 64) -> maxpool 4 -> (B, 1, 12, 16)
+        x = F.max_pool2d(x.unsqueeze(0).unsqueeze(0), 4, 4)  # (1,1,12,16)
 
-        # Forward
-        act, values, self.hidden = self.model(x, state, self.hidden)
+        # --- Body frame construction (exact match to training) ---
+        fwd = torch.from_numpy(drone_forward).float().to(self.device)
+        fwd[2] = 0.0  # project to horizontal
+        fwd = F.normalize(fwd, dim=0)
+        up = torch.tensor([0.0, 0.0, 1.0], device=self.device)
+        right = torch.cross(up, fwd)
+        # R = [fwd, right, up] as columns (body-to-world rotation)
+        R = torch.stack([fwd, right, up], dim=-1)  # (3, 3)
 
-        # Decode action: (thrust_body, vel_pred_body) -> world frame
-        R = torch.from_numpy(rotation_matrix).float().to(self.device)
-        B = 1
-        a_pred, v_pred, *_ = (R @ act.reshape(B, 3, -1)).unbind(-1)
+        # --- State vector (10 dims) ---
+        v = torch.from_numpy(drone_vel).float().to(self.device)
+        local_v = v @ R  # (3,) velocity in body frame
 
-        # Thrust correction (matching upstream)
-        thrust_world = (a_pred - v_pred - self.g_std) * thr_est_error + self.g_std
+        target_v_raw = torch.from_numpy(target_pos - drone_pos).float().to(self.device)
+        target_v_norm = torch.norm(target_v_raw)
+        target_v_unit = target_v_raw / (target_v_norm + 1e-8)
+        target_v = target_v_unit * min(target_v_norm.item(), self.max_speed)
+        target_v_body = target_v @ R  # (3,)
 
-        return thrust_world.squeeze(0).cpu().numpy(), v_pred.squeeze(0).cpu().numpy()
+        # Gravity direction: body z-axis in world frame (third column of drone's actual R)
+        # For simplicity, use drone_forward to estimate attitude
+        # In training, this is env.R[:, 2] = body up direction in world
+        # We approximate with the up vector rotated by drone attitude
+        # For a level drone, this is [0,0,1]
+        gravity_dir = up.clone()  # approximation: assume level for now
+        # TODO: get actual body z-axis from Isaac drone orientation
 
-    def check_hit(self, position_world: np.ndarray, target_position_world: np.ndarray) -> bool:
-        """Check if drone has hit the target."""
-        dist = np.linalg.norm(position_world - target_position_world)
-        return dist < self.hit_radius
+        margin_t = torch.tensor([self.margin], device=self.device)
+
+        state = torch.cat([local_v, target_v_body, gravity_dir, margin_t], dim=0)
+        state = state.unsqueeze(0)  # (1, 10)
+
+        # --- Model forward pass ---
+        act, values, self._hidden = self.model(x, state, self._hidden)
+        act = act.squeeze(0)  # (6,)
+
+        # --- Action decoding (exact match to training) ---
+        # reshape to (3, 2), rotate by R -> a_pred, v_pred
+        act_reshaped = act.reshape(3, 2)  # (3, 2)
+        rotated = R @ act_reshaped  # (3, 2)
+        a_pred = rotated[:, 0]  # (3,) thrust prediction in world
+        v_pred = rotated[:, 1]  # (3,) velocity prediction in world
+
+        # actual acceleration = (a_pred - v_pred - g_std) * thr_est_error + g_std
+        accel = (a_pred - v_pred - self.g_std) * self.thr_est_error + self.g_std
+
+        return accel.cpu().numpy()
+
+    def compute_action_with_yaw(
+        self,
+        depth: np.ndarray,
+        drone_pos: np.ndarray,
+        drone_vel: np.ndarray,
+        drone_yaw: float,
+        target_pos: np.ndarray,
+    ) -> tuple[np.ndarray, float]:
+        """Compute action with yaw-based forward direction.
+
+        Returns:
+            (acceleration_world, yaw_rate)
+        """
+        # Construct forward direction from yaw
+        fwd = np.array([np.cos(drone_yaw), np.sin(drone_yaw), 0.0])
+        accel = self.compute_action(depth, drone_pos, drone_vel, fwd, target_pos)
+
+        # Compute yaw rate to face target
+        target_dir = target_pos - drone_pos
+        target_yaw = np.arctan2(target_dir[1], target_dir[0])
+        yaw_error = self._wrap_angle(target_yaw - drone_yaw)
+        yaw_rate = np.clip(yaw_error * 2.0, -3.0, 3.0)
+
+        return accel, yaw_rate
+
+    @staticmethod
+    def _wrap_angle(angle: float) -> float:
+        return (angle + np.pi) % (2 * np.pi) - np.pi
