@@ -28,10 +28,10 @@ feat_rep_aruco: "ANCHORED_MSCKF_INVERSE_DEPTH"
 # zero velocity update parameters we can use
 # Require both IMU consistency and low image disparity when disparity is enabled.
 try_zupt: true
-zupt_chi2_multipler: 1.0 # require the IMU chi-square gate as well as disparity checks
-zupt_max_velocity: 0.1
+zupt_chi2_multipler: 0.5 # require the IMU chi-square gate as well as disparity checks
+zupt_max_velocity: 0.05
 zupt_noise_multiplier: 10
-zupt_max_disparity: 0.2 # set to 0 for only imu-based
+zupt_max_disparity: 0.15 # set to 0 for only imu-based
 zupt_only_at_beginning: false
 
 # ==================================================================
