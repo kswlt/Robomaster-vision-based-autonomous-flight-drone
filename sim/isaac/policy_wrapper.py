@@ -108,7 +108,7 @@ class DiffPhysPolicyWrapper:
         fwd[2] = 0.0  # project to horizontal
         fwd = F.normalize(fwd, dim=0)
         up = torch.tensor([0.0, 0.0, 1.0], device=self.device)
-        right = torch.cross(up, fwd)
+        right = torch.cross(up, fwd, dim=-1)
         # R = [fwd, right, up] as columns (body-to-world rotation)
         R = torch.stack([fwd, right, up], dim=-1)  # (3, 3)
 

@@ -21,6 +21,17 @@ from sim.isaac.build_scene import SceneBuilder
 from sim.isaac.policy_wrapper import DiffPhysPolicyWrapper
 
 
+def load_all_configs() -> dict:
+    """Load and merge all relevant configs."""
+    cfg = {}
+    for name in ["arena", "armor", "drone", "depth_camera", "evaluation", "training"]:
+        try:
+            cfg.update(load_config(name))
+        except FileNotFoundError:
+            pass
+    return cfg
+
+
 def parse_args():
     p = argparse.ArgumentParser(description="DiffPhys policy evaluation in Isaac Sim")
     p.add_argument("--checkpoint", default=None, help="Path to DiffPhys checkpoint .pth")
@@ -78,7 +89,7 @@ def run_episode(builder, policy, args, episode_id: int) -> dict:
     drone.reset()
     policy.reset()
 
-    home_pos = np.array(cfg["drone"]["init_position"], dtype=float)
+    home_pos = np.array(cfg["drone"]["initial"]["position"], dtype=float)
     target_pos = np.array(cfg["armor"]["position"], dtype=float)
 
     hit = False
@@ -141,8 +152,8 @@ def run_episode(builder, policy, args, episode_id: int) -> dict:
         drone.step_dynamics(args.dt)
 
         # Step physics if using real Isaac
-        if builder.world is not None:
-            builder.world.step(render=False)
+        if builder._world is not None:
+            builder._world.step(render=False)
 
     if steps >= args.max_steps and not hit and not wrong_collision:
         timeout = True
@@ -178,12 +189,29 @@ def main():
             return 1
 
     # Load config
-    cfg = load_config()
+    cfg = load_all_configs()
 
     # Build Isaac scene
-    builder = SceneBuilder(cfg, headless=args.headless)
+    builder = SceneBuilder(headless=args.headless)
     builder.launch()
-    builder.build_all()
+    objects = builder.build_all()
+    builder.drone = objects["drone"]
+    builder.armor = objects["armor"]
+    builder.arena = objects["arena"]
+    builder.camera = objects["camera"]
+    # Extract inner config dicts (YAML files have top-level keys)
+    def _inner(cfg, *keys):
+        for k in keys:
+            if k in cfg:
+                return cfg[k]
+        return cfg
+
+    builder.cfg = {
+        "arena": _inner(builder.arena_cfg, "arena"),
+        "armor": _inner(builder.armor_cfg, "armor", "armor_target"),
+        "drone": _inner(builder.drone_cfg, "drone"),
+        "camera": _inner(builder.camera_cfg, "depth_camera"),
+    }
 
     # Load policy
     print(f"Loading policy from {args.checkpoint}")
