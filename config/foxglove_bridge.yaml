@@ -2,10 +2,11 @@
   ros__parameters:
     address: 0.0.0.0
     port: 8765
-    send_buffer_limit: 4000000
+    send_buffer_limit: 10000000
     min_qos_depth: 1
-    max_qos_depth: 2
-    use_compression: false
+    max_qos_depth: 5
+    use_compression: true
+    num_threads: 4
     topic_whitelist:
       - ^/odomimu$
       - ^/poseimu$
@@ -21,6 +22,10 @@
       - ^/camera/camera/infra2/image_rect_raw$
       - ^/camera/camera/infra2/camera_info$
       - ^/system/cpu_usage$
+      - ^/system/cpu_per_core$
+      - ^/system/cpu_freq_big$
+      - ^/system/cpu_freq_little$
       - ^/system/mem_usage$
       - ^/system/cpu_temp$
+      - ^/system/load_avg$
       - ^/rosout$
