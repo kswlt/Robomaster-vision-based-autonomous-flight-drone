@@ -130,10 +130,12 @@ def evaluate(args):
             episode_center[newly_hit & (dist < args.center_radius)] = 1
             episode_timeout[newly_hit] = 0
 
-            # Check wrong collisions (very close to obstacles)
+            # Check wrong collisions (only when airborne, exclude ground contact)
             vec_to_pt = env.find_vec_to_nearest_pt()
-            nearest_dist = torch.norm(vec_to_pt, 2, -1) - env.margin
-            newly_wrong = (nearest_dist < 0.05) & (episode_wrong == 0) & (episode_hits == 0)
+            nearest_dist_raw = torch.norm(vec_to_pt, 2, -1) - env.margin
+            nearest_dist = nearest_dist_raw.view(args.batch_size, -1).min(dim=-1).values
+            airborne = env.p[:, 2] > 0.3  # only count collisions when above ground
+            newly_wrong = (nearest_dist < 0.0) & airborne & (episode_wrong == 0) & (episode_hits == 0)
             episode_wrong[newly_wrong] = 1
 
         n = min(args.batch_size, args.episodes - episodes_done)
