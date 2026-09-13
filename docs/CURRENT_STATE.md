@@ -20,8 +20,9 @@
 | Headless eval | 🔶 Written | evaluate.py + run_eval.ps1 — kinematic fallback 20ep 100% hit, real Isaac pending |
 | DiffPhys env build | ✅ Done | WSL2: PyTorch 2.2.2+cu118, CUDA 11.8, quadsim_cuda built & verified |
 | DiffPhys upstream training | ✅ Done | 3000 iters: loss 27.3→3.3; checkpoint save/load verified (514K params) |
-| Target-impact training | 🔄 Running | 10000 iters, loss 63→6.9 at 288 iter, dist 21.9→2.6m |
-| RK3588 export | ⏳ Pending | After policy training |
+| Target-impact training | ✅ Done | 6000 iters, 1000ep eval: **80.5% hit rate**, impact_vel 0.8m/s, angle 41.9° |
+| Isaac real physics eval | 🔶 Pending | Isaac installed, sim code written, need to test Isaac Python env |
+| RK3588 export | ⏳ Pending | After Isaac validation |
 
 ## Verified
 
@@ -34,20 +35,22 @@
 - **quadsim_cuda extension built and importable**: all 6 functions verified
 - **DiffPhys training starts and loss decreases**: 27.3→3.3 in 3000 iters
 - **Checkpoint save/load verified**: checkpoint0003.pth (3000 iters), 514,496 params, CPU+GPU forward pass OK
-- **Target-impact training running**: loss 63→6.9, distance 21.9→2.6m at 288 iters
+- **Target-impact training complete**: 6000 iters, 1000ep eval: **80.5% hit rate**, impact_vel 0.8m/s, angle 41.9°
 - **Isaac Sim 6.1.0 installed**: standalone ZIP at C:\isaacsim, post_install done
 - **Kinematic fallback eval**: 20 episodes, 100% hit rate, full metrics pipeline
 
 ## Current Blockers
 
-1. **Armor module exact dimensions** — not in provided images; using placeholder 0.135×0.055m. Need official RMUC 2026 armor module spec.
-2. **Armor plate normal/orientation** — defaulted to face -x; needs STL face normal analysis or user confirmation.
-3. **Real Isaac Sim execution not yet done** — Isaac installed but sim/isaac code not yet run against real Isaac Python env. Need to verify Isaac Python API compatibility (6.1.0 uses newer omni.isaac.* API).
+1. **Armor module exact dimensions** — placeholder 0.135×0.055m. Need official RMUC 2026 spec.
+2. **Armor plate normal/orientation** — defaulted to face -x; needs STL face normal analysis.
+3. **Real Isaac Sim execution not yet done** — Isaac installed but sim code not yet run against real Isaac Python. Need to verify API compatibility (6.1.0).
+4. **Impact velocity low (0.8 m/s)** — policy approaches slowly. More training or higher speed_mtp may improve.
+5. **wrong_collision metric inflated** — upstream random obstacles cause high collision rate. Resolved when using RM arena.
 
 ## Next Steps
 
-1. 🔄 Wait for DiffPhys upstream 3000-iter training to complete, verify checkpoint save/load
-2. Run target-impact training (train_target_impact.py) in WSL2 (milestone 3)
-3. Test Isaac Sim Python environment: run simple scene load with real STL
-4. Run scripted baseline in real Isaac Headless (milestone 1)
-5. Checkpoint → Isaac validation (milestone 4)
+1. Test Isaac Sim Python environment: run simple scene load with real STL
+2. Run scripted baseline in real Isaac Headless (milestone 1)
+3. Import target-impact checkpoint into Isaac, run 1000 episodes (milestone 4)
+4. Add depth noise/domain randomization, re-evaluate (milestone 5)
+5. Export ONNX/RKNN for RK3588 (milestone 5)
