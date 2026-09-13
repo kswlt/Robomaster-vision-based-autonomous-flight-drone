@@ -90,3 +90,18 @@
 1. Stage 1.5：手持动态 VIO 测试
 2. Stage 2：开启 D430 Depth，确认不破坏 VIO
 3. 仓库代码同步（运行版 bridge + 稳定 config）
+# 2026-09-13: reproducible VIO investigation, first milestone
+
+- Initial d430 b89b761; no reset, no parameter edits. Detailed current status:
+  [VIO_ROOT_CAUSE_AND_VALIDATION.md](VIO_ROOT_CAUSE_AND_VALIDATION.md).
+- e45a673 tightened static ZUPT; 3c93dad disabled online time calibration but
+  did not commit -11 ms despite its message; b89b761 raised frontend to 200/12.
+  These historical tuning results are not a validated dynamic baseline.
+- Actual YAML loads 0 s in freshly rebuilt instrumented executable. Startup
+  warning prevents silent missing-fixed-offset assumptions. Build passed.
+- Runtime ZUPT thresholds differ from repo (0.3/0.02/0.10 vs 0.5/0.05/0.15).
+  Preserved runtime files; no sensor calibration changes.
+- Added unique, hashed raw stereo/IMU bag workflow and operator protocol.
+- Runtime domain 42 startup stalls and watchdog repeated restarts discovered;
+  watchdog temporarily stopped for investigation. PX4 vision remains false.
+- No dynamic dataset or calibrated best offset yet. ROOT CAUSE UNDER INVESTIGATION.
