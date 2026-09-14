@@ -238,3 +238,32 @@ VIO 初始化时飞机在移动，导致初始加速度计偏置估计错误（b
 ### Files Modified
 - ov_msckf/src/state/StateOptions.h (added VERIFY print, force do_calib_camera_timeoffset=false)
 - ov_msckf/src/core/VioManagerOptions.h (calib_camimu_dt = 0.01152)
+
+## 2026-09-14 - VIO Drift Fix Attempt 2: Adjust IMU Noise Parameters
+
+### Problem
+After fixing timeoffset online calibration (disabled), VIO still diverges on vigorous motion:
+- Position drifts to 18.84m
+- Accelerometer bias becomes abnormal: ba = -0.0453, -0.0170 (normal <0.01)
+- Initialization bias is normal: ba = -0.0000, 0.0001, -0.0050
+- Features normal: 122-156
+- timeoffset is fixed (0 "camera-imu timeoffset" in latest log)
+
+### Root Cause Hypothesis
+IMU noise parameters may be too optimistic, causing VIO to over-trust IMU measurements
+and incorrectly adjust accelerometer bias during dynamic motion. This leads to position
+divergence as the biased acceleration is integrated.
+
+### Fix Applied
+Adjusted IMU noise parameters in kalibr_imu_chain.yaml:
+- accelerometer_noise_density: 1.0e-3 -> 2.0e-3 (2x increase, trust vision more)
+- accelerometer_random_walk: 5.0e-4 -> 2.0e-3 (4x increase, slower bias adjustment)
+- gyroscope_random_walk: 1.94e-5 -> 5.0e-5 (2.5x increase)
+
+### Expected Effect
+- VIO will trust visual measurements more during dynamic motion
+- Accelerometer bias will adjust more slowly, reducing incorrect bias estimation
+- Position should be more stable during motion
+
+### Files Modified
+- config/d430/kalibr_imu_chain.yaml
