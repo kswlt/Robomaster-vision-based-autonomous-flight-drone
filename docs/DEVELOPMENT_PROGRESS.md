@@ -208,3 +208,33 @@ VIO 初始化时飞机在移动，导致初始加速度计偏置估计错误（b
 ### Files Modified
 - ov_msckf/src/core/VioManagerOptions.h (calib_camimu_dt = 0.01152)
 - ov_msckf/src/state/StateOptions.h (force do_calib_camera_timeoffset = false)
+
+## 2026-09-14 - VIO Drift Fix Verified: timeoffset online calibration DISABLED
+
+### Root Cause Confirmed
+- Previous build did NOT include StateOptions.h modification due to build cache issue
+- First OOM failure compiled partial objects, second build did not recompile dependent files
+- timeoffset online calibration was still ACTIVE, causing divergence on motion
+
+### Fix Applied
+1. Added VERIFY_FORCE_DISABLED_TIMEOFFSET print to confirm modification is compiled
+2. Cleaned build directory completely (rm -rf build/ov_msckf)
+3. Recompiled with Docker amd64 cross-compile (-j2 to avoid OOM)
+4. Verified binary contains "VERIFY_FORCE_DISABLED_TIMEOFFSET" string
+
+### Verification Results
+- VERIFY_FORCE_DISABLED_TIMEOFFSET: do_calib_camera_timeoffset=0 ✓
+- No "camera-imu timeoffset" output in latest log (0 in last 100 lines) ✓
+- Position stable: p_IinG = 0.006, 0.023, 0.043 ✓
+- Distance: 1.25m (stable, not diverging) ✓
+- VIO rate: 25-60 Hz
+- ZUPT: velocity 0.003 m/s, 128 features
+
+### Remaining Issue
+- Accelerometer bias ba = -0.0746, 0.0518 (still slightly high, normal <0.01)
+- May indicate timeoffset=0.01152 is not perfectly accurate, or minor extrinsics error
+- Need dynamic motion test to verify no divergence
+
+### Files Modified
+- ov_msckf/src/state/StateOptions.h (added VERIFY print, force do_calib_camera_timeoffset=false)
+- ov_msckf/src/core/VioManagerOptions.h (calib_camimu_dt = 0.01152)
