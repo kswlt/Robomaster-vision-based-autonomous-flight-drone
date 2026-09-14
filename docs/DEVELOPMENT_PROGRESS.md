@@ -267,3 +267,48 @@ Adjusted IMU noise parameters in kalibr_imu_chain.yaml:
 
 ### Files Modified
 - config/d430/kalibr_imu_chain.yaml
+
+## 2026-09-14 - ROOT CAUSE FOUND & FIXED: Camera-IMU 7-degree pitch extrinsics error
+
+### Stage
+Stage 1.5 VIO baseline - root cause of static/dynamic drift.
+
+### Root Cause (confirmed by controlled experiment)
+D430 camera is physically mounted pitched DOWN ~7 deg relative to the flight-controller IMU,
+but kalibr_imucam_chain.yaml assumed a perfectly level mount (R_IC = [0,0,1;-1,0,0;0,-1,0]).
+At rest, vision demands body pitch ~+7 deg while the IMU gravity vector demands pitch 0.
+The filter absorbs this ~7 deg conflict into accelerometer bias ba_x (steady +1.15 m/s^2 = g*sin7)
+and attitude pitch (drifts to +7 deg). ZUPT masks it while stationary; on motion ZUPT stops and
+the bad bias double-integrates -> position explodes ("drifts the moment it is moved").
+Online extrinsics calibration cannot fix it: State.cpp initial rotation covariance std is only
+0.005 rad = 0.29 deg, ~24x smaller than the 7 deg error.
+
+### Evidence (static, ZUPT passed / failed = 0)
+- Before (extrinsics 0 deg): pitch 0.3 -> +6.97 deg, ba_x 0 -> +1.15, static drift 2.5 m.
+- After (extrinsics -7 deg, camera down-tilt): pitch stable 0.32 deg (range 0.16-0.32),
+  ba_x stable +0.004 (residual implied tilt 0.02 deg), static position drift 0.02 m.
+- FRD->FLU transform verified correct (static IMU z~+9.81, x/y~0); IMU data normal.
+
+### Fix Applied
+- kalibr_imucam_chain.yaml: R_IC_new = R_IC_old * Rx(-7 deg) for BOTH cameras, translations kept.
+  Optical axis in IMU frame = [0.9925, 0, -0.1219] (forward, 7 deg down).
+  Nominal level extrinsics backed up at runtime config/d430/kalibr_imucam_chain.nominal.yaml.
+- estimator_config.yaml: reverted tracking/ZUPT params to original baseline
+  (num_pts=100, fast_threshold=20, track_frequency=21, max_msckf_in_update=25,
+  zupt_chi2_multipler=0, zupt_max_velocity=0.1, init_max_disparity=10);
+  calib_cam_extrinsics/intrinsics/timeoffset all false; timeshift fixed -0.011.
+  NOTE: stacking 9 tuning changes (num_pts=200, zupt_chi2=0.5, msckf=75...) on top of the
+  corrected extrinsics caused yaw drift/attitude jumps, so they were reverted.
+- Added scripts/apply_extrinsics.py, scripts/analyze_attitude.py, scripts/tune_estimator.py.
+- Added docs/VIO_PITCH_EXTRINSICS_ROOTCAUSE.md.
+
+### Verification
+- Static ~75 s: PASS (pitch 0.32 deg, ba_x 0.004, drift 0.02 m).
+- Hand-held dynamic excitation: NOT VERIFIED (requires on-site motion test).
+- Real flight: NOT VERIFIED IN FLIGHT.
+
+### Next
+1. On-site hand-held translation + fast rotation, run analyze_attitude.py to confirm bounded bias/pose.
+2. Optional precision: Kalibr offline cam-IMU calibration, or enlarge State.cpp extrinsics rotation
+   covariance (0.005 -> ~0.1 rad) and run extrinsics-only online calibration.
+3. Only after dynamic stability: resume Depth / 2D Map / A* / Follower stages.
