@@ -191,6 +191,20 @@ class Arena:
             print(f"  [Arena] After z_clip<={self.z_clip}: {len(vertices)} verts, {len(faces)} faces, "
                   f"z=[{vertices[:,2].min():.2f}, {vertices[:,2].max():.2f}]")
 
+        # Simplify mesh if too many triangles (target ~15k faces for visual)
+        target_faces = 15000
+        if len(faces) > target_faces:
+            try:
+                import trimesh
+                tmp_mesh = trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
+                simplified = tmp_mesh.simplify_quadric_decimation(target_faces)
+                vertices = np.array(simplified.vertices, dtype=np.float32)
+                faces = np.array(simplified.faces, dtype=np.int32)
+                print(f"  [Arena] After simplify: {len(vertices)} verts, {len(faces)} faces "
+                      f"(target {target_faces})")
+            except Exception as e:
+                print(f"  [Arena] Simplify failed ({e}), using full mesh")
+
         # Create mesh on stage
         stage = omni.usd.get_context().get_stage()
         if stage is None:
