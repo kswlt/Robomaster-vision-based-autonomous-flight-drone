@@ -17,7 +17,7 @@ NUM_ITERS=${1:-10000}
 echo "=== DiffPhys upstream training (1000-iter ckpt): $NUM_ITERS iters ==="
 
 cd "$UPSTREAM"
-python "$TARGET_ENV/main_upstream_ckpt.py" \
+PYTHONPATH="$UPSTREAM" python "$TARGET_ENV/main_upstream_ckpt.py" \
     --num_iters $NUM_ITERS \
     --batch_size 64 \
     --single \

@@ -197,11 +197,13 @@ class Arena:
             try:
                 import trimesh
                 tmp_mesh = trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
-                simplified = tmp_mesh.simplify_quadric_decimation(target_faces)
+                # fast_simplification uses target_reduction (ratio), not face count
+                reduction = 1.0 - target_faces / len(faces)
+                simplified = tmp_mesh.simplify_quadric_decimation(reduction)
                 vertices = np.array(simplified.vertices, dtype=np.float32)
                 faces = np.array(simplified.faces, dtype=np.int32)
                 print(f"  [Arena] After simplify: {len(vertices)} verts, {len(faces)} faces "
-                      f"(target {target_faces})")
+                      f"(reduction={reduction:.2f})")
             except Exception as e:
                 print(f"  [Arena] Simplify failed ({e}), using full mesh")
 
