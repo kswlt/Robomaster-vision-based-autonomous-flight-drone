@@ -70,8 +70,9 @@ class PolicyVisualizer:
 
     def _write(self, depth, state, action, pos, step, episode, status, hidden_norm):
         traj = np.array(self.trajectory[-500:], dtype=np.float32) if self.trajectory else np.zeros((0, 2), dtype=np.float32)
+        tmp_path = VIS_DATA_PATH.with_suffix(".npz.tmp")
         np.savez_compressed(
-            VIS_DATA_PATH,
+            tmp_path,
             depth=depth.astype(np.float32),
             state=state.astype(np.float32),
             action=action.astype(np.float32),
@@ -83,6 +84,10 @@ class PolicyVisualizer:
             hidden_norm=np.float32(hidden_norm),
             timestamp=np.float64(time.time()),
         )
+        try:
+            tmp_path.replace(VIS_DATA_PATH)
+        except OSError:
+            pass
 
     def update(self, depth_norm, state_dict, action_dict, pos, step, episode):
         state_vec = np.array([

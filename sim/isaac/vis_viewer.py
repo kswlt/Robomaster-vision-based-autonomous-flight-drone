@@ -65,12 +65,19 @@ def main():
         if VIS_DATA_PATH.exists():
             mtime = VIS_DATA_PATH.stat().st_mtime
             if mtime != last_mtime:
-                try:
-                    data = np.load(VIS_DATA_PATH, allow_pickle=True)
+                data = None
+                for attempt in range(3):
+                    try:
+                        data = np.load(VIS_DATA_PATH, allow_pickle=True)
+                        # Verify all keys readable
+                        _ = data['depth']
+                        break
+                    except Exception:
+                        time.sleep(0.02)
+                        data = None
+                if data is not None:
                     last_data = data
                     last_mtime = mtime
-                except Exception:
-                    pass  # File being written, skip this frame
 
         img = np.ones((H, W, 3), dtype=np.uint8) * 22
 

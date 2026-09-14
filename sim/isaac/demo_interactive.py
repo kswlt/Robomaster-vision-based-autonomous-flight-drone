@@ -25,6 +25,8 @@ import time
 from pathlib import Path
 
 import numpy as np
+import torch
+import torch.nn.functional as F
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
@@ -32,6 +34,8 @@ sys.path.insert(0, str(REPO_ROOT))
 from sim.common.config import repo_root
 from sim.isaac.build_scene import SceneBuilder
 from sim.isaac.policy_wrapper import DiffPhysPolicyWrapper
+
+VIS_DATA_PATH = REPO_ROOT / "results" / "vis_data.npz"
 
 
 # Virtual key codes for Windows GetAsyncKeyState
@@ -123,6 +127,24 @@ def run_interactive(start_manual=False, move_speed=6.0):
     step = 0
     yaw = 0.0
     dt = 1.0 / 15.0
+    trajectory = []
+
+    # Init visualization file
+    VIS_DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(
+        VIS_DATA_PATH,
+        depth=np.zeros((48, 64), dtype=np.float32),
+        state=np.zeros(10, dtype=np.float32),
+        action=np.zeros(6, dtype=np.float32),
+        pos=np.zeros(3, dtype=np.float32),
+        trajectory=np.zeros((0, 2), dtype=np.float32),
+        step=np.int32(0), episode=np.int32(1),
+        status=np.array("starting"),
+        hidden_norm=np.float32(0.0),
+        timestamp=np.float64(time.time()),
+    )
+    print(f"\n  [Visualizer] Data -> {VIS_DATA_PATH}")
+    print(f"  [Visualizer] Run in another terminal: python sim/isaac/vis_viewer.py")
 
     print(f"\nHOME:   {home_pos}")
     print(f"TARGET: {target_pos}")
@@ -167,6 +189,7 @@ def run_interactive(start_manual=False, move_speed=6.0):
             if 'R' in newly_pressed:
                 drone.reset()
                 yaw = 0.0
+                trajectory = []
                 if policy:
                     policy.reset()
                 step = 0
@@ -179,6 +202,7 @@ def run_interactive(start_manual=False, move_speed=6.0):
                 drone._velocity = np.zeros(3)
                 drone._yaw = 0.0
                 yaw = 0.0
+                trajectory = []
                 if drone._prim:
                     drone._prim.set_world_pose(position=tp_pos)
                     drone._prim.set_linear_velocity(np.zeros(3))
@@ -206,6 +230,7 @@ def run_interactive(start_manual=False, move_speed=6.0):
                 time.sleep(1.0)
                 drone.reset()
                 yaw = 0.0
+                trajectory = []
                 if policy:
                     policy.reset()
                 step = 0
@@ -213,16 +238,16 @@ def run_interactive(start_manual=False, move_speed=6.0):
                 continue
 
             # Compute action
+            depth = synthetic_depth(pos, target_pos)
             if use_ai and policy is not None:
                 # AI policy
-                depth = synthetic_depth(pos, target_pos)
                 action = policy.compute_action_with_yaw(depth, pos, vel, yaw, target_pos)
                 accel = np.asarray(action[0], dtype=np.float64)
+                yaw_rate = float(action[1]) if action[1] is not None else 0.0
                 drone.set_acceleration(accel)
                 drone.step_dynamics(dt)
-                if action[1] is not None:
-                    yaw += float(action[1]) * dt
-                    drone._yaw = yaw
+                yaw += yaw_rate * dt
+                drone._yaw = yaw
             else:
                 # Manual control - velocity command
                 forward = np.array([np.cos(yaw), np.sin(yaw), 0.0])
@@ -243,19 +268,60 @@ def run_interactive(start_manual=False, move_speed=6.0):
                     target_vel[2] -= move_speed
 
                 # Yaw
+                yaw_rate = 0.0
                 if 'LEFT' in keys:
-                    yaw += 2.0 * dt
+                    yaw_rate = 2.0
                 if 'RIGHT' in keys:
-                    yaw -= 2.0 * dt
+                    yaw_rate = -2.0
+                yaw += yaw_rate * dt
 
                 # Smooth velocity and apply
                 new_vel = vel + (target_vel - vel) * min(1.0, dt * 8.0)
+                accel = (new_vel - vel) / dt if dt > 0 else np.zeros(3)
                 drone._velocity = new_vel
                 drone._position = pos + new_vel * dt
                 drone._yaw = yaw
                 if drone._prim:
                     drone._prim.set_world_pose(position=drone._position)
                     drone._prim.set_linear_velocity(new_vel)
+
+            # Write visualization data
+            trajectory.append([pos[0], pos[1]])
+            if len(trajectory) > 500:
+                trajectory = trajectory[-500:]
+            depth_t = torch.from_numpy(depth).float()
+            depth_pooled = F.max_pool2d(depth_t.unsqueeze(0).unsqueeze(0), 4, 4).squeeze().numpy()
+            depth_display = np.repeat(np.repeat(depth_pooled, 4, axis=0), 4, axis=1)
+            # Body frame state
+            fwd = np.array([np.cos(yaw), np.sin(yaw), 0.0])
+            rgt = np.cross([0, 0, 1], fwd)
+            R = np.column_stack([fwd, rgt, [0, 0, 1]])
+            local_v = vel @ R
+            tgt_raw = target_pos - pos
+            tgt_norm = np.linalg.norm(tgt_raw)
+            tgt_unit = tgt_raw / (tgt_norm + 1e-8)
+            tgt_v = tgt_unit * min(tgt_norm, 4.0)
+            tgt_body = tgt_v @ R
+            state_vec = np.array([*local_v, *tgt_body, 0.0, 0.0, 1.0, 0.2], dtype=np.float32)
+            action_vec = np.array([*accel, yaw_rate, float(np.linalg.norm(accel)), 0.0], dtype=np.float32)
+            mode_str = "AI" if use_ai else "MANUAL"
+            tmp_path = VIS_DATA_PATH.with_suffix(".npz.tmp")
+            np.savez_compressed(
+                tmp_path,
+                depth=depth_display.astype(np.float32),
+                state=state_vec,
+                action=action_vec,
+                pos=pos.astype(np.float32),
+                trajectory=np.array(trajectory, dtype=np.float32),
+                step=np.int32(step), episode=np.int32(total_hits + 1),
+                status=np.array(mode_str),
+                hidden_norm=np.float32(0.0),
+                timestamp=np.float64(time.time()),
+            )
+            try:
+                tmp_path.replace(VIS_DATA_PATH)
+            except OSError:
+                pass
 
             # Step physics
             world.step(render=True)
