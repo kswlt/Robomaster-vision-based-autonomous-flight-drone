@@ -173,6 +173,7 @@ HTML_PAGE = """<!DOCTYPE html>
       <input type="number" id="target-y" value="0.0" step="0.5"> Y(右)
       <input type="number" id="target-z" value="1.5" step="0.5"> Z(高)
       <button onclick="setTarget()" style="padding:4px 10px; background:#1f6feb; color:#fff; border:none; border-radius:4px; cursor:pointer;">设置</button>
+      <button onclick="setTargetForward()" style="padding:4px 10px; background:#2da44e; color:#fff; border:none; border-radius:4px; cursor:pointer; margin-left:6px;">目标设为正前方</button>
     </div>
     <div style="margin-top:12px; font-size:11px; color:#8b949e; text-align:left;">
       <b>操作流程：</b><br>
@@ -375,6 +376,16 @@ async function setTarget() {
   const resp = await fetch('/set_target', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({target:[tx,ty,tz]})});
   const data = await resp.json();
   console.log('set_target:', data);
+}
+async function setTargetForward() {
+  const resp = await fetch('/set_target_forward', {method:'POST'});
+  const data = await resp.json();
+  if (data.ok) {
+    document.getElementById('target-x').value = data.target[0].toFixed(2);
+    document.getElementById('target-y').value = data.target[1].toFixed(2);
+    document.getElementById('target-z').value = data.target[2].toFixed(2);
+  }
+  console.log('set_target_forward:', data);
 }
 
 setInterval(updateStatus, 100);
@@ -603,6 +614,21 @@ class RequestHandler(BaseHTTPRequestHandler):
         elif self.path == "/set_target":
             if "target" in data:
                 AVOIDANCE_TARGET = np.array(data["target"], dtype=np.float32)
+            self._json_response({"ok": True, "target": AVOIDANCE_TARGET.tolist()})
+        elif self.path == "/set_target_forward":
+            # Set target 5m ahead of drone based on current yaw and position
+            with state_lock:
+                cur_pos = shared_state.get("pose", {"x":0,"y":0,"z":0})
+                cur_yaw = cur_pos.get("yaw", 0)
+            fwd_x = np.cos(cur_yaw)
+            fwd_y = np.sin(cur_yaw)
+            dist = 5.0
+            AVOIDANCE_TARGET = np.array([
+                cur_pos["x"] + fwd_x * dist,
+                cur_pos["y"] + fwd_y * dist,
+                max(cur_pos["z"] + 0.5, 1.5),
+            ], dtype=np.float32)
+            print(f"[TARGET] Set forward: pos=({cur_pos['x']:.2f},{cur_pos['y']:.2f}) yaw={cur_yaw*57.3:.1f}deg -> target={AVOIDANCE_TARGET}")
             self._json_response({"ok": True, "target": AVOIDANCE_TARGET.tolist()})
         else:
             self.send_response(404)
