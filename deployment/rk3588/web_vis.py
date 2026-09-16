@@ -16,7 +16,7 @@ import json
 import threading
 import traceback
 from pathlib import Path
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import HTTPServer, BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import BytesIO
 
 import numpy as np
@@ -561,8 +561,9 @@ def main():
                 time.sleep(0.033)
         threading.Thread(target=sim_loop, daemon=True).start()
 
-    # Start HTTP server
-    server = HTTPServer(("0.0.0.0", args.port), RequestHandler)
+    # Start HTTP server (threading to allow MJPEG + JSON concurrently)
+    server = ThreadingHTTPServer(("0.0.0.0", args.port), RequestHandler)
+    server.daemon_threads = True
     print(f"[HTTP] Dashboard running on http://0.0.0.0:{args.port}")
     print(f"[HTTP] Open in browser: http://<pi-ip>:{args.port}")
     try:
