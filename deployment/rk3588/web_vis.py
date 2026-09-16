@@ -480,7 +480,7 @@ class PX4Controller:
         self.fc.mav.set_position_target_local_ned_send(
             0,
             self.fc.target_system, self.fc.target_component,
-            mavutil_module.MAV_FRAME_LOCAL_NED,
+            mavutil_module.mavlink.MAV_FRAME_LOCAL_NED,
             0b0000110111000111,  # velocity only mask
             0, 0, 0,  # position (ignored)
             vx_ned, vy_ned, vz_ned,  # velocity NED
@@ -495,7 +495,7 @@ class PX4Controller:
         self.fc.mav.set_position_target_local_ned_send(
             0,
             self.fc.target_system, self.fc.target_component,
-            mavutil_module.MAV_FRAME_LOCAL_NED,
+            mavutil_module.mavlink.MAV_FRAME_LOCAL_NED,
             0b0000110000111111,  # acceleration only mask (ignore pos, vel, yaw)
             0, 0, 0,  # position
             0, 0, 0,  # velocity
@@ -506,16 +506,16 @@ class PX4Controller:
     def set_mode_offboard(self):
         self.fc.mav.command_long_send(
             self.fc.target_system, self.fc.target_component,
-            mavutil_module.MAV_CMD_DO_SET_MODE, 0,
-            mavutil_module.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+            mavutil_module.mavlink.MAV_CMD_DO_SET_MODE, 0,
+            mavutil_module.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
             self.PX4_MODE_OFFBOARD, 0, 0, 0, 0, 0
         )
 
     def set_mode_posctl(self):
         self.fc.mav.command_long_send(
             self.fc.target_system, self.fc.target_component,
-            mavutil_module.MAV_CMD_DO_SET_MODE, 0,
-            mavutil_module.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+            mavutil_module.mavlink.MAV_CMD_DO_SET_MODE, 0,
+            mavutil_module.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
             self.PX4_MODE_POSCTL, 0, 0, 0, 0, 0
         )
 
