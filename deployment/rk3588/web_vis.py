@@ -64,7 +64,7 @@ HTML_PAGE = """<!DOCTYPE html>
   .header { text-align: center; padding: 10px; background: #16213e; border-radius: 8px; margin-bottom: 10px; }
   .header h1 { color: #e94560; font-size: 20px; }
   .header .status { color: #4ecdc4; font-size: 14px; margin-top: 4px; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
   .panel { background: #16213e; border-radius: 8px; padding: 12px; }
   .panel h2 { color: #e94560; font-size: 14px; margin-bottom: 8px; border-bottom: 1px solid #0f3460; padding-bottom: 4px; }
   .depth-container { text-align: center; }
@@ -140,6 +140,24 @@ HTML_PAGE = """<!DOCTYPE html>
     </div>
   </div>
   <div class="panel">
+    <h2>策略速度预测（期望速度）</h2>
+    <div class="bar-container">
+      <div class="bar-label"><span>前向速度 VX</span><span id="vx-val">0.00</span></div>
+      <div class="bar-bg"><div class="bar-fill bar-ax" id="vx-bar" style="width:50%"></div></div>
+    </div>
+    <div class="bar-container">
+      <div class="bar-label"><span>右向速度 VY</span><span id="vy-val">0.00</span></div>
+      <div class="bar-bg"><div class="bar-fill bar-ay" id="vy-bar" style="width:50%"></div></div>
+    </div>
+    <div class="bar-container">
+      <div class="bar-label"><span>升向速度 VZ</span><span id="vz-val">0.00</span></div>
+      <div class="bar-bg"><div class="bar-fill bar-az" id="vz-bar" style="width:50%"></div></div>
+    </div>
+    <div style="margin-top:10px; font-size:11px; color:#888;">
+      范围: ±5 m/s | Policy 输出的期望速度（action 第2列）
+    </div>
+  </div>
+  <div class="panel">
     <h2>飞行轨迹（俯视图）</h2>
     <canvas class="trajectory-canvas" id="traj-canvas"></canvas>
     <div style="margin-top:6px; font-size:11px; color:#888;">
@@ -151,6 +169,7 @@ HTML_PAGE = """<!DOCTYPE html>
 </div>
 <div class="panel" style="margin-top:10px;">
   <h2>运行状态</h2>
+  <div style="font-size:11px; color:#888; margin-bottom:6px;" id="policy-info">模型加载中...</div>
   <div class="status-text" id="status-text">等待数据...</div>
 </div>
 
@@ -193,6 +212,22 @@ async function updateStatus() {
     // Show raw thrust (includes gravity)
     if (s.policy_thrust) {
       document.getElementById('thrust-val').textContent = s.policy_thrust.az.toFixed(1) + ' m/s²';
+    }
+    // Velocity prediction (policy output column 2)
+    if (s.policy_vpred) {
+      const vx = Math.max(-5, Math.min(5, s.policy_vpred.vx));
+      const vy = Math.max(-5, Math.min(5, s.policy_vpred.vy));
+      const vz = Math.max(-5, Math.min(5, s.policy_vpred.vz));
+      document.getElementById('vx-val').textContent = vx.toFixed(2);
+      document.getElementById('vy-val').textContent = vy.toFixed(2);
+      document.getElementById('vz-val').textContent = vz.toFixed(2);
+      document.getElementById('vx-bar').style.width = (50 + vx * 10) + '%';
+      document.getElementById('vy-bar').style.width = (50 + vy * 10) + '%';
+      document.getElementById('vz-bar').style.width = (50 + vz * 10) + '%';
+    }
+    // Policy info
+    if (s.policy_name) {
+      document.getElementById('policy-info').textContent = s.policy_name + ' | ' + s.policy_desc;
     }
 
     document.getElementById('status-text').textContent = s.status;
@@ -304,6 +339,10 @@ class RequestHandler(BaseHTTPRequestHandler):
                     "pose": shared_state["pose"],
                     "velocity": shared_state["velocity"],
                     "policy_action": shared_state["policy_action"],
+                    "policy_thrust": shared_state.get("policy_thrust", {}),
+                    "policy_vpred": shared_state.get("policy_vpred", {}),
+                    "policy_name": shared_state.get("policy_name", ""),
+                    "policy_desc": shared_state.get("policy_desc", ""),
                     "target": shared_state["target"],
                     "status": shared_state["status"],
                     "fps": shared_state["fps"],
@@ -406,6 +445,7 @@ def run_hardware_loop():
     sim_pos = np.array([0.0, 0.0, 0.1])
     # Persistent FC state (keep last valid value, don't reset to 0 each frame)
     fc_pos = np.array([0.0, 0.0, 0.1])
+    fc_pos_filtered = np.array([0.0, 0.0, 0.1])  # low-pass filtered for display
     fc_vel = np.zeros(3)
     fc_yaw = 0.0
     fc_roll = 0.0
@@ -415,6 +455,9 @@ def run_hardware_loop():
     fc_battery = 0.0
     fc_msg_count = 0
     fc_last_msg_time = time.time()
+    # Policy info
+    policy_name = "target_impact_0006k"
+    policy_desc = "DiffPhys CNN+GRU, 6000轮训练, Isaac验证100%命中"
 
     print("[LOOP] Starting main loop...")
     while True:
@@ -467,9 +510,15 @@ def run_hardware_loop():
                             fc_roll, fc_pitch, fc_yaw = msg.roll, msg.pitch, msg.yaw
                             roll, pitch, yaw = fc_roll, fc_pitch, fc_yaw
                         elif mt == "LOCAL_POSITION_NED":
-                            fc_pos = np.array([msg.x, msg.y, -msg.z])
-                            fc_vel = np.array([msg.vx, msg.vy, -msg.vz])
-                            pos = fc_pos.copy()
+                            new_pos = np.array([msg.x, msg.y, -msg.z])
+                            new_vel = np.array([msg.vx, msg.vy, -msg.vz])
+                            # Outlier rejection: skip if position jumps > 2m in one frame
+                            if np.linalg.norm(new_pos - fc_pos) < 2.0:
+                                fc_pos = new_pos
+                                fc_vel = new_vel
+                                # Low-pass filter for smooth display
+                                fc_pos_filtered = 0.85 * fc_pos_filtered + 0.15 * fc_pos
+                            pos = fc_pos_filtered.copy()
                             vel = fc_vel.copy()
                         elif mt == "HEARTBEAT":
                             fc_armed = bool(msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)
@@ -507,6 +556,7 @@ def run_hardware_loop():
             # Run policy
             action = {"ax": 0.0, "ay": 0.0, "az": 0.0}
             action_raw = {"ax": 0.0, "ay": 0.0, "az": 0.0}
+            v_pred = {"vx": 0.0, "vy": 0.0, "vz": 0.0}
             if policy and depth is not None:
                 try:
                     result = policy.infer(depth, pos, vel, yaw, TARGET_POS)
@@ -522,6 +572,10 @@ def run_hardware_loop():
                         "ay": action_raw["ay"],
                         "az": action_raw["az"] - 9.80665,
                     }
+                    # Velocity prediction from policy (action column 2)
+                    if "v_pred" in result:
+                        vp = result["v_pred"]
+                        v_pred = {"vx": float(vp[0]), "vy": float(vp[1]), "vz": float(vp[2])}
                 except Exception as e:
                     pass
 
@@ -555,6 +609,9 @@ def run_hardware_loop():
                 shared_state["velocity"] = {"x": float(vel[0]), "y": float(vel[1]), "z": float(vel[2])}
                 shared_state["policy_action"] = action_display  # filtered net acceleration
                 shared_state["policy_thrust"] = action_raw  # raw thrust incl. gravity
+                shared_state["policy_vpred"] = v_pred  # velocity prediction from policy
+                shared_state["policy_name"] = policy_name
+                shared_state["policy_desc"] = policy_desc
                 shared_state["target"] = {"x": float(TARGET_POS[0]), "y": float(TARGET_POS[1]), "z": float(TARGET_POS[2])}
                 shared_state["status"] = (f"帧数={frame_count} | 解锁={'是' if armed else '否'} 模式={fc_mode} | "
                                           f"位置=({pos[0]:.2f},{pos[1]:.2f},{pos[2]:.2f}) 航向={yaw*57.3:.1f}° | "
