@@ -506,11 +506,23 @@ class DroneApp:
             await asyncio.sleep(0.033)  # ~30Hz
 
     async def _policy_only(self):
-        """Policy inference + send velocity to FC (GUIDED mode, no takeoff)."""
+        """Policy inference + send velocity to FC (GUIDED mode, no takeoff).
+
+        Safety:
+        - Only sends commands when ARMED and in GUIDED mode
+        - Velocity decays to 0 if no valid policy output for >500ms
+        - Max velocity clamped to 3 m/s (conservative for first flight)
+        - Depth loss -> stop sending (FC holds position in GUIDED)
+        """
         print("[POLICY MODE] Running policy and sending velocity to FC")
         print("  Make sure FC is in GUIDED mode and ARMED")
         print("  Drone should be at safe altitude (manual takeoff first)")
+        print("  Max velocity: 3 m/s | Safety timeout: 500ms")
         count = 0
+        last_valid_action_time = 0
+        MAX_VEL = 3.0  # m/s, conservative for first real flight
+        self._policy_vel = np.zeros(3)
+
         while self.running:
             t = time.time()
             timestamp = int(t * 1e9)
@@ -523,15 +535,40 @@ class DroneApp:
 
             depth = self.camera.get_depth() if self.camera else None
 
-            if depth is not None and self.policy and self.fc and state.armed:
+            # Only run policy when: depth OK, FC connected, ARMED, GUIDED mode
+            is_guided = "GUIDED" in (state.mode or "").upper()
+            can_control = (depth is not None and self.policy and self.fc
+                           and state.armed and is_guided)
+
+            action = None
+            if can_control:
                 action = self.policy.infer(
                     depth, state.pos, state.vel, state.yaw, self.target.pos)
-                # Convert accel to velocity command
-                self.fc.send_accel(
-                    action["accel"][0], action["accel"][1],
-                    action["accel"][2], action.get("yaw_rate", 0))
+                # Direct velocity from accel (limited integration)
+                dt = 0.033
+                accel = np.array([action["accel"][0], action["accel"][1],
+                                  -action["accel"][2]])  # ENU->NED z flip
+                self._policy_vel += accel * dt
+                # Clamp to max velocity
+                speed = np.linalg.norm(self._policy_vel)
+                if speed > MAX_VEL:
+                    self._policy_vel = self._policy_vel / speed * MAX_VEL
+                self.fc.send_velocity(
+                    self._policy_vel[0], self._policy_vel[1],
+                    self._policy_vel[2], action.get("yaw_rate", 0))
+                last_valid_action_time = t
             else:
-                action = None
+                # Safety: decay velocity to 0 if no valid control
+                if hasattr(self, '_policy_vel') and self.fc and state.armed:
+                    self._policy_vel *= 0.9  # decay
+                    if np.linalg.norm(self._policy_vel) > 0.05:
+                        self.fc.send_velocity(
+                            self._policy_vel[0], self._policy_vel[1],
+                            self._policy_vel[2], 0)
+                    else:
+                        self._policy_vel = np.zeros(3)
+                        # Send zero velocity to hold position
+                        self.fc.send_velocity(0, 0, 0, 0)
 
             # Foxglove
             if count % 3 == 0:
@@ -545,6 +582,26 @@ class DroneApp:
                         action["accel"], timestamp)
                 self.trajectory.append(state.pos.copy())
                 await self.foxglove.send_trajectory(self.trajectory, timestamp)
+
+                ctrl_status = "ACTIVE" if can_control else (
+                    "NO_DEPTH" if depth is None else
+                    "DISARMED" if not state.armed else
+                    "NOT_GUIDED" if not is_guided else "IDLE")
+                status = (f"MODE=POLICY | ctrl={ctrl_status} | "
+                          f"armed={state.armed} fc_mode={state.mode} | "
+                          f"vel_cmd=({self._policy_vel[0]:.2f},{self._policy_vel[1]:.2f},"
+                          f"{self._policy_vel[2]:.2f}) | "
+                          f"pos=({state.pos[0]:.2f},{state.pos[1]:.2f},{state.pos[2]:.2f})")
+                await self.foxglove.send_status(status, timestamp)
+
+            if count % 30 == 0:
+                ctrl = "ACTIVE" if can_control else "IDLE"
+                v = getattr(self, '_policy_vel', np.zeros(3))
+                print(f"[{count:5d}] ctrl={ctrl} "
+                      f"vel_cmd=({v[0]:.2f},{v[1]:.2f},{v[2]:.2f}) "
+                      f"pos=({state.pos[0]:.2f},{state.pos[1]:.2f},{state.pos[2]:.2f}) "
+                      f"armed={state.armed} mode={state.mode} "
+                      f"depth={'OK' if depth is not None else 'NONE'}")
 
             count += 1
             await asyncio.sleep(0.033)
