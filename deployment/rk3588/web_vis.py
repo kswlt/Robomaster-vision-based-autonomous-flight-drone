@@ -615,7 +615,7 @@ def run_hardware_loop():
     pipeline = None
     try:
         import pyrealsense2 as rs
-        for w, h, fps in [(1280, 720, 30), (640, 480, 30)]:
+        for w, h, fps in [(640, 480, 30), (1280, 720, 30)]:
             try:
                 config = rs.config()
                 config.enable_stream(rs.stream.depth, w, h, rs.format.z16, fps)
