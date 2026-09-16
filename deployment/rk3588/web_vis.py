@@ -182,21 +182,22 @@ HTML_PAGE = """<!DOCTYPE html>
     </div>
   </div>
   <div class="panel">
-    <h2>Policy 速度指令（发送给飞控）</h2>
+    <h2>Policy 净加速度指令（发给飞控）</h2>
     <div class="bar-container">
-      <div class="bar-label"><span>前向速度 VX</span><span id="sp-vx">0.00</span></div>
+      <div class="bar-label"><span>前向加速 AX</span><span id="sp-vx">0.00</span></div>
       <div class="bar-bg"><div class="bar-fill bar-vx" id="sp-vx-bar" style="width:50%"></div></div>
     </div>
     <div class="bar-container">
-      <div class="bar-label"><span>右向速度 VY</span><span id="sp-vy">0.00</span></div>
+      <div class="bar-label"><span>右向加速 AY</span><span id="sp-vy">0.00</span></div>
       <div class="bar-bg"><div class="bar-fill bar-vy" id="sp-vy-bar" style="width:50%"></div></div>
     </div>
     <div class="bar-container">
-      <div class="bar-label"><span>升向速度 VZ</span><span id="sp-vz">0.00</span></div>
+      <div class="bar-label"><span>升向加速 AZ</span><span id="sp-vz">0.00</span></div>
       <div class="bar-bg"><div class="bar-fill bar-vz" id="sp-vz-bar" style="width:50%"></div></div>
     </div>
     <div style="margin-top:8px; font-size:11px; color:#8b949e;">
-      范围: ±4 m/s | OFFBOARD 速度控制 | NED坐标系
+      范围: ±5 m/s² | OFFBOARD 加速度控制 | 世界坐标系(北东天)<br>
+      计算: a_net = a_pred - v_pred - g | PX4自动补偿重力
     </div>
   </div>
   <div class="panel">
@@ -259,14 +260,14 @@ async function updateStatus() {
     armedBadge.className = 'badge ' + (s.armed ? 'badge-warn' : 'badge-ok');
     document.getElementById('mode-badge').textContent = s.fc_mode;
 
-    // Velocity setpoint bars
+    // Acceleration setpoint bars (net acceleration, ±5 m/s²)
     const sp = s.velocity_setpoint || {vx:0,vy:0,vz:0};
     document.getElementById('sp-vx').textContent = sp.vx.toFixed(2);
     document.getElementById('sp-vy').textContent = sp.vy.toFixed(2);
     document.getElementById('sp-vz').textContent = sp.vz.toFixed(2);
-    document.getElementById('sp-vx-bar').style.width = (50 + sp.vx * 12.5) + '%';
-    document.getElementById('sp-vy-bar').style.width = (50 + sp.vy * 12.5) + '%';
-    document.getElementById('sp-vz-bar').style.width = (50 + sp.vz * 12.5) + '%';
+    document.getElementById('sp-vx-bar').style.width = (50 + sp.vx * 10) + '%';
+    document.getElementById('sp-vy-bar').style.width = (50 + sp.vy * 10) + '%';
+    document.getElementById('sp-vz-bar').style.width = (50 + sp.vz * 10) + '%';
 
     // Acceleration bars
     const ax = Math.max(-5, Math.min(5, s.policy_action.ax));
@@ -487,6 +488,21 @@ class PX4Controller:
             0, 0,  # yaw, yaw_rate
         )
 
+    def send_acceleration(self, ax_ned, ay_ned, az_ned):
+        """Send acceleration setpoint in NED frame (az positive = down).
+        PX4 expects desired linear acceleration (gravity compensation is automatic).
+        """
+        self.fc.mav.set_position_target_local_ned_send(
+            0,
+            self.fc.target_system, self.fc.target_component,
+            mavutil_module.MAV_FRAME_LOCAL_NED,
+            0b0000110000111111,  # acceleration only mask (ignore pos, vel, yaw)
+            0, 0, 0,  # position
+            0, 0, 0,  # velocity
+            ax_ned, ay_ned, az_ned,  # acceleration NED
+            0, 0,  # yaw, yaw_rate
+        )
+
     def set_mode_offboard(self):
         self.fc.mav.command_long_send(
             self.fc.target_system, self.fc.target_component,
@@ -523,7 +539,8 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(HTML_PAGE.encode())
         elif self.path == "/status":
             with state_lock:
-                data = {k: v for k, v in shared_state.items() if k != "depth_frame"}
+                data = {k: v for k, v in shared_state.items()
+                        if k not in ("depth_frame", "depth_colored")}
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
@@ -781,35 +798,51 @@ def run_hardware_loop():
                 else:
                     auto_state = AUTO_IDLE
 
-            # --- Run policy & send setpoints if active ---
+            # --- Run policy (always, for display; send commands only if active) ---
             accel_body = np.zeros(3)
             vpred_body = np.zeros(3)
-            vel_setpoint = np.zeros(3)
-            if auto_active and policy and px4 and fc:
+            accel_world_neu = np.zeros(3)
+            net_accel_neu = np.zeros(3)
+            accel_setpoint_ned = np.zeros(3)
+            if policy:
                 try:
                     result = policy.infer(depth, pos, vel, yaw, AVOIDANCE_TARGET)
                     accel_body = result["accel_body"]
                     vpred_body = result["vpred_body"]
-                    vpred_world = result["vpred_world"]
+                    accel_world_neu = result["accel_world"]
+                    vpred_world_neu = result["vpred_world"]
 
-                    # Use velocity prediction as setpoint, with limits
-                    vel_sp = vpred_world.copy()
-                    speed = np.linalg.norm(vel_sp)
-                    if speed > MAX_SPEED:
-                        vel_sp = vel_sp / speed * MAX_SPEED
-                    # Limit vertical speed
-                    vel_sp[2] = np.clip(vel_sp[2], -1.5, 1.5)
+                    # Upstream control law (thr_est_error = 1.0 on real drone):
+                    # thrust_neu = (a_pred - v_pred - g_neu) * 1.0 + g_neu
+                    #            = a_pred - v_pred  (g_neu cancels)
+                    # net_accel_neu = thrust_neu - g_neu = a_pred - v_pred - g_neu
+                    # g_neu = [0, 0, -9.80665] (up-positive)
+                    g_neu = np.array([0.0, 0.0, -9.80665])
+                    net_accel_neu = accel_world_neu - vpred_world_neu - g_neu
 
-                    vel_setpoint = vel_sp
+                    # Limit acceleration
+                    net_accel_neu = np.clip(net_accel_neu, -5.0, 5.0)
 
-                    # Convert NEU -> NED for PX4 (vz positive = down)
-                    px4.send_velocity(vel_sp[0], vel_sp[1], -vel_sp[2])
+                    # Convert NEU -> NED for PX4 (z flips sign)
+                    accel_setpoint_ned = np.array([
+                        net_accel_neu[0],
+                        net_accel_neu[1],
+                        -net_accel_neu[2],
+                    ])
                 except Exception as e:
-                    print(f"[AUTO] Policy error: {e}")
+                    print(f"[POLICY] Inference error: {e}")
                     traceback.print_exc()
-                    # Send zero velocity on error
-                    if px4:
-                        px4.send_velocity(0, 0, 0)
+
+            # Send acceleration setpoint only if auto control active
+            if auto_active and px4 and fc:
+                try:
+                    px4.send_acceleration(
+                        accel_setpoint_ned[0],
+                        accel_setpoint_ned[1],
+                        accel_setpoint_ned[2],
+                    )
+                except Exception as e:
+                    print(f"[AUTO] Send error: {e}")
 
             # --- Valid depth ratio ---
             valid_ratio = float(np.count_nonzero(depth > 0) / depth.size)
@@ -831,14 +864,15 @@ def run_hardware_loop():
                 shared_state["velocity"] = {"x": float(vel[0]), "y": float(vel[1]), "z": float(vel[2])}
                 shared_state["policy_action"] = {"ax": float(accel_body[0]), "ay": float(accel_body[1]), "az": float(accel_body[2])}
                 shared_state["policy_vpred"] = {"vx": float(vpred_body[0]), "vy": float(vpred_body[1]), "vz": float(vpred_body[2])}
-                shared_state["velocity_setpoint"] = {"vx": float(vel_setpoint[0]), "vy": float(vel_setpoint[1]), "vz": float(vel_setpoint[2])}
+                shared_state["velocity_setpoint"] = {"vx": float(net_accel_neu[0]), "vy": float(net_accel_neu[1]), "vz": float(net_accel_neu[2])}
+                shared_state["accel_setpoint_ned"] = {"ax": float(accel_setpoint_ned[0]), "ay": float(accel_setpoint_ned[1]), "az": float(accel_setpoint_ned[2])}
                 shared_state["target"] = {"x": float(AVOIDANCE_TARGET[0]), "y": float(AVOIDANCE_TARGET[1]), "z": float(AVOIDANCE_TARGET[2])}
                 shared_state["auto_state"] = auto_state
                 shared_state["auto_enabled"] = auto_active
                 shared_state["status"] = (f"帧数={frame_count} | 解锁={'是' if armed else '否'} 模式={fc_mode} | "
                                           f"自动={'ON' if auto_active else 'OFF'} | "
                                           f"位置=({pos[0]:.2f},{pos[1]:.2f},{pos[2]:.2f}) 航向={yaw*57.3:.1f}° | "
-                                          f"速度指令=({vel_setpoint[0]:.2f},{vel_setpoint[1]:.2f},{vel_setpoint[2]:.2f}) m/s | "
+                                          f"净加速度=({net_accel_neu[0]:.2f},{net_accel_neu[1]:.2f},{net_accel_neu[2]:.2f}) m/s² | "
                                           f"深度有效={valid_ratio*100:.0f}%")
                 shared_state["fps"] = fps
                 shared_state["depth_valid_ratio"] = valid_ratio
@@ -851,7 +885,8 @@ def run_hardware_loop():
             if frame_count % 100 == 0:
                 print(f"[LOOP] frame={frame_count} fps={fps} auto={auto_state} "
                       f"pos=({pos[0]:.2f},{pos[1]:.2f},{pos[2]:.2f}) "
-                      f"vel_sp=({vel_setpoint[0]:.2f},{vel_setpoint[1]:.2f},{vel_setpoint[2]:.2f})")
+                      f"a_net=({net_accel_neu[0]:.2f},{net_accel_neu[1]:.2f},{net_accel_neu[2]:.2f}) "
+                      f"a_body=({accel_body[0]:.2f},{accel_body[1]:.2f},{accel_body[2]:.2f})")
 
             elapsed = time.time() - t0
             if elapsed < 0.033:
