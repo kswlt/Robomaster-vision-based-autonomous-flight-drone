@@ -4,6 +4,71 @@
 
 ---
 
+## ⚠️ 最新状态更新（2026-09-16，优先阅读）
+
+### 当前主线
+项目已从"完整撞击任务"转向：**用上游 DiffPhys 避障策略（checkpoint0004.pth），在橙Pi5实机上实现"手动起飞 → 网页按钮触发 → 自动避障飞行"**。撞击策略训练已完成但非当前重点。
+
+### 主要交互界面：web_vis.py（浏览器 dashboard）
+- **不是** main.py + Foxglove（那是旧方案，Foxglove 兼容性差已弃用）
+- 路径：`deployment/rk3588/web_vis.py`，橙Pi5上运行在 `~/kswlt_e2d/web_vis.py`
+- 访问：`http://192.168.1.215:8080`（局域网）或 `http://100.119.45.114:8080`（Tailscale）
+- 功能：MJPEG 深度图流 + 实时遥测 + Policy 输出可视化 + 飞行轨迹 + 自动控制按钮
+- 全中文界面，多线程（ThreadingHTTPServer，避免 MJPEG 阻塞 /status）
+- 启动：`python scripts/_start_webvis.py`（自动 pkill 旧进程 + nohup 重启）
+- 日志：`~/kswlt_e2d/web_vis.log`
+
+### 飞控纠正：PX4，不是 ArduPilot
+- 型号：MicoAir743AIO，`/dev/ttyACM0` @ 921600
+- **PX4 固件**（autopilot=12, type=2 四旋翼），custom_mode 编码：(main_mode<<16)|(sub_mode<<8)
+- OFFBOARD = 6<<16 = 0x00060000，POSCTL = 3<<16
+- `COM_ARM_WO_GPS=0` → 室内无GPS无法自动解锁，**必须手动解锁起飞**
+- **用户明确要求：不修改任何飞控参数**
+
+### 自动控制流程
+1. 用户手动起飞（POSCTL 模式），稳定悬停
+2. 网页点"目标设为正前方"→ 目标点 = 当前位置 + 机头方向 × 5m
+3. 网页点"开始自动避障"→ 发 20 次零加速度预热 → 切 OFFBOARD → 验证 HEARTBEAT → Policy 控制
+4. Policy 输出体坐标系加速度 → 转世界 NEU → 限幅 ±3 m/s² → 转 NED → `SET_POSITION_TARGET_LOCAL_NED`（type_mask=0b0000110000111111，加速度控制）
+5. 点"停止"或遥控器切回手动 → 切 POSCTL
+
+### 相机硬件问题（当前 blocker）
+- D430 深度相机**硬件故障**：USB 枚举正常（lsusb 8086:0ad4），uvcvideo 驱动绑定正常，但**无法输出深度帧**（pyrealsense2 和 v4l2 均超时，dmesg 持续 `UVC control -32`）
+- 已尝试：hardware_reset、USB sysfs 断电重连、uvcvideo 驱动解绑重绑、物理拔插 USB、物理拔插 FPC 排线 — 全部无效
+- **当前 web_vis 用模拟深度 fallback**（左右渐变 + 噪声），网页标题显示"⚠ 模拟深度（相机未连接）"
+- 可能原因：FPC 排线损坏或 D430 深度传感器硬件损坏，需更换排线或相机
+- D430 支持的深度分辨率：424x240、480x270、640x360（GREY 格式），**不支持 640x480**
+
+### 上游避障策略 ONNX
+- 模型：`deployment/onnx/upstream_avoidance.onnx` + `.data`（共 ~2MB，opset 18）
+- 橙Pi5路径：`~/kswlt_e2d/upstream_avoidance.onnx`
+- 推理：onnxruntime 1.18.1 CPU，~4ms/帧
+- 输入：depth(1x1x12x16) + state(1x10) + hidden(1x192)
+- 输出：action(1x6) reshape 3x2 → [accel_body(3), vel_pred(3)] + hidden_out(1x192)
+- 控制律：`net_accel = a_pred_body - v_pred_body`（净加速度，PX4 自动补偿重力）
+
+### 坐标系定义
+- PX4 Local NED：X=北, Y=东, Z=地（向下为正）
+- 代码内部 NEU：X=北, Y=东, Z=天（向上为正），`pos = [msg.x, msg.y, -msg.z]`
+- 机体 FRU：前-右-上，fwd=[cos(yaw),sin(yaw),0], right=[-sin(yaw),cos(yaw),0]
+- 世界→机体：R.T，机体→世界：R
+- 无 map 框架，只有 PX4 EKF 局部 odom 级定位
+
+### 最新 Git
+- 分支：E2E-RL，最新 commit 见 `git log -1 --oneline`
+- 保护分支：main、master、d430 — 禁止 force push
+- 本地代码和橙Pi5代码分开维护，修改后需 `sftp_put` 上传
+
+### 用户明确约束
+- 不修改任何飞控参数
+- 不自动起飞，手动起飞后网页按钮触发
+- 不用 GPS
+- 用上游避障策略（不是撞击策略）
+- 全中文界面
+- 不要删除用户文件
+
+---
+
 ## 1. 项目目标
 
 RoboMaster 小型无人机**视觉端到端目标撞击**：
