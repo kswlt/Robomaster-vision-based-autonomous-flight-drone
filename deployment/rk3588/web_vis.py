@@ -313,22 +313,25 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps(data).encode())
         elif self.path == "/depth.mjpg":
+            import cv2
             self.send_response(200)
             self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
+            self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             try:
                 while True:
                     with state_lock:
                         colored = shared_state["depth_colored"]
                     if colored is not None:
-                        import cv2
-                        _, jpg = cv2.imencode(".jpg", colored, [cv2.IMWRITE_JPEG_QUALITY, 70])
+                        # Downscale for faster encoding/streaming
+                        small = cv2.resize(colored, (640, 360), interpolation=cv2.INTER_AREA)
+                        _, jpg = cv2.imencode(".jpg", small, [cv2.IMWRITE_JPEG_QUALITY, 55])
                         self.wfile.write(b"--frame\r\n")
                         self.wfile.write(b"Content-Type: image/jpeg\r\n")
                         self.wfile.write(f"Content-Length: {len(jpg)}\r\n\r\n".encode())
                         self.wfile.write(jpg.tobytes())
                         self.wfile.write(b"\r\n")
-                    time.sleep(0.05)  # ~20fps for stream
+                    time.sleep(0.033)  # ~30fps
             except (BrokenPipeError, ConnectionResetError):
                 pass
         else:
