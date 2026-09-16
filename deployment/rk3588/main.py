@@ -290,10 +290,10 @@ class FoxgloveServer:
         # Register channels (TypedDict: topic, schema_name, encoding)
         for name, topic, schema in [
             ("depth", "/drone/depth", "sensor_msgs/Image"),
-            ("pose", "/drone/pose", "geometry_msgs/Pose"),
-            ("velocity", "/drone/velocity", "geometry_msgs/Vector3"),
-            ("target", "/drone/target", "geometry_msgs/Point"),
-            ("policy_action", "/drone/policy_action", "geometry_msgs/Vector3"),
+            ("pose", "/drone/pose", "geometry_msgs/PoseStamped"),
+            ("velocity", "/drone/velocity", "geometry_msgs/Vector3Stamped"),
+            ("target", "/drone/target", "geometry_msgs/PointStamped"),
+            ("policy_action", "/drone/policy_action", "geometry_msgs/Vector3Stamped"),
             ("status", "/drone/status", "std_msgs/String"),
             ("trajectory", "/drone/trajectory", "nav_msgs/Path"),
         ]:
@@ -305,17 +305,19 @@ class FoxgloveServer:
         print(f"[Foxglove] Connect: ws://<pi-ip>:{self.port}")
 
     async def send_depth(self, depth: np.ndarray, timestamp: float):
+        """Send depth as colorized sensor_msgs/Image (ROS JSON format)."""
         import cv2
+        import base64
         depth_vis = np.clip(3.0 / np.clip(depth, 0.3, 24.0) - 0.6, 0, 1)
         depth_vis = (depth_vis * 255).astype(np.uint8)
         depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
-        _, png_data = cv2.imencode('.png', depth_colored)
+        h, w = depth_colored.shape[:2]
         msg = {
-            "timestamp": timestamp,
-            "width": int(depth.shape[1]),
-            "height": int(depth.shape[0]),
-            "encoding": "png",
-            "data": png_data.tobytes().hex(),
+            "header": {"stamp": {"sec": int(timestamp // 1e9), "nsec": int(timestamp % 1e9)},
+                       "frame_id": "camera_depth"},
+            "height": h, "width": w,
+            "encoding": "rgb8", "is_bigendian": 0, "step": w * 3,
+            "data": base64.b64encode(depth_colored.tobytes()).decode("ascii"),
         }
         await self.server.send_message(self.channels["depth"], timestamp,
                                        json.dumps(msg).encode())
@@ -328,14 +330,22 @@ class FoxgloveServer:
         qz = math.cos(roll/2)*math.cos(pitch/2)*math.sin(yaw/2) - math.sin(roll/2)*math.sin(pitch/2)*math.cos(yaw/2)
         qw = math.cos(roll/2)*math.cos(pitch/2)*math.cos(yaw/2) + math.sin(roll/2)*math.sin(pitch/2)*math.sin(yaw/2)
         msg = {
-            "position": {"x": float(pos[0]), "y": float(pos[1]), "z": float(pos[2])},
-            "orientation": {"x": qx, "y": qy, "z": qz, "w": qw},
+            "header": {"stamp": {"sec": int(timestamp // 1e9), "nsec": int(timestamp % 1e9)},
+                       "frame_id": "map"},
+            "pose": {
+                "position": {"x": float(pos[0]), "y": float(pos[1]), "z": float(pos[2])},
+                "orientation": {"x": qx, "y": qy, "z": qz, "w": qw},
+            }
         }
         await self.server.send_message(self.channels["pose"], timestamp,
                                        json.dumps(msg).encode())
 
     async def send_vector3(self, channel_id: int, vec: np.ndarray, timestamp: float):
-        msg = {"x": float(vec[0]), "y": float(vec[1]), "z": float(vec[2])}
+        msg = {
+            "header": {"stamp": {"sec": int(timestamp // 1e9), "nsec": int(timestamp % 1e9)},
+                       "frame_id": "body"},
+            "vector": {"x": float(vec[0]), "y": float(vec[1]), "z": float(vec[2])}
+        }
         await self.server.send_message(channel_id, timestamp,
                                        json.dumps(msg).encode())
 
@@ -346,7 +356,10 @@ class FoxgloveServer:
 
     async def send_trajectory(self, points: list, timestamp: float):
         msg = {
-            "poses": [{"position": {"x": float(p[0]), "y": float(p[1]), "z": float(p[2])}}
+            "header": {"stamp": {"sec": int(timestamp // 1e9), "nsec": int(timestamp % 1e9)},
+                       "frame_id": "map"},
+            "poses": [{"pose": {"position": {"x": float(p[0]), "y": float(p[1]), "z": float(p[2])},
+                                "orientation": {"x": 0, "y": 0, "z": 0, "w": 1}}}
                       for p in points[-500:]]
         }
         await self.server.send_message(self.channels["trajectory"], timestamp,
