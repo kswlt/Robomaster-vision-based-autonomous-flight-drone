@@ -197,10 +197,14 @@ class RK3588Policy:
         if self._rknn is not None:
             outputs = self._rknn.inference(inputs=[depth_in, state_in, hidden_in])
             raw_action = outputs[0].reshape(-1)
-            if len(outputs) > 1:
-                self._hidden = outputs[1].reshape(1, self.HIDDEN_DIM)
+            # RKNN outputs: [action, values, hidden] or [action, hidden]
+            for out in outputs[1:]:
+                if out.size == self.HIDDEN_DIM:
+                    self._hidden = out.reshape(1, self.HIDDEN_DIM)
+                    break
         elif self._onnx is not None:
             input_names = [i.name for i in self._onnx.get_inputs()]
+            output_names = [o.name for o in self._onnx.get_outputs()]
             feed = {}
             if len(input_names) >= 1:
                 feed[input_names[0]] = depth_in
@@ -210,8 +214,15 @@ class RK3588Policy:
                 feed[input_names[2]] = hidden_in
             outputs = self._onnx.run(None, feed)
             raw_action = outputs[0].reshape(-1)
-            if len(outputs) > 1:
-                self._hidden = outputs[1].reshape(1, self.HIDDEN_DIM)
+            # Find hidden output by name or size
+            for i, name in enumerate(output_names):
+                if "hidden" in name.lower() and outputs[i].size == self.HIDDEN_DIM:
+                    self._hidden = outputs[i].reshape(1, self.HIDDEN_DIM)
+                    break
+            else:
+                # Fallback: last output
+                if outputs[-1].size == self.HIDDEN_DIM:
+                    self._hidden = outputs[-1].reshape(1, self.HIDDEN_DIM)
         else:
             raw_action = np.zeros(self.ACTION_DIM, dtype=np.float32)
 
