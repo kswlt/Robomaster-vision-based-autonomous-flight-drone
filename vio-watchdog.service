@@ -6,7 +6,7 @@ Wants=vio.service
 [Service]
 Type=simple
 User=root
-ExecStart=/home/orangepi/vio-improve/watchdog_camera.sh
+ExecStart=/home/orangepi/kswlt/vio-improve/watchdog_camera.sh
 Restart=always
 RestartSec=5
 

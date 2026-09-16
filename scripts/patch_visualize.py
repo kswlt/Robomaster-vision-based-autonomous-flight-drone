@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """给ROS2Visualizer.cpp加odomimu发布诊断日志"""
-p = '/home/orangepi/vio_ws/src/open_vins/ov_msckf/src/ros/ROS2Visualizer.cpp'
+p = '/home/orangepi/kswlt/vio_ws/src/open_vins/ov_msckf/src/ros/ROS2Visualizer.cpp'
 with open(p) as f:
     s = f.read()
 

@@ -3,13 +3,13 @@
 kalibr_imucam_chain.yaml on the board, and report the resulting matrices.
 Usage: python3 apply_extrinsics.py <alpha_deg>
 alpha negative => camera optical axis tilts down; positive => up.
-Writes /home/orangepi/vio_ws/src/open_vins/config/d430/kalibr_imucam_chain.yaml
+Writes /home/orangepi/kswlt/vio_ws/src/open_vins/config/d430/kalibr_imucam_chain.yaml
 A backup of the nominal file is kept as kalibr_imucam_chain.nominal.yaml once.
 """
 import numpy as np, sys, os, shutil
 
-CFG = "/home/orangepi/vio_ws/src/open_vins/config/d430/kalibr_imucam_chain.yaml"
-BAK = "/home/orangepi/vio_ws/src/open_vins/config/d430/kalibr_imucam_chain.nominal.yaml"
+CFG = "/home/orangepi/kswlt/vio_ws/src/open_vins/config/d430/kalibr_imucam_chain.yaml"
+BAK = "/home/orangepi/kswlt/vio_ws/src/open_vins/config/d430/kalibr_imucam_chain.nominal.yaml"
 
 alpha = float(sys.argv[1])
 a = np.radians(alpha)

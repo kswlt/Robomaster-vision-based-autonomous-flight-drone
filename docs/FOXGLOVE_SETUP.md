@@ -21,7 +21,7 @@ bash /tmp/start_foxglove.sh
 # source /opt/ros/humble/setup.bash
 # export ROS_DOMAIN_ID=42 ROS_LOCALHOST_ONLY=1
 # ros2 run foxglove_bridge foxglove_bridge --ros-args -p port:=8765 -p address:=0.0.0.0 &
-# python3 /home/orangepi/vio-improve/scripts/system_monitor.py &
+# python3 /home/orangepi/kswlt/vio-improve/scripts/system_monitor.py &
 ```
 
 ### 1.2 地面电脑连接
@@ -176,7 +176,7 @@ bash /tmp/start_foxglove.sh
 
 | 文件 | 路径 |
 |---|---|
-| system_monitor 节点 | `/home/orangepi/vio-improve/scripts/system_monitor.py` |
+| system_monitor 节点 | `/home/orangepi/kswlt/vio-improve/scripts/system_monitor.py` |
 | 启动脚本 | `/tmp/start_foxglove.sh`（后续移到仓库 scripts/） |
 | foxglove 日志 | `/tmp/foxglove.log` |
 | system_monitor 日志 | `/tmp/system_monitor.log` |

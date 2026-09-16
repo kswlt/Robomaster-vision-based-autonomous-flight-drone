@@ -17,7 +17,7 @@ sleep 3
 
 # 设置ROS环境
 source /opt/ros/humble/setup.bash
-source /home/orangepi/vio_ws/install/setup.bash
+source /home/orangepi/kswlt/vio_ws/install/setup.bash
 export ROS_LOCALHOST_ONLY="${VIO_ROS_LOCALHOST_ONLY:-1}"
 export ROS_DOMAIN_ID=42
 
@@ -46,7 +46,7 @@ nohup ros2 launch realsense2_camera rs_launch.py \
 sleep 6
 
 # 启动合并桥接节点（自动检测串口）
-nohup python3 /home/orangepi/vio_ws/vio_bridge/vio_bridge_combined.py \
+nohup python3 /home/orangepi/kswlt/vio_ws/vio_bridge/vio_bridge_combined.py \
     --ros-args -p serial_port:=$SERIAL_PORT -p send_vision_to_px4:=false \
     > /tmp/vio_bridge.log 2>&1 &
 
@@ -54,7 +54,7 @@ sleep 4
 
 # 启动OpenVINS（前台，跟随其生命周期）
 ros2 run ov_msckf run_subscribe_msckf \
-    --ros-args -p config_path:=/home/orangepi/vio_ws/src/open_vins/config/d430/estimator_config.yaml \
+    --ros-args -p config_path:=/home/orangepi/kswlt/vio_ws/src/open_vins/config/d430/estimator_config.yaml \
     >> /tmp/vio.log 2>&1
 
 # VIO退出，记录并退出（systemd会重启整个服务）

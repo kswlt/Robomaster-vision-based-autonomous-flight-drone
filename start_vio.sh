@@ -40,7 +40,7 @@ sleep 4
 # 启动OpenVINS
 echo "[4/4] 启动OpenVINS..."
 nohup ros2 run ov_msckf run_subscribe_msckf \
-    --ros-args -p config_path:=/home/orangepi/vio_ws/src/open_vins/config/d430/estimator_config.yaml \
+    --ros-args -p config_path:=/home/orangepi/kswlt/vio_ws/src/open_vins/config/d430/estimator_config.yaml \
     > /tmp/vio.log 2>&1 &
 sleep 5
 

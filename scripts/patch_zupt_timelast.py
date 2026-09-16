@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """给VioManager.cpp打补丁: ZUPT成功提前return时也更新timelastupdate, 保证odomimu持续发布"""
-p = '/home/orangepi/vio_ws/src/open_vins/ov_msckf/src/core/VioManager.cpp'
+p = '/home/orangepi/kswlt/vio_ws/src/open_vins/ov_msckf/src/core/VioManager.cpp'
 with open(p) as f:
     s = f.read()
 

@@ -2,7 +2,7 @@
 """Apply validated tracking/ZUPT/init tuning to estimator_config.yaml in place."""
 import re
 
-P = "/home/orangepi/vio_ws/src/open_vins/config/d430/estimator_config.yaml"
+P = "/home/orangepi/kswlt/vio_ws/src/open_vins/config/d430/estimator_config.yaml"
 s = open(P).read()
 
 # exact key: value replacements (whole token, comment preserved)

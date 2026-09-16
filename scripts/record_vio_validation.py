@@ -35,7 +35,7 @@ def main():
     run = Path(a.root) / (datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S_%fZ_') + a.motion)
     run.mkdir(parents=True, exist_ok=False)
     (run / 'device_enumeration.txt').write_text(enumeration)
-    cfg = Path('/home/orangepi/vio_ws/src/open_vins/config/d430')
+    cfg = Path('/home/orangepi/kswlt/vio_ws/src/open_vins/config/d430')
     for name in ('estimator_config.yaml', 'kalibr_imucam_chain.yaml', 'kalibr_imu_chain.yaml'):
         (run / name).write_bytes((cfg / name).read_bytes())
     qos = run / 'qos.yaml'
