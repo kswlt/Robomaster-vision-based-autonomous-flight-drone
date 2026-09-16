@@ -774,26 +774,46 @@ def run_hardware_loop():
                     policy.reset()
 
             if cmd_start and not auto_active:
-                if armed and pos[2] > 0.3:
+                if armed:
                     print(f"[AUTO] Start requested -> switching to OFFBOARD, target={AVOIDANCE_TARGET}")
                     if px4 and fc:
-                        # Send a few zero setpoints before switching (PX4 requirement)
-                        for _ in range(10):
-                            px4.send_velocity(0, 0, 0)
+                        # Send zero ACCELERATION setpoints before switching (PX4 requirement)
+                        # Must match the setpoint type used in main loop
+                        for _ in range(20):
+                            px4.send_acceleration(0, 0, 0)
                             time.sleep(0.05)
                         px4.set_mode_offboard()
-                        time.sleep(0.2)
-                        auto_active = True
-                        auto_state = AUTO_ACTIVE
-                        if policy:
-                            policy.reset()
-                        print("[AUTO] OFFBOARD active, policy control started")
+                        # Wait and verify OFFBOARD mode engaged
+                        offboard_ok = False
+                        for _ in range(20):
+                            time.sleep(0.05)
+                            try:
+                                hb = fc.recv_match(type='HEARTBEAT', blocking=False)
+                                if hb:
+                                    mode_flag = hb.custom_mode >> 16
+                                    if mode_flag == 6:  # OFFBOARD
+                                        offboard_ok = True
+                                        break
+                            except:
+                                pass
+                        if offboard_ok:
+                            auto_active = True
+                            auto_state = AUTO_ACTIVE
+                            if policy:
+                                policy.reset()
+                            print("[AUTO] OFFBOARD confirmed, policy control started")
+                        else:
+                            print("[AUTO] WARNING: OFFBOARD not confirmed, check FC mode")
+                            auto_active = True  # still try, user can override with RC
+                            auto_state = AUTO_ACTIVE
+                            if policy:
+                                policy.reset()
                 else:
-                    print(f"[AUTO] Start rejected: armed={armed}, alt={pos[2]:.2f}m (need >0.3m)")
+                    print(f"[AUTO] Start rejected: not armed (armed={armed})")
 
             # Update auto_state for display
             if not auto_active:
-                if armed and pos[2] > 0.3:
+                if armed:
                     auto_state = AUTO_READY
                 else:
                     auto_state = AUTO_IDLE
