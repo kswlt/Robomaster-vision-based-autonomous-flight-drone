@@ -135,7 +135,8 @@ HTML_PAGE = """<!DOCTYPE html>
       <div class="bar-bg"><div class="bar-fill bar-az" id="az-bar" style="width:50%"></div></div>
     </div>
     <div style="margin-top:10px; font-size:11px; color:#888;">
-      范围: ±10 m/s² | 中间刻度=0 | 正值=前/右/上
+      净加速度范围: ±5 m/s² | 中间=0 | 正值=前/右/上<br>
+      总推力(含重力补偿): <span id="thrust-val" style="color:#4ecdc4;">--</span> | 重力=9.81 m/s²
     </div>
   </div>
   <div class="panel">
@@ -179,16 +180,20 @@ async function updateStatus() {
     armedBadge.className = 'badge ' + (s.armed ? 'badge-warn' : 'badge-ok');
     document.getElementById('mode-badge').textContent = s.fc_mode;
 
-    // Policy bars (center at 50%, range ±10)
-    const ax = Math.max(-10, Math.min(10, s.policy_action.ax));
-    const ay = Math.max(-10, Math.min(10, s.policy_action.ay));
-    const az = Math.max(-10, Math.min(10, s.policy_action.az));
+    // Policy bars (center at 50%, range ±5 m/s² for net accel)
+    const ax = Math.max(-5, Math.min(5, s.policy_action.ax));
+    const ay = Math.max(-5, Math.min(5, s.policy_action.ay));
+    const az = Math.max(-5, Math.min(5, s.policy_action.az));
     document.getElementById('ax-val').textContent = ax.toFixed(2);
     document.getElementById('ay-val').textContent = ay.toFixed(2);
     document.getElementById('az-val').textContent = az.toFixed(2);
-    document.getElementById('ax-bar').style.width = (50 + ax * 5) + '%';
-    document.getElementById('ay-bar').style.width = (50 + ay * 5) + '%';
-    document.getElementById('az-bar').style.width = (50 + az * 5) + '%';
+    document.getElementById('ax-bar').style.width = (50 + ax * 10) + '%';
+    document.getElementById('ay-bar').style.width = (50 + ay * 10) + '%';
+    document.getElementById('az-bar').style.width = (50 + az * 10) + '%';
+    // Show raw thrust (includes gravity)
+    if (s.policy_thrust) {
+      document.getElementById('thrust-val').textContent = s.policy_thrust.az.toFixed(1) + ' m/s²';
+    }
 
     document.getElementById('status-text').textContent = s.status;
 
@@ -501,16 +506,34 @@ def run_hardware_loop():
 
             # Run policy
             action = {"ax": 0.0, "ay": 0.0, "az": 0.0}
+            action_raw = {"ax": 0.0, "ay": 0.0, "az": 0.0}
             if policy and depth is not None:
                 try:
                     result = policy.infer(depth, pos, vel, yaw, TARGET_POS)
-                    action = {
+                    # Raw output includes gravity compensation (thrust = net_accel + 9.81)
+                    action_raw = {
                         "ax": float(result["accel"][0]),
                         "ay": float(result["accel"][1]),
                         "az": float(result["accel"][2]),
                     }
+                    # Net acceleration = thrust - gravity (what actually changes velocity)
+                    action = {
+                        "ax": action_raw["ax"],
+                        "ay": action_raw["ay"],
+                        "az": action_raw["az"] - 9.80665,
+                    }
                 except Exception as e:
                     pass
+
+            # Low-pass filter action for smoother display
+            if not hasattr(run_hardware_loop, "action_filtered"):
+                run_hardware_loop.action_filtered = {"ax": 0.0, "ay": 0.0, "az": 0.0}
+            alpha = 0.2
+            for k in action:
+                run_hardware_loop.action_filtered[k] = (
+                    alpha * action[k] + (1 - alpha) * run_hardware_loop.action_filtered[k]
+                )
+            action_display = run_hardware_loop.action_filtered
 
             # Valid depth ratio
             valid_ratio = float(np.count_nonzero(depth > 0) / depth.size)
@@ -530,11 +553,13 @@ def run_hardware_loop():
                 shared_state["pose"] = {"x": float(pos[0]), "y": float(pos[1]), "z": float(pos[2]),
                                         "roll": float(roll), "pitch": float(pitch), "yaw": float(yaw)}
                 shared_state["velocity"] = {"x": float(vel[0]), "y": float(vel[1]), "z": float(vel[2])}
-                shared_state["policy_action"] = action
+                shared_state["policy_action"] = action_display  # filtered net acceleration
+                shared_state["policy_thrust"] = action_raw  # raw thrust incl. gravity
                 shared_state["target"] = {"x": float(TARGET_POS[0]), "y": float(TARGET_POS[1]), "z": float(TARGET_POS[2])}
                 shared_state["status"] = (f"帧数={frame_count} | 解锁={'是' if armed else '否'} 模式={fc_mode} | "
                                           f"位置=({pos[0]:.2f},{pos[1]:.2f},{pos[2]:.2f}) 航向={yaw*57.3:.1f}° | "
-                                          f"策略输出=({action['ax']:.2f},{action['ay']:.2f},{action['az']:.2f}) m/s² | "
+                                          f"净加速=({action_display['ax']:.2f},{action_display['ay']:.2f},{action_display['az']:.2f}) m/s² | "
+                                          f"推力AZ={action_raw['az']:.1f} m/s² | "
                                           f"深度有效={valid_ratio*100:.0f}% | 飞控消息={fc_msg_count}")
                 shared_state["fps"] = fps
                 shared_state["depth_valid_ratio"] = valid_ratio
