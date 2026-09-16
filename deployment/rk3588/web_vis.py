@@ -196,8 +196,8 @@ HTML_PAGE = """<!DOCTYPE html>
       <div class="bar-bg"><div class="bar-fill bar-vz" id="sp-vz-bar" style="width:50%"></div></div>
     </div>
     <div style="margin-top:8px; font-size:11px; color:#8b949e;">
-      范围: ±5 m/s² | OFFBOARD 加速度控制 | 世界坐标系(北东天)<br>
-      计算: a_net = a_pred - v_pred - g | PX4自动补偿重力
+      范围: ±3 m/s² | 速度上限: 3.0 m/s | OFFBOARD 加速度控制<br>
+      计算: a_net = (a_pred - v_pred) + g | PX4自动补偿重力
     </div>
   </div>
   <div class="panel">
@@ -265,9 +265,9 @@ async function updateStatus() {
     document.getElementById('sp-vx').textContent = sp.vx.toFixed(2);
     document.getElementById('sp-vy').textContent = sp.vy.toFixed(2);
     document.getElementById('sp-vz').textContent = sp.vz.toFixed(2);
-    document.getElementById('sp-vx-bar').style.width = (50 + sp.vx * 10) + '%';
-    document.getElementById('sp-vy-bar').style.width = (50 + sp.vy * 10) + '%';
-    document.getElementById('sp-vz-bar').style.width = (50 + sp.vz * 10) + '%';
+    document.getElementById('sp-vx-bar').style.width = (50 + sp.vx * 16.7) + '%';
+    document.getElementById('sp-vy-bar').style.width = (50 + sp.vy * 16.7) + '%';
+    document.getElementById('sp-vz-bar').style.width = (50 + sp.vz * 16.7) + '%';
 
     // Acceleration bars
     const ax = Math.max(-5, Math.min(5, s.policy_action.ax));
@@ -813,15 +813,25 @@ def run_hardware_loop():
                     vpred_world_neu = result["vpred_world"]
 
                     # Upstream control law (thr_est_error = 1.0 on real drone):
-                    # thrust_neu = (a_pred - v_pred - g_neu) * 1.0 + g_neu
-                    #            = a_pred - v_pred  (g_neu cancels)
-                    # net_accel_neu = thrust_neu - g_neu = a_pred - v_pred - g_neu
-                    # g_neu = [0, 0, -9.80665] (up-positive)
+                    # thrust_total = (a_pred - v_pred - g_neu) * 1.0 + g_neu
+                    #              = a_pred - v_pred  (g_neu cancels out)
+                    # net_accel = thrust_total + g_neu  (gravity adds downward accel)
+                    #           = (a_pred - v_pred) + g_neu
+                    # g_neu = [0, 0, -9.80665] (up-positive, gravity is negative)
                     g_neu = np.array([0.0, 0.0, -9.80665])
-                    net_accel_neu = accel_world_neu - vpred_world_neu - g_neu
+                    net_accel_neu = (accel_world_neu - vpred_world_neu) + g_neu
+
+                    # --- Speed limiter: bleed off acceleration if over speed limit ---
+                    MAX_SPEED = 3.0  # m/s
+                    speed = float(np.linalg.norm(vel))
+                    if speed > MAX_SPEED:
+                        # Apply braking acceleration opposite to velocity
+                        brake = min((speed - MAX_SPEED) * 3.0, 4.0)
+                        vel_dir = vel / max(speed, 0.01)
+                        net_accel_neu -= vel_dir * brake
 
                     # Limit acceleration
-                    net_accel_neu = np.clip(net_accel_neu, -5.0, 5.0)
+                    net_accel_neu = np.clip(net_accel_neu, -3.0, 3.0)
 
                     # Convert NEU -> NED for PX4 (z flips sign)
                     accel_setpoint_ned = np.array([
