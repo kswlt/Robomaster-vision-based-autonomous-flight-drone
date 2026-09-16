@@ -1,0 +1,50 @@
+{
+  "test": "real_depth_policy_validation",
+  "date": "2026-09-16",
+  "platform": "Orange Pi 5 (RK3588, 4GB RAM)",
+  "camera": "Intel RealSense D430",
+  "camera_config": {"width": 640, "height": 480, "fps": 30},
+  "policy": {"model": "policy.onnx", "backend": "onnxruntime 1.18.1 CPU", "threads": 4},
+  "frames_analyzed": 570,
+  "warmup_frames": 30,
+  "depth_camera": {
+    "valid_pixel_ratio_mean": 0.320,
+    "valid_pixel_ratio_min": 0.310,
+    "valid_pixel_ratio_max": 0.330,
+    "depth_min_mean_m": 0.154,
+    "depth_max_mean_m": 65.520,
+    "depth_mean_m": 11.539
+  },
+  "policy_latency_ms": {
+    "mean": 2.87,
+    "p50": 2.75,
+    "p95": 6.51,
+    "p99": 7.75
+  },
+  "action_output_accel_ms2": {
+    "ax": {"mean": 4.122, "std": 0.084, "min": 3.867, "max": 4.532},
+    "ay": {"mean": 0.104, "std": 0.050, "min": -0.060, "max": 0.244},
+    "az": {"mean": 8.493, "std": 0.122, "min": 8.074, "max": 8.873},
+    "magnitude_mean": 9.442
+  },
+  "test_conditions": {
+    "drone_pos": [0.0, 0.0, 1.0],
+    "drone_vel": [0.0, 0.0, 0.0],
+    "drone_yaw": 0.0,
+    "target_pos": [3.0, 0.0, 1.0]
+  },
+  "sanity_checks": {
+    "depth_valid_ratio_gt_10pct": true,
+    "policy_p95_latency_lt_50ms": true,
+    "all_actions_finite": true,
+    "accel_magnitude_lt_20": true
+  },
+  "all_checks_passed": true,
+  "notes": [
+    "az ~8.5 m/s^2 is gravity compensation thrust (expected ~9.8 minus body drag)",
+    "ax ~4.1 m/s^2 indicates policy wants to fly forward toward target 3m ahead",
+    "ay ~0.1 m/s^2 indicates no lateral correction needed (target is straight ahead)",
+    "Depth max 65.5m is RealSense invalid pixel sentinel (0xFFFF mm)",
+    "32% valid pixels is low - camera may be pointed at far walls or reflective surfaces"
+  ]
+}
