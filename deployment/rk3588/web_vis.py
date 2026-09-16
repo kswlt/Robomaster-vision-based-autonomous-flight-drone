@@ -154,6 +154,8 @@ HTML_PAGE = """<!DOCTYPE html>
       <div class="item"><div class="label">相机帧率</div><div class="value" id="fps">0</div></div>
       <div class="item"><div class="label">电池电压</div><div class="value" id="batt">0.0V</div></div>
       <div class="item"><div class="label">深度有效像素</div><div class="value" id="depth-valid">0%</div></div>
+      <div class="item"><div class="label">目标(机体前/右/上)</div><div class="value" id="debug-tgt">0/0/0</div></div>
+      <div class="item"><div class="label">机头方向(北/东)</div><div class="value" id="debug-fwd">0/0</div></div>
     </div>
     <div style="margin-top:10px;">
       <span class="badge" id="armed-badge">未解锁</span>
@@ -254,6 +256,12 @@ async function updateStatus() {
     document.getElementById('fps').textContent = s.fps;
     document.getElementById('batt').textContent = s.battery.toFixed(1) + 'V';
     document.getElementById('depth-valid').textContent = (s.depth_valid_ratio * 100).toFixed(0) + '%';
+
+    // Debug info
+    const dt = s.debug_target_body || {x:0,y:0,z:0};
+    document.getElementById('debug-tgt').textContent = dt.x.toFixed(2) + '/' + dt.y.toFixed(2) + '/' + dt.z.toFixed(2);
+    const df = s.debug_fwd || {x:0,y:0};
+    document.getElementById('debug-fwd').textContent = df.x.toFixed(2) + '/' + df.y.toFixed(2);
 
     const armedBadge = document.getElementById('armed-badge');
     armedBadge.textContent = s.armed ? '已解锁' : '未解锁';
@@ -459,6 +467,9 @@ class UpstreamAvoidancePolicy:
             "vpred_world": vpred_world,
             "margin": margin,
             "state": state,
+            "target_v_body": target_v_body,
+            "fwd": fwd,
+            "yaw": yaw,
         }
 
 
@@ -824,6 +835,8 @@ def run_hardware_loop():
             accel_world_neu = np.zeros(3)
             net_accel_neu = np.zeros(3)
             accel_setpoint_ned = np.zeros(3)
+            debug_target_body = np.zeros(3)
+            debug_fwd = np.zeros(3)
             if policy:
                 try:
                     result = policy.infer(depth, pos, vel, yaw, AVOIDANCE_TARGET)
@@ -831,6 +844,8 @@ def run_hardware_loop():
                     vpred_body = result["vpred_body"]
                     accel_world_neu = result["accel_world"]
                     vpred_world_neu = result["vpred_world"]
+                    debug_target_body = result.get("target_v_body", np.zeros(3))
+                    debug_fwd = result.get("fwd", np.zeros(3))
 
                     # Upstream control law (thr_est_error = 1.0 on real drone):
                     # act = (a_pred - v_pred - g_neu) * 1.0 + g_neu
@@ -896,6 +911,8 @@ def run_hardware_loop():
                 shared_state["velocity_setpoint"] = {"vx": float(net_accel_neu[0]), "vy": float(net_accel_neu[1]), "vz": float(net_accel_neu[2])}
                 shared_state["accel_setpoint_ned"] = {"ax": float(accel_setpoint_ned[0]), "ay": float(accel_setpoint_ned[1]), "az": float(accel_setpoint_ned[2])}
                 shared_state["target"] = {"x": float(AVOIDANCE_TARGET[0]), "y": float(AVOIDANCE_TARGET[1]), "z": float(AVOIDANCE_TARGET[2])}
+                shared_state["debug_target_body"] = {"x": float(debug_target_body[0]), "y": float(debug_target_body[1]), "z": float(debug_target_body[2])}
+                shared_state["debug_fwd"] = {"x": float(debug_fwd[0]), "y": float(debug_fwd[1]), "z": float(debug_fwd[2])}
                 shared_state["auto_state"] = auto_state
                 shared_state["auto_enabled"] = auto_active
                 shared_state["status"] = (f"帧数={frame_count} | 解锁={'是' if armed else '否'} 模式={fc_mode} | "
