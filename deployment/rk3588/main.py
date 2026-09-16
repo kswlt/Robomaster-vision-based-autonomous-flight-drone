@@ -76,19 +76,28 @@ class DepthCamera:
     def _connect(self):
         import pyrealsense2 as rs
         self.rs = rs
-        import pyrealsense2 as rs
-        # D430 known-good: 1280x720@30, 848x480@30, 640x480@30
-        for w, h, fps in [(1280, 720, 30), (848, 480, 30),
-                          (640, 480, 30), (640, 480, 15), (480, 270, 30)]:
-            for attempt in range(3):
+        # D430 configs: try high-res first, fall back to lower
+        # USB 3.0: 1280x720@15 works (30fps starts but no frames); USB 2.0: 640x480@30 works
+        for w, h, fps in [(1280, 720, 30), (1280, 720, 15), (1280, 720, 6),
+                          (848, 480, 30), (848, 480, 15), (848, 480, 10),
+                          (640, 480, 30), (640, 480, 15),
+                          (480, 270, 60), (480, 270, 30),
+                          (256, 144, 90), (256, 144, 60)]:
+            for attempt in range(2):
                 try:
                     config = rs.config()
                     config.enable_stream(rs.stream.depth, w, h, rs.format.z16, fps)
                     self.pipeline = rs.pipeline()
                     self.pipeline.start(config)
-                    self.width, self.height, self.fps = w, h, fps
-                    print(f"[Camera] RealSense D430 started: {w}x{h}@{fps}fps")
-                    return
+                    # Verify frames actually arrive (some configs start but never deliver)
+                    frames = self.pipeline.wait_for_frames(3000)
+                    if frames and frames.get_depth_frame():
+                        self.width, self.height, self.fps = w, h, fps
+                        print(f"[Camera] RealSense D430 started: {w}x{h}@{fps}fps")
+                        return
+                    # No frame -> stop and try next config
+                    self.pipeline.stop()
+                    time.sleep(0.3)
                 except Exception as e:
                     try:
                         self.pipeline.stop()
