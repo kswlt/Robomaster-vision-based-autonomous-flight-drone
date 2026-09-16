@@ -197,7 +197,7 @@ HTML_PAGE = """<!DOCTYPE html>
     </div>
     <div style="margin-top:8px; font-size:11px; color:#8b949e;">
       范围: ±3 m/s² | 速度上限: 3.0 m/s | OFFBOARD 加速度控制<br>
-      计算: a_net = (a_pred - v_pred) + g | PX4自动补偿重力
+      计算: a_net = a_pred - v_pred (净加速度, PX4自动补偿重力)
     </div>
   </div>
   <div class="panel">
@@ -813,13 +813,12 @@ def run_hardware_loop():
                     vpred_world_neu = result["vpred_world"]
 
                     # Upstream control law (thr_est_error = 1.0 on real drone):
-                    # thrust_total = (a_pred - v_pred - g_neu) * 1.0 + g_neu
-                    #              = a_pred - v_pred  (g_neu cancels out)
-                    # net_accel = thrust_total + g_neu  (gravity adds downward accel)
-                    #           = (a_pred - v_pred) + g_neu
-                    # g_neu = [0, 0, -9.80665] (up-positive, gravity is negative)
-                    g_neu = np.array([0.0, 0.0, -9.80665])
-                    net_accel_neu = (accel_world_neu - vpred_world_neu) + g_neu
+                    # act = (a_pred - v_pred - g_neu) * 1.0 + g_neu
+                    #     = a_pred - v_pred  (g_neu cancels out exactly)
+                    # This "act" is the NET acceleration (gravity excluded).
+                    # PX4 OFFBOARD acceleration control also compensates gravity internally,
+                    # so we send exactly this net acceleration. DO NOT add/subtract g.
+                    net_accel_neu = accel_world_neu - vpred_world_neu
 
                     # --- Speed limiter: bleed off acceleration if over speed limit ---
                     MAX_SPEED = 3.0  # m/s
