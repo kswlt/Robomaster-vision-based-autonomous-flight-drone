@@ -63,7 +63,7 @@ HTML_PAGE = """<!DOCTYPE html>
   body { background: #1a1a2e; color: #eee; font-family: 'Segoe UI', sans-serif; padding: 10px; }
   .header { text-align: center; padding: 10px; background: #16213e; border-radius: 8px; margin-bottom: 10px; }
   .header h1 { color: #e94560; font-size: 20px; }
-  .header .status { color: #0f3460; font-size: 14px; margin-top: 4px; }
+  .header .status { color: #4ecdc4; font-size: 14px; margin-top: 4px; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .panel { background: #16213e; border-radius: 8px; padding: 12px; }
   .panel h2 { color: #e94560; font-size: 14px; margin-bottom: 8px; border-bottom: 1px solid #0f3460; padding-bottom: 4px; }
@@ -90,67 +90,67 @@ HTML_PAGE = """<!DOCTYPE html>
 </head>
 <body>
 <div class="header">
-  <h1>E2E-RL Drone Dashboard</h1>
-  <div class="status" id="conn-status">Connecting...</div>
+  <h1>E2E-RL 无人机端到端撞击系统</h1>
+  <div class="status" id="conn-status">连接中...</div>
 </div>
 <div class="grid">
   <div class="panel">
-    <h2>Depth Camera (RealSense D430)</h2>
+    <h2>深度相机 (RealSense D430)</h2>
     <div class="depth-container">
-      <img src="/depth.mjpg" alt="Depth stream" onerror="this.style.opacity=0.3">
+      <img src="/depth.mjpg" alt="深度图" onerror="this.style.opacity=0.3">
     </div>
     <div style="margin-top:8px; font-size:11px; color:#888;">
-      暖色=近 | 冷色=远 | 范围 0.3-24m
+      暖色=近 | 冷色=远 | 量程 0.3-24m
     </div>
   </div>
   <div class="panel">
-    <h2>Telemetry</h2>
+    <h2>遥测数据</h2>
     <div class="telemetry">
-      <div class="item"><div class="label">Position X</div><div class="value" id="pos-x">0.00</div></div>
-      <div class="item"><div class="label">Position Y</div><div class="value" id="pos-y">0.00</div></div>
-      <div class="item"><div class="label">Position Z</div><div class="value" id="pos-z">0.00</div></div>
-      <div class="item"><div class="label">Yaw</div><div class="value" id="yaw">0.0°</div></div>
-      <div class="item"><div class="label">Velocity</div><div class="value" id="vel">0.00 m/s</div></div>
-      <div class="item"><div class="label">FPS</div><div class="value" id="fps">0</div></div>
-      <div class="item"><div class="label">Battery</div><div class="value" id="batt">0.0V</div></div>
-      <div class="item"><div class="label">Depth Valid</div><div class="value" id="depth-valid">0%</div></div>
+      <div class="item"><div class="label">位置 X</div><div class="value" id="pos-x">0.00</div></div>
+      <div class="item"><div class="label">位置 Y</div><div class="value" id="pos-y">0.00</div></div>
+      <div class="item"><div class="label">位置 Z（高度）</div><div class="value" id="pos-z">0.00</div></div>
+      <div class="item"><div class="label">航向角 Yaw</div><div class="value" id="yaw">0.0°</div></div>
+      <div class="item"><div class="label">飞行速度</div><div class="value" id="vel">0.00 m/s</div></div>
+      <div class="item"><div class="label">相机帧率</div><div class="value" id="fps">0</div></div>
+      <div class="item"><div class="label">电池电压</div><div class="value" id="batt">0.0V</div></div>
+      <div class="item"><div class="label">深度有效像素</div><div class="value" id="depth-valid">0%</div></div>
     </div>
     <div style="margin-top:10px;">
-      <span class="badge badge-ok" id="armed-badge">DISARMED</span>
-      <span class="badge badge-ok" id="mode-badge">UNKNOWN</span>
+      <span class="badge badge-ok" id="armed-badge">未解锁</span>
+      <span class="badge badge-ok" id="mode-badge">未知</span>
     </div>
   </div>
   <div class="panel">
-    <h2>Policy Output (Acceleration)</h2>
+    <h2>策略输出（加速度指令）</h2>
     <div class="bar-container">
-      <div class="bar-label"><span>AX (Forward)</span><span id="ax-val">0.00</span></div>
+      <div class="bar-label"><span>前向加速 AX</span><span id="ax-val">0.00</span></div>
       <div class="bar-bg"><div class="bar-fill bar-ax" id="ax-bar" style="width:50%"></div></div>
     </div>
     <div class="bar-container">
-      <div class="bar-label"><span>AY (Right)</span><span id="ay-val">0.00</span></div>
+      <div class="bar-label"><span>右向加速 AY</span><span id="ay-val">0.00</span></div>
       <div class="bar-bg"><div class="bar-fill bar-ay" id="ay-bar" style="width:50%"></div></div>
     </div>
     <div class="bar-container">
-      <div class="bar-label"><span>AZ (Up)</span><span id="az-val">0.00</span></div>
+      <div class="bar-label"><span>升向加速 AZ</span><span id="az-val">0.00</span></div>
       <div class="bar-bg"><div class="bar-fill bar-az" id="az-bar" style="width:50%"></div></div>
     </div>
     <div style="margin-top:10px; font-size:11px; color:#888;">
-      范围: ±10 m/s² | 中间=0
+      范围: ±10 m/s² | 中间刻度=0 | 正值=前/右/上
     </div>
   </div>
   <div class="panel">
-    <h2>Trajectory (Top-Down)</h2>
+    <h2>飞行轨迹（俯视图）</h2>
     <canvas class="trajectory-canvas" id="traj-canvas"></canvas>
     <div style="margin-top:6px; font-size:11px; color:#888;">
-      <span style="color:#e94560;">■</span> Drone | 
-      <span style="color:#4ecdc4;">■</span> Target | 
-      <span style="color:#f5a623;">■</span> Trail
+      <span style="color:#e94560;">■</span> 无人机位置 |
+      <span style="color:#4ecdc4;">■</span> 目标装甲板 |
+      <span style="color:#f5a623;">■</span> 飞行轨迹
     </div>
   </div>
 </div>
 <div class="panel" style="margin-top:10px;">
-  <h2>Status</h2>
-  <div class="status-text" id="status-text">Waiting for data...</div>
+  <h2>运行状态</h2>
+  <div class="status-text" id="status-text">等待数据...</div>
 </div>
 
 <script>
@@ -161,7 +161,7 @@ async function updateStatus() {
   try {
     const resp = await fetch('/status');
     const s = await resp.json();
-    document.getElementById('conn-status').textContent = 'Connected | ' + new Date().toLocaleTimeString();
+    document.getElementById('conn-status').textContent = '已连接 | ' + new Date().toLocaleTimeString();
     document.getElementById('conn-status').style.color = '#4ecdc4';
 
     document.getElementById('pos-x').textContent = s.pose.x.toFixed(2);
@@ -175,7 +175,7 @@ async function updateStatus() {
     document.getElementById('depth-valid').textContent = (s.depth_valid_ratio * 100).toFixed(0) + '%';
 
     const armedBadge = document.getElementById('armed-badge');
-    armedBadge.textContent = s.armed ? 'ARMED' : 'DISARMED';
+    armedBadge.textContent = s.armed ? '已解锁' : '未解锁';
     armedBadge.className = 'badge ' + (s.armed ? 'badge-warn' : 'badge-ok');
     document.getElementById('mode-badge').textContent = s.fc_mode;
 
@@ -197,7 +197,7 @@ async function updateStatus() {
     if (trajPoints.length > MAX_TRAJ) trajPoints.shift();
     drawTrajectory(s.target);
   } catch(e) {
-    document.getElementById('conn-status').textContent = 'Disconnected: ' + e.message;
+    document.getElementById('conn-status').textContent = '连接断开: ' + e.message;
     document.getElementById('conn-status').style.color = '#e94560';
   }
 }
@@ -260,7 +260,7 @@ function drawTrajectory(target) {
   ctx.fill();
   ctx.fillStyle = '#fff';
   ctx.font = '10px sans-serif';
-  ctx.fillText('TARGET', tx + 10, ty - 8);
+  ctx.fillText('目标', tx + 10, ty - 8);
 
   // Drone (latest point)
   const last = trajPoints[trajPoints.length - 1];
@@ -270,7 +270,7 @@ function drawTrajectory(target) {
   ctx.arc(dx, dy, 6, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = '#fff';
-  ctx.fillText('DRONE', dx + 10, dy - 8);
+  ctx.fillText('无人机', dx + 10, dy - 8);
 }
 
 setInterval(updateStatus, 100);
@@ -399,6 +399,17 @@ def run_hardware_loop():
     fps_count = 0
     sim_depth_frame = 0
     sim_pos = np.array([0.0, 0.0, 0.1])
+    # Persistent FC state (keep last valid value, don't reset to 0 each frame)
+    fc_pos = np.array([0.0, 0.0, 0.1])
+    fc_vel = np.zeros(3)
+    fc_yaw = 0.0
+    fc_roll = 0.0
+    fc_pitch = 0.0
+    fc_armed = False
+    fc_mode_str = "未连接"
+    fc_battery = 0.0
+    fc_msg_count = 0
+    fc_last_msg_time = time.time()
 
     print("[LOOP] Starting main loop...")
     while True:
@@ -429,33 +440,64 @@ def run_hardware_loop():
             depth_vis = (depth_vis * 255).astype(np.uint8)
             depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
 
-            # Read FC state
-            pos = sim_pos.copy()
-            vel = np.zeros(3)
-            yaw = 0.0
-            roll = pitch = 0.0
-            armed = False
-            fc_mode = "SIM"
-            battery = 12.0
+            # Read FC state (persistent - keep last valid value)
+            pos = fc_pos.copy()
+            vel = fc_vel.copy()
+            yaw = fc_yaw
+            roll = fc_roll
+            pitch = fc_pitch
+            armed = fc_armed
+            fc_mode = fc_mode_str
+            battery = fc_battery
             if fc:
                 try:
-                    for _ in range(10):
+                    for _ in range(20):
                         msg = fc.recv_match(blocking=False)
                         if msg is None:
                             break
+                        fc_msg_count += 1
+                        fc_last_msg_time = time.time()
                         mt = msg.get_type()
                         if mt == "ATTITUDE":
-                            roll, pitch, yaw = msg.roll, msg.pitch, msg.yaw
+                            fc_roll, fc_pitch, fc_yaw = msg.roll, msg.pitch, msg.yaw
+                            roll, pitch, yaw = fc_roll, fc_pitch, fc_yaw
                         elif mt == "LOCAL_POSITION_NED":
-                            pos = np.array([msg.x, msg.y, -msg.z])
-                            vel = np.array([msg.vx, msg.vy, -msg.vz])
+                            fc_pos = np.array([msg.x, msg.y, -msg.z])
+                            fc_vel = np.array([msg.vx, msg.vy, -msg.vz])
+                            pos = fc_pos.copy()
+                            vel = fc_vel.copy()
                         elif mt == "HEARTBEAT":
-                            armed = bool(msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)
-                            fc_mode = f"MODE_{msg.custom_mode}"
+                            fc_armed = bool(msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)
+                            armed = fc_armed
+                            # Decode ArduPilot custom mode
+                            cm = msg.custom_mode
+                            plane_modes = {0:"MANUAL",1:"CIRCLE",2:"STABILIZE",3:"TRAINING",
+                                           4:"ACRO",5:"FBWA",6:"FBWB",7:"CRUISE",8:"AUTOTUNE",
+                                           10:"AUTO",11:"RTL",12:"LOITER",13:"TAKEOFF",14:"AVOID_ADSB",
+                                           15:"GUIDED",16:"INITIALISING",17:"QSTABILIZE",18:"QHOVER",
+                                           19:"QLOITER",20:"QLAND",21:"QRTL",22:"QAUTOTUNE",23:"QACRO"}
+                            copter_modes = {0:"STABILIZE",1:"ACRO",2:"ALT_HOLD",3:"AUTO",4:"GUIDED",
+                                            5:"LOITER",6:"RTL",7:"CIRCLE",8:"POSITION",9:"LAND",
+                                            10:"OF_LOITER",11:"DRIFT",13:"SPORT",14:"FLIP",
+                                            15:"AUTOTUNE",16:"POSHOLD",17:"BRAKE",18:"THROW",
+                                            19:"AVOID_ADSB",20:"GUIDED_NOGPS",21:"SMART_RTL",
+                                            22:"FLOWHOLD",23:"FOLLOW",24:"ZIGZAG",25:"SYSTEMID",
+                                            26:"AUTOROTATE",27:"AUTO_RTL",29:"POS_Z_ENC"}
+                            if cm in copter_modes:
+                                fc_mode_str = copter_modes[cm]
+                            elif cm in plane_modes:
+                                fc_mode_str = plane_modes[cm]
+                            else:
+                                fc_mode_str = f"MODE_{cm}"
+                            fc_mode = fc_mode_str
                         elif mt == "SYS_STATUS":
-                            battery = msg.voltage_battery / 1000.0
+                            fc_battery = msg.voltage_battery / 1000.0
+                            battery = fc_battery
                 except Exception:
                     pass
+            # Detect FC timeout
+            if time.time() - fc_last_msg_time > 2.0:
+                fc_mode = "失联" if fc else "无飞控"
 
             # Run policy
             action = {"ax": 0.0, "ay": 0.0, "az": 0.0}
@@ -490,10 +532,10 @@ def run_hardware_loop():
                 shared_state["velocity"] = {"x": float(vel[0]), "y": float(vel[1]), "z": float(vel[2])}
                 shared_state["policy_action"] = action
                 shared_state["target"] = {"x": float(TARGET_POS[0]), "y": float(TARGET_POS[1]), "z": float(TARGET_POS[2])}
-                shared_state["status"] = (f"FRAME={frame_count} | armed={armed} mode={fc_mode} | "
-                                          f"pos=({pos[0]:.2f},{pos[1]:.2f},{pos[2]:.2f}) | "
-                                          f"policy=({action['ax']:.2f},{action['ay']:.2f},{action['az']:.2f}) | "
-                                          f"depth_valid={valid_ratio*100:.0f}%")
+                shared_state["status"] = (f"帧数={frame_count} | 解锁={'是' if armed else '否'} 模式={fc_mode} | "
+                                          f"位置=({pos[0]:.2f},{pos[1]:.2f},{pos[2]:.2f}) 航向={yaw*57.3:.1f}° | "
+                                          f"策略输出=({action['ax']:.2f},{action['ay']:.2f},{action['az']:.2f}) m/s² | "
+                                          f"深度有效={valid_ratio*100:.0f}% | 飞控消息={fc_msg_count}")
                 shared_state["fps"] = fps
                 shared_state["depth_valid_ratio"] = valid_ratio
                 shared_state["battery"] = battery
