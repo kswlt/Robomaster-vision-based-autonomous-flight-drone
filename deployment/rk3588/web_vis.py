@@ -135,7 +135,7 @@ HTML_PAGE = """<!DOCTYPE html>
 </div>
 <div class="grid">
   <div class="panel">
-    <h2>深度相机 (RealSense D430)</h2>
+    <h2>深度相机 (RealSense D430) <span id="depth-source" style="font-size:12px;color:#f85149;"></span></h2>
     <div class="depth-container">
       <img src="/depth.mjpg" alt="深度图" onerror="this.style.opacity=0.3">
     </div>
@@ -257,6 +257,14 @@ async function updateStatus() {
     document.getElementById('fps').textContent = s.fps;
     document.getElementById('batt').textContent = s.battery.toFixed(1) + 'V';
     document.getElementById('depth-valid').textContent = (s.depth_valid_ratio * 100).toFixed(0) + '%';
+    const ds = document.getElementById('depth-source');
+    if (s.depth_source === 'SIMULATED') {
+        ds.textContent = '⚠ 模拟深度（相机未连接）';
+        ds.style.color = '#f85149';
+    } else {
+        ds.textContent = '✓ 真实深度';
+        ds.style.color = '#3fb950';
+    }
 
     // Debug info
     const dt = s.debug_target_body || {x:0,y:0,z:0};
@@ -727,6 +735,7 @@ def run_hardware_loop():
 
             # --- Get depth ---
             depth = None
+            depth_source = "real"
             if pipeline:
                 try:
                     frames = pipeline.wait_for_frames(1000)
@@ -736,6 +745,7 @@ def run_hardware_loop():
                 except Exception:
                     pass
             if depth is None:
+                depth_source = "SIMULATED"
                 sim_depth_frame += 1
                 h, w = 480, 640
                 yy, xx = np.mgrid[0:h, 0:w]
@@ -948,6 +958,7 @@ def run_hardware_loop():
                                           f"深度有效={valid_ratio*100:.0f}%")
                 shared_state["fps"] = fps
                 shared_state["depth_valid_ratio"] = valid_ratio
+                shared_state["depth_source"] = depth_source
                 shared_state["battery"] = battery
                 shared_state["armed"] = armed
                 shared_state["fc_mode"] = fc_mode
