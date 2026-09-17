@@ -1,7 +1,18 @@
 # Current State
 
-**Last updated**: 2026-09-14 (JST)
+**Last updated**: 2026-09-17 (JST)
 **Branch**: E2E-RL (orphan rebuild)
+
+## 2026-09-17 Camera Diagnosis (P0 Blocker)
+
+**D430 硬件故障确认**（在完全停止 VIO 系统后复查）：
+- UVC control 1 on unit 3 持续返回 -32 (EPIPE)，与用户空间无关
+- 深度流(video0 Z16)和红外流(video2 GREY)全部失败（select timeout / XU busy）
+- uvcvideo 是内核内置模块，无法卸载复位；USB authorized 断电在 RK3588 ehci-platform 上无效
+- pyrealsense2 能枚举设备但 XU 控制失败，hardware_reset 无法执行
+- **次要发现**：橙Pi5上运行独立 VIO 系统（vio.service + watchdog_camera.service），以 `enable_depth:=false` 占用相机。完全停止后相机仍不工作，确认硬件故障为主因。
+- **修复路径**：① 换 USB 3.0 口（当前在 USB 2.0，496mA 接近上限）② 更换 24-pin FPC 排线 ③ 更换 D430 相机
+- VIO 当前已停止（排查时停掉），如需恢复：`sudo systemctl start vio.service watchdog_camera.service`
 
 ## Completion
 

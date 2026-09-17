@@ -32,12 +32,24 @@
 4. Policy 输出体坐标系加速度 → 转世界 NEU → 限幅 ±3 m/s² → 转 NED → `SET_POSITION_TARGET_LOCAL_NED`（type_mask=0b0000110000111111，加速度控制）
 5. 点"停止"或遥控器切回手动 → 切 POSCTL
 
-### 相机硬件问题（当前 blocker）
-- D430 深度相机**硬件故障**：USB 枚举正常（lsusb 8086:0ad4），uvcvideo 驱动绑定正常，但**无法输出深度帧**（pyrealsense2 和 v4l2 均超时，dmesg 持续 `UVC control -32`）
-- 已尝试：hardware_reset、USB sysfs 断电重连、uvcvideo 驱动解绑重绑、物理拔插 USB、物理拔插 FPC 排线 — 全部无效
+### 相机硬件问题（当前 blocker，2026-09-17 复查确认）
+- D430 深度相机**硬件故障确认**：USB 枚举正常（lsusb 8086:0ad4，bcdDevice 51.13），uvcvideo 驱动绑定正常，/dev/video0-3 存在，但**UVC 控制接口无响应**（dmesg 持续 `Failed to query (SET_CUR) UVC control 1 on unit 3: -32 (EPIPE)`，~10ms 间隔）
+- **深度流和红外流全部失败**：video0（Z16 深度）pyrealsense2 报 `set_xu(ctrl=1) failed! Device or resource busy`；video2（GREY 红外）cv2.VideoCapture 打开成功但 `select() timeout` 读不到帧 → 不是只有深度模块坏，是整个相机视频流/控制接口坏
+- **2026-09-17 彻底排查（在完全停止 VIO 后）**：
+  - 停掉 `vio.service` + `watchdog_camera.service` + 残留 `vio-improve/watchdog_camera.sh`，确认无进程占用 /dev/video*
+  - `uvcvideo` 是内核内置模块（`Module uvcvideo is builtin`），无法 modprobe -r 复位
+  - USB authorized 断电（`echo 0 > /sys/bus/usb/devices/3-1/authorized`）无效：deauthorize 后设备仍在 lsusb，RK3588 ehci-platform 不支持端口真正断电
+  - pyrealsense2 `hardware_reset()` 也因 XU 控制失败而无法执行
+  - 清空 dmesg 后 UVC -32 错误立即恢复，与用户空间无关 → 内核驱动持续尝试与相机通信，相机不响应
+- **次要问题：VIO 系统占用相机**。橙Pi5上运行着独立的 VIO 系统（`/home/orangepi/kswlt/`），由 `vio.service` + `watchdog_camera.service`（10s 检测自动重启）守护，启动 ROS2 realsense2_camera 节点配置 `enable_depth:=false enable_infra1:=true enable_infra2:=true`。它会占用相机但只开红外流。**即使完全停掉 VIO 释放相机，硬件仍不工作**，所以 VIO 占用是次要问题。
+  - 停止 VIO：`sudo systemctl stop watchdog_camera.service vio.service && pkill -9 -f watchdog_camera && pkill -9 -f realsense2_camera`
+  - 重启 VIO：`sudo systemctl start vio.service watchdog_camera.service`
 - **当前 web_vis 用模拟深度 fallback**（左右渐变 + 噪声），网页标题显示"⚠ 模拟深度（相机未连接）"
-- 可能原因：FPC 排线损坏或 D430 深度传感器硬件损坏，需更换排线或相机
-- D430 支持的深度分辨率：424x240、480x270、640x360（GREY 格式），**不支持 640x480**
+- **修复建议（按优先级）**：
+  1. **换到 USB 3.0 端口**：当前插在 Bus 003（ehci-platform USB 2.0，480M），相机请求 496mA 接近 USB 2.0 上限 500mA，可能 brown out。橙Pi5有 USB 3.0 口（Bus 002/008，xhci-hcd，5000M，900mA），物理换口试试
+  2. **更换 FPC 排线**：D430 深度模块用 24-pin 0.5mm pitch FPC 排线连接 USB 板，排线损坏是常见故障
+  3. **更换 D430 相机**：如果换口和换排线都无效
+- D430 支持的深度分辨率（v4l2 实测 video0 Z16）：256x144@90、480x270@60/30/15/6、640x360@30、640x480@30/15/6、848x480@10/8/6、1280x720@6
 
 ### 上游避障策略 ONNX
 - 模型：`deployment/onnx/upstream_avoidance.onnx` + `.data`（共 ~2MB，opset 18）
