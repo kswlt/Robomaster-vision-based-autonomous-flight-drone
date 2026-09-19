@@ -132,6 +132,7 @@ HTML_PAGE = """<!DOCTYPE html>
 <div class="header">
   <h1>E2E-RL 无人机端到端避障控制台</h1>
   <div class="status" id="conn-status">连接中...</div>
+  <div class="status" style="color:#f0883e;">JS心跳: <span id="js-tick">0</span></div>
 </div>
 <div class="grid">
   <div class="panel">
@@ -199,7 +200,7 @@ HTML_PAGE = """<!DOCTYPE html>
       <div class="bar-bg"><div class="bar-fill bar-vz" id="sp-vz-bar" style="width:50%"></div></div>
     </div>
     <div style="margin-top:8px; font-size:11px; color:#8b949e;">
-      范围: ±3 m/s² | 速度上限: 3.0 m/s | OFFBOARD 加速度控制<br>
+      范围: ±1.5 m/s² | 速度上限: 1.0 m/s | OFFBOARD 加速度控制<br>
       计算: a_net = a_pred - v_pred (净加速度, PX4自动补偿重力)
     </div>
   </div>
@@ -220,6 +221,22 @@ HTML_PAGE = """<!DOCTYPE html>
     <div style="margin-top:8px; font-size:11px; color:#8b949e;">
       机体坐标系加速度 | action第1列
     </div>
+  </div>
+  <div class="panel">
+    <h2>飞行指令</h2>
+    <div style="display:flex; align-items:center; gap:16px;">
+      <canvas id="vel-arrow" width="120" height="120" style="flex-shrink:0"></canvas>
+      <div style="flex:1; font-size:13px;">
+        <div>指令前进速度: <b id="v-fwd" style="color:#58a6ff; font-size:18px;">0.00</b> m/s</div>
+        <div style="margin-top:4px;">指令侧移速度: <b id="v-lat" style="color:#d29922; font-size:18px;">0.00</b> m/s</div>
+        <div style="margin-top:4px;">指令总速: <b id="v-total" style="color:#3fb950; font-size:18px;">0.00</b> m/s</div>
+        <div style="margin-top:6px; font-size:11px; color:#8b949e;">绿箭头=实际速度方向<br>橙箭头=指令方向</div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>实际指令（发给飞控）</h2>
+    <div id="cmd-desc" style="font-size:16px; line-height:1.8; min-height:90px; padding:8px; background:#161b22; border-radius:6px;">等待数据...</div>
   </div>
   <div class="panel">
     <h2>飞行轨迹（俯视图）</h2>
@@ -297,6 +314,84 @@ async function updateStatus() {
     document.getElementById('ay-bar').style.width = (50 + ay * 10) + '%';
     document.getElementById('az-bar').style.width = (50 + az * 10) + '%';
 
+    // Flight velocity visualization
+    const velData = s.velocity || {x:0, y:0, z:0};
+    const yaw = (s.pose && s.pose.yaw) || 0;
+    const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
+    // Actual velocity in body frame (for green arrow)
+    const actFwd = velData.x * cosY + velData.y * sinY;
+    const actRight = -velData.x * sinY + velData.y * cosY;
+    // Commanded velocity from policy (vpred in body frame) - this is what policy wants
+    const vp = s.policy_vpred || {vx:0, vy:0, vz:0};
+    document.getElementById('v-fwd').textContent = vp.vx.toFixed(2);
+    document.getElementById('v-lat').textContent = vp.vy.toFixed(2);
+    const vTotal = Math.sqrt(vp.vx*vp.vx + vp.vy*vp.vy);
+    document.getElementById('v-total').textContent = vTotal.toFixed(2);
+
+    // Draw arrows on canvas
+    const vc = document.getElementById('vel-arrow');
+    const vctx = vc.getContext('2d');
+    const vw = vc.width, vh = vc.height;
+    const cx = vw/2, cy = vh/2;
+    vctx.fillStyle = '#0d1117';
+    vctx.fillRect(0,0,vw,vh);
+    // Draw cross
+    vctx.strokeStyle = '#30363d';
+    vctx.lineWidth = 1;
+    vctx.beginPath(); vctx.moveTo(cx,10); vctx.lineTo(cx,vh-10); vctx.stroke();
+    vctx.beginPath(); vctx.moveTo(10,cy); vctx.lineTo(vw-10,cy); vctx.stroke();
+    // Draw actual velocity arrow (green)
+    const scale = 40; // px per m/s
+    const avx = actFwd * scale, avy = -actRight * scale; // canvas: right=+x, up=-y
+    drawArrow(vctx, cx, cy, cx + avx, cy + avy, '#3fb950');
+    // Draw commanded acceleration arrow (orange, scaled)
+    const sp2 = s.velocity_setpoint || {vx:0, vy:0};
+    const sFwd = sp2.vx * cosY + sp2.vy * sinY;
+    const sRight = -sp2.vx * sinY + sp2.vy * cosY;
+    const sa = 20; // accel arrow scale
+    const cax = sFwd * sa, cay = -sRight * sa;
+    drawArrow(vctx, cx, cy, cx + cax, cy + cay, '#f78166');
+
+    // Plain language command description (net accel = what PX4 actually receives)
+    const sp3 = s.velocity_setpoint || {vx:0,vy:0,vz:0};
+    const axN = sp3.vx, ayN = sp3.vy;
+    let cmdText = "";
+    // Horizontal direction
+    const speed = Math.sqrt(axN*axN + ayN*ayN);
+    if (speed < 0.05) {
+      cmdText += "<b>停止/悬停</b>（无水平加速度）";
+    } else {
+      // Determine direction in body frame (rotate by yaw)
+      const yaw2 = (s.pose && s.pose.yaw) || 0;
+      const cY = Math.cos(yaw2), sY = Math.sin(yaw2);
+      const bodyFwd = axN * cY + ayN * sY;
+      const bodyRight = -axN * sY + ayN * cY;
+      let dirs = [];
+      if (bodyFwd > 0.3) dirs.push("前进");
+      else if (bodyFwd < -0.3) dirs.push("后退");
+      if (bodyRight > 0.3) dirs.push("右移");
+      else if (bodyRight < -0.3) dirs.push("左移");
+      if (dirs.length === 0) {
+        if (bodyFwd > 0) dirs.push("微前进");
+        else if (bodyFwd < 0) dirs.push("微后退");
+        if (bodyRight > 0) dirs.push("微右移");
+        else if (bodyRight < 0) dirs.push("微左移");
+      }
+      cmdText += "<b>" + dirs.join("、") + "</b>";
+      cmdText += " " + speed.toFixed(2) + " m/s²";
+    }
+    // Vertical
+    const azN = sp3.vz;
+    if (Math.abs(azN) > 0.2) {
+      cmdText += "，" + (azN > 0 ? "<b>下降</b>" : "<b>上升</b>") + " " + Math.abs(azN).toFixed(2) + " m/s²";
+    } else {
+      cmdText += "，<b>定高</b>";
+    }
+    // Auto state
+    const autoTxt = s.auto_state === 'ACTIVE' ? '<span style="color:#3fb950">● 自动飞行中</span>' : '<span style="color:#8b949e">○ 手动/待命</span>';
+    cmdText += "<br><span style='font-size:13px; color:#8b949e'>" + autoTxt + "</span>";
+    document.getElementById('cmd-desc').innerHTML = cmdText;
+
     // Auto control status
     const autoStatus = document.getElementById('auto-status');
     const btnStart = document.getElementById('btn-start');
@@ -325,6 +420,27 @@ async function updateStatus() {
     document.getElementById('conn-status').textContent = '连接断开: ' + e.message;
     document.getElementById('conn-status').style.color = '#f85149';
   }
+}
+
+function drawArrow(ctx, x1, y1, x2, y2, color) {
+  const dx = x2-x1, dy = y2-y1;
+  const len = Math.sqrt(dx*dx+dy*dy);
+  if(len < 3) return;
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  // Arrowhead
+  const ang = Math.atan2(dy, dx);
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - 8*Math.cos(ang-0.4), y2 - 8*Math.sin(ang-0.4));
+  ctx.lineTo(x2 - 8*Math.cos(ang+0.4), y2 - 8*Math.sin(ang+0.4));
+  ctx.closePath();
+  ctx.fill();
 }
 
 function drawTrajectory(target) {
@@ -396,6 +512,13 @@ async function setTargetForward() {
   console.log('set_target_forward:', data);
 }
 
+// JS alive counter
+let _tickCount = 0;
+setInterval(function() {
+  _tickCount++;
+  const el = document.getElementById('js-tick');
+  if (el) el.textContent = _tickCount;
+}, 200);
 setInterval(updateStatus, 100);
 updateStatus();
 </script>
@@ -472,8 +595,14 @@ class UpstreamAvoidancePolicy:
 
         # --- Decode action: reshape (3,2) = [accel_body, vpred_body] ---
         act_mat = action.reshape(3, 2)
-        accel_body = act_mat[:, 0]
-        vpred_body = act_mat[:, 1]
+        accel_body = act_mat[:, 0].copy()
+        vpred_body = act_mat[:, 1].copy()
+
+        # Camera mounted backwards (180 deg yaw): flip body x and y
+        accel_body[0] *= -1.0
+        accel_body[1] *= -1.0
+        vpred_body[0] *= -1.0
+        vpred_body[1] *= -1.0
 
         # Transform to world frame
         accel_world = R @ accel_body
@@ -526,7 +655,7 @@ class PX4Controller:
             0,
             self.fc.target_system, self.fc.target_component,
             mavutil_module.mavlink.MAV_FRAME_LOCAL_NED,
-            0b0000110000111111,  # acceleration only mask (ignore pos, vel, yaw)
+            0b0000110100111111,  # accel XY only mask (ignore pos, vel, yaw, accel Z for altitude hold)
             0, 0, 0,  # position
             0, 0, 0,  # velocity
             ax_ned, ay_ned, az_ned,  # acceleration NED
@@ -565,6 +694,9 @@ class RequestHandler(BaseHTTPRequestHandler):
         if self.path in ("/", "/index.html"):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
             self.end_headers()
             self.wfile.write(HTML_PAGE.encode())
         elif self.path == "/status":
@@ -653,6 +785,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 # Main hardware + control loop
 # ============================================================================
 def run_hardware_loop():
+    global AVOIDANCE_TARGET
     global mavutil_module
     import cv2
 
@@ -875,6 +1008,18 @@ def run_hardware_loop():
             debug_fwd = np.zeros(3)
             if policy:
                 try:
+                    # Continuous carrot: keep target 5m ahead of current pos/yaw
+                    # so drone always flies forward and avoids obstacles
+                    if auto_active:
+                        fwd_x = np.cos(yaw)
+                        fwd_y = np.sin(yaw)
+                        carrot_dist = 5.0
+                        AVOIDANCE_TARGET = np.array([
+                            pos[0] + fwd_x * carrot_dist,
+                            pos[1] + fwd_y * carrot_dist,
+                            pos[2] + 0.5,
+                        ], dtype=np.float32)
+
                     result = policy.infer(depth, pos, vel, yaw, AVOIDANCE_TARGET)
                     accel_body = result["accel_body"]
                     vpred_body = result["vpred_body"]
@@ -892,16 +1037,16 @@ def run_hardware_loop():
                     net_accel_neu = accel_world_neu - vpred_world_neu
 
                     # --- Speed limiter: bleed off acceleration if over speed limit ---
-                    MAX_SPEED = 3.0  # m/s
+                    MAX_SPEED = 1.0  # m/s
                     speed = float(np.linalg.norm(vel))
                     if speed > MAX_SPEED:
                         # Apply braking acceleration opposite to velocity
-                        brake = min((speed - MAX_SPEED) * 3.0, 4.0)
+                        brake = min((speed - MAX_SPEED) * 3.0, 2.0)
                         vel_dir = vel / max(speed, 0.01)
                         net_accel_neu -= vel_dir * brake
 
                     # Limit acceleration
-                    net_accel_neu = np.clip(net_accel_neu, -3.0, 3.0)
+                    net_accel_neu = np.clip(net_accel_neu, -1.5, 1.5)
 
                     # Convert NEU -> NED for PX4 (z flips sign)
                     accel_setpoint_ned = np.array([
@@ -943,7 +1088,7 @@ def run_hardware_loop():
                                         "roll": float(roll), "pitch": float(pitch), "yaw": float(yaw)}
                 shared_state["velocity"] = {"x": float(vel[0]), "y": float(vel[1]), "z": float(vel[2])}
                 shared_state["policy_action"] = {"ax": float(accel_body[0]), "ay": float(accel_body[1]), "az": float(accel_body[2])}
-                shared_state["policy_vpred"] = {"vx": float(vpred_body[0]), "vy": float(vpred_body[1]), "vz": float(vpred_body[2])}
+                shared_state["policy_vpred"] = {"vx": float(-vpred_body[0]), "vy": float(-vpred_body[1]), "vz": float(vpred_body[2])}  # unflipped for display
                 shared_state["velocity_setpoint"] = {"vx": float(net_accel_neu[0]), "vy": float(net_accel_neu[1]), "vz": float(net_accel_neu[2])}
                 shared_state["accel_setpoint_ned"] = {"ax": float(accel_setpoint_ned[0]), "ay": float(accel_setpoint_ned[1]), "az": float(accel_setpoint_ned[2])}
                 shared_state["target"] = {"x": float(AVOIDANCE_TARGET[0]), "y": float(AVOIDANCE_TARGET[1]), "z": float(AVOIDANCE_TARGET[2])}
