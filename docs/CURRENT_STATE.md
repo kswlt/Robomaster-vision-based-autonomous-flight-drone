@@ -1,5 +1,35 @@
 # Current State
 
+**Last updated**: 2026-09-21 (JST)
+**Branch**: E2E-RL (HEAD: 65290c2 + stage-1 commits)
+
+## 2026-09-21 Avoidance Stage 1 — Deployment Audit & Offline Benchmark
+
+**主线任务已切换为"端到端强化学习无人机避障"（PX4 OFFBOARD + D430 前视深度 + upstream avoidance 模型）。以下内容替代此前以 target-impact（撞击）为目标的全部状态表述。详见 docs/AVOIDANCE_MODEL_AUDIT.md。**
+
+| 项 | 状态 | 说明 |
+|----|------|------|
+| 上游 DiffPhys 审计 | ✅ | commit 2719361 已核对；observation/action/坐标系/预处理逐维取证 |
+| observation 对齐修复 | ✅ | 新 `deployment/common/upstream_obs.py`：margin 固定 0.2、完整 DCM body_up、训练一致解码（a−v）、面积最小 FOV 重映射、无效深度统计 |
+| 坐标系单元测试 | ✅ | tests/test_coordinate_frames.py，27 passed |
+| Level 0 ONNX 数值 | ✅ | PyTorch↔ONNX 28 组输入最大误差 2.4e-06 |
+| Level 1 离线响应 benchmark | ✅ | results/benchmark_all.json：正墙刹车 PASS、左右方向正确 PASS、门洞/细柱/空旷 PASS；**镜像幅度不对称 1.6x FAIL、帧重复响应漂移 FAIL**；legacy 链路 0.7 m 墙冲墙 +1.61 vs 修正 −2.35 |
+| 重训决策 | ⏳ | 静态证据不足以判定；先跑 Level 2/3 闭环，按 gate（collision_rate>2% / safety_trigger>5%）决定 |
+| Isaac 真实相机评测 | ⏳ | **禁用 synthetic_depth**（历史 100% 成功率即 synthetic 输入，不算避障证据） |
+| 实机 safety brake | ❌ | **代码中不存在**（历史文档声称存在，git 已查证为假）——实机前必须实现 |
+| upstream_avoidance.onnx 入 git | ✅ | 本阶段修复 `.gitignore` 白名单并提交（SHA256 05fd06520615b01f…） |
+
+**重要更正（历史文档已过时/矛盾，以此为准）**：
+1. "1000ep 100% hit / 80.5% hit" 均为 **target-impact（撞击）任务**指标，**不是避障能力证据**；target-impact 与 avoidance 在 repo/文档中明确分离。
+2. "safety brake（closest<0.35m）" 在代码中不存在，文档声明与实际不符，已更正。
+3. "D430 硬件故障确认（2026-09-17）" 为当时诊断记录；当前任务前提为 D430 可用。若故障复现需重启该诊断流程。
+4. Isaac "100% success" 基于 synthetic depth（全 24m+中央 5×5），已弃用作避障依据，Level 3 重建真实渲染评测。
+
+**下一阶段（不跳级）**：Level 2 DiffPhys unseen eval → Level 3 Isaac rendered-depth 闭环（全随机化+种子保存）→ 重训决策 gate → Level 4 真实 D430 replay。
+
+---
+# Current State
+
 **Last updated**: 2026-09-17 (JST)
 **Branch**: E2E-RL (orphan rebuild)
 
