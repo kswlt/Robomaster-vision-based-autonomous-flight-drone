@@ -1,24 +1,26 @@
 """Offline obstacle-response benchmark for the upstream avoidance policy.
 
-Runs upstream_avoidance.onnx on controlled depth inputs and answers the
-question "does the model actually react to obstacles, in the right direction?"
-BEFORE any real flight.  Supports four input sources:
+Runs the ACTUAL deployment policy class (deployment/rk3588/web_vis.py
+UpstreamAvoidancePolicy) on controlled depth inputs, so the benchmark chain is
+byte-for-byte the same as the on-drone chain:
 
+  D430 raw depth (m) -> upstream_obs.preprocess_depth (conservative area-min
+  FOV remap) -> upstream_obs.build_state (yaw-only R, TRUE body-up, fixed
+  margin 0.2) -> upstream_avoidance.onnx -> upstream_obs.decode_action
+  (net = R @ (a_pred - v_pred)) -> PX4 command
+
+Input sources:
   --mode synth    : geometric scenes rendered under the D430 pinhole model
   --depth-path X  : replay a saved .npy depth (meters, 480x640) frame
   --mode real     : live D430 (requires pyrealsense2; not on this PC)
-  --mode isaac    : Isaac depth replay (future; .npy with same semantics)
 
-Cases (user requirement):
-  A frontal wall distance sweep 3.0/2.0/1.5/1.0/0.7/0.5/0.35 m
-  B left obstacle  C right obstacle  D left/right mirror symmetry
-  E gate  F thin pole  G empty  H frame drop  I depth holes + gaussian noise
+Cases: A frontal wall sweep 3.0/2.0/1.5/1.0/0.7/0.5/0.35 m, B left, C right,
+D mirror symmetry, E gate, F thin pole, G empty, H frame drop, I depth holes.
 
-All judgements use the TRAINING-CONSISTENT decode (deployment/common/
-upstream_obs.py).  The legacy web_vis decode is computed alongside ONLY for
-A/B comparison.  Safety-brake statistics are NOT included here (policy-only).
+Judgements are policy-only (no safety layer).  The legacy sign-flip decode is
+computed alongside ONLY for A/B reference — web_vis no longer uses it.
 
-Outputs: results/benchmark_*.json, results/plots/*.png, results/benchmark_summary.json
+Outputs: results/benchmark_*.json, results/plots/*.png
 """
 from __future__ import annotations
 
@@ -30,13 +32,13 @@ import time
 from pathlib import Path
 
 import numpy as np
-import onnxruntime as ort
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from deployment.common import upstream_obs as uo
+from deployment.rk3588.web_vis import UpstreamAvoidancePolicy
 
 MODEL = ROOT / "deployment" / "onnx" / "upstream_avoidance.onnx"
 OUT = ROOT / "results"
@@ -74,7 +76,7 @@ def _mask_range(x_world: np.ndarray, x0: float, x1: float) -> np.ndarray:
 
 def scene_side_wall(d, left: bool):
     """Wall plane at depth d occupying lateral x range (meters)."""
-    x = RAYS[..., 0] * d          # world x at the wall plane
+    x = RAYS[..., 0] * d
     hit = _mask_range(x, -3.0, -0.35) if left else _mask_range(x, 0.35, 3.0)
     out = np.full((H, W), 24.0, np.float32)
     out[hit] = d
@@ -101,39 +103,46 @@ def scene_pole(d, x0=0.0, radius=0.05):
 
 
 def scene_with_noise(depth, invalid_frac=0.0, noise_sigma=0.0, rng=None):
-    """Inject holes (0) and/or gaussian depth noise (meters)."""
     rng = rng or np.random.default_rng(0)
     out = depth.copy().astype(np.float64)
     if invalid_frac > 0:
-        mask = rng.random(out.shape) < invalid_frac
-        out[mask] = 0.0
+        out[rng.random(out.shape) < invalid_frac] = 0.0
     if noise_sigma > 0:
         out += rng.normal(0, noise_sigma, out.shape)
     return out.astype(np.float32)
 
 
-def mirror_lr(depth):
-    return depth[:, ::-1].copy()
+def carrot_target(pos, yaw):
+    """Identical to web_vis run_hardware_loop carrot construction."""
+    return pos + np.array([np.cos(yaw) * 5.0, np.sin(yaw) * 5.0, 0.5],
+                          dtype=np.float64)
 
 
 # ---------------------------------------------------------------------------
-# Policy runner (training-consistent path)
+# Policy runner — wraps THE web_vis class (identical chain)
 # ---------------------------------------------------------------------------
 class PolicyRunner:
-    def __init__(self, model_path=MODEL):
-        self.sess = ort.InferenceSession(str(model_path),
-                                         providers=['CPUExecutionProvider'])
+    def __init__(self, model_path=MODEL, margin=uo.MARGIN_DEFAULT,
+                 max_speed=1.5):
+        self.policy = UpstreamAvoidancePolicy(str(model_path), margin=margin,
+                                              max_speed=max_speed)
         self.meta = {
             'model': str(model_path),
             'sha256_head': _sha256_head(model_path),
+            'chain': 'web_vis.UpstreamAvoidancePolicy -> upstream_obs (training-consistent)',
         }
 
-    def run_frame(self, depth_m, state, h):
-        pp = uo.preprocess_depth(depth_m, mode='conservative', fov_remap=True)
-        outs = self.sess.run(
-            None, {'depth': pp['input'], 'state': state[None, :],
-                   'gru_hidden': h})
-        return outs, outs[2]   # (raw outputs, new gru hidden state)
+    def reset(self):
+        self.policy.reset()
+
+    def run_frame(self, depth_m, roll=0.0, pitch=0.0, yaw=0.0,
+                  pos=None, vel=None, target=None):
+        pos = np.zeros(3) if pos is None else np.asarray(pos, np.float64)
+        vel = np.zeros(3) if vel is None else np.asarray(vel, np.float64)
+        if target is None:
+            target = carrot_target(pos, yaw)
+        return self.policy.infer(depth_m, pos, vel, float(roll), float(pitch),
+                                 float(yaw), target)
 
 
 def _sha256_head(p: Path) -> str:
@@ -145,60 +154,49 @@ def _sha256_head(p: Path) -> str:
     return h.hexdigest()[:16]
 
 
-def build_state(yaw=0.0, local_v=(0.0, 0.0, 0.0), target_v=(1.5, 0.0, 0.0),
-                margin=uo.MARGIN_DEFAULT, body_up=(0.0, 0.0, 1.0)):
-    R = uo.yaw_only_frame(yaw)
-    state = uo.build_state(np.array(local_v, np.float64),
-                           np.array(target_v, np.float64),
-                           np.array(body_up, np.float64), margin, R=R)
-    return state, R
-
-
 # ---------------------------------------------------------------------------
 # Individual cases
 # ---------------------------------------------------------------------------
-def run_frontal_sweep(runner, distances, state, R, h0, warmup=3):
+def _warmup(runner, n=3, yaw=0.0):
+    for _ in range(n):
+        runner.run_frame(scene_empty(), yaw=yaw)
+
+
+def run_frontal_sweep(runner, distances, yaw=0.0):
     rows = []
     for d in distances:
-        h = np.zeros_like(h0)
-        depth = scene_front_wall(d)
-        # warmup: stable empty context first (model sees a few far frames)
-        for _ in range(warmup):
-            _, h = runner.run_frame(scene_empty(), state, h)
-        # actual frame
-        outs, h = runner.run_frame(depth, state, h)
-        rows.append(record(outs, state, R, d=depth, scene=f'wall_{d}m'))
+        runner.reset()
+        _warmup(runner)
+        result = runner.run_frame(scene_front_wall(d), yaw=yaw)
+        rows.append(record(result, scene=f'wall_{d}m'))
     return rows
 
 
-def run_scene_compare(runner, scene_fn, state, R, h0, label, warmup=3):
-    h = np.zeros_like(h0)
-    for _ in range(warmup):
-        _, h = runner.run_frame(scene_empty(), state, h)
-    depth = scene_fn()
-    outs, h = runner.run_frame(depth, state, h)
-    return record(outs, state, R, d=depth, scene=label), depth
+def run_scene_compare(runner, scene_fn, label, yaw=0.0):
+    runner.reset()
+    _warmup(runner)
+    result = runner.run_frame(scene_fn(), yaw=yaw)
+    return record(result, scene=label)
 
 
-def record(outs, state, R, d=None, scene=''):
-    raw = outs[0][0].astype(np.float64)
-    dec = uo.decode_action(raw, R)
-    leg = uo.legacy_decode_action(raw, 0.0)  # A/B only
-    pp = uo.preprocess_depth(d, mode='conservative', fov_remap=True)
+def record(result, scene=''):
+    raw = np.asarray(result['raw_action'], np.float64)
+    leg = uo.legacy_decode_action(raw, float(result['yaw']))  # A/B only
     return {
         'scene': scene,
         'raw_action': raw.tolist(),
-        'accel_body': dec['accel_body'].tolist(),
-        'accel_world': dec['accel_world'].tolist(),
-        'vpred_body': dec['vpred_body'].tolist(),
-        'vpred_world': dec['vpred_world'].tolist(),
-        'net_accel_world': dec['net_accel_world'].tolist(),
+        'accel_body': result['accel_body'].tolist(),
+        'accel_world': result['accel_world'].tolist(),
+        'vpred_body': result['vpred_body'].tolist(),
+        'vpred_world': result['vpred_world'].tolist(),
+        'net_accel_world': result['net_accel_world'].tolist(),
         'legacy_net_accel_world': leg['net_accel_world'].tolist(),
-        'margin': float(state[9]),
-        'target_v_body': state[3:6].tolist(),
+        'margin': float(result['margin']),
+        'target_v_body': result['target_v_body'].tolist(),
+        'body_up_world': result['body_up_world'].tolist(),
         'depth_stats': {k: (None if v is None else round(float(v), 3))
-                        for k, v in pp['stats'].items()},
-        'processed_min': round(float(pp['x64'].min()), 3),
+                        for k, v in result['depth_stats'].items()},
+        'processed_min': float(result['processed_min']),
     }
 
 
@@ -206,20 +204,16 @@ def record(outs, state, R, d=None, scene=''):
 # Verdicts
 # ---------------------------------------------------------------------------
 def verdict_frontal(rows, threshold=0.05):
-    """FAIL if forward net command stays positive when the wall is at 0.35 m
-    (i.e. the policy keeps driving into the wall at imminent impact)."""
+    """FAIL if forward net command stays positive at 0.35 m."""
     r = rows[-1]
-    net_x = r['net_accel_world'][0]
-    a_x = r['accel_world'][0]
-    fwd = {'net_x': float(net_x), 'a_x': float(a_x)}
+    net_x, a_x = r['net_accel_world'][0], r['accel_world'][0]
     fail = (net_x > threshold and a_x > threshold)
-    # monotonic decrease check
-    net_series = [x['net_accel_world'][0] for x in rows]
-    return {'verdict': 'FAIL' if fail else 'PASS', 'at_0_35m': fwd,
-            'net_series': [round(v, 3) for v in net_series]}
+    return {'verdict': 'FAIL' if fail else 'PASS',
+            'at_0_35m': {'net_x': float(net_x), 'a_x': float(a_x)},
+            'net_series': [round(x['net_accel_world'][0], 3) for x in rows]}
 
 
-def verdict_lateral(r, expected_sign):  # expected_sign: -1 = steer right, +1 = steer left
+def verdict_lateral(r, expected_sign):  # -1 = steer right, +1 = steer left
     ay = r['net_accel_world'][1]
     ok = (ay * expected_sign) > 0.02
     return {'verdict': 'PASS' if ok else 'FAIL', 'net_y': float(ay),
@@ -237,16 +231,13 @@ def verdict_mirror(row_a, row_b):
 
 def verdict_empty(r):
     ay = r['net_accel_world'][1]
-    ok = abs(ay) < 0.3
-    return {'verdict': 'PASS' if ok else 'FAIL', 'net_y': float(ay),
-            'net_x': float(r['net_accel_world'][0])}
+    return {'verdict': 'PASS' if abs(ay) < 0.3 else 'FAIL',
+            'net_y': float(ay), 'net_x': float(r['net_accel_world'][0])}
 
 
 def verdict_pole(rec_empty, rec_pole):
-    ay_e = rec_empty['net_accel_world'][1]
-    ay_p = rec_pole['net_accel_world'][1]
-    ax_e = rec_empty['net_accel_world'][0]
-    ax_p = rec_pole['net_accel_world'][0]
+    ay_e, ay_p = rec_empty['net_accel_world'][1], rec_pole['net_accel_world'][1]
+    ax_e, ax_p = rec_empty['net_accel_world'][0], rec_pole['net_accel_world'][0]
     reacted = (abs(ay_p - ay_e) > 0.05) or (ax_p - ax_e < -0.05)
     return {'verdict': 'PASS' if reacted else 'FAIL',
             'empty': {'ay': float(ay_e), 'ax': float(ax_e)},
@@ -257,19 +248,16 @@ def verdict_framedrop(frames):
     net_xs = [f['net_accel_world'][0] for f in frames]
     net_ys = [f['net_accel_world'][1] for f in frames]
     dx, dy = max(net_xs) - min(net_xs), max(net_ys) - min(net_ys)
-    ok = dx < 0.3 and dy < 0.3
-    return {'verdict': 'PASS' if ok else 'FAIL', 'range_x': round(dx, 3),
-            'range_y': round(dy, 3)}
+    return {'verdict': 'PASS' if (dx < 0.3 and dy < 0.3) else 'FAIL',
+            'range_x': round(dx, 3), 'range_y': round(dy, 3)}
 
 
 def verdict_noise(c, n):
-    """Noisy input must not flip the command direction."""
     flipped = np.sign(c['net_accel_world'][1]) != np.sign(n['net_accel_world'][1]) \
         and abs(n['net_accel_world'][1]) > 0.05
     return {'verdict': 'PASS' if not flipped else 'FAIL',
             'clean_net': [round(v, 3) for v in c['net_accel_world']],
-            'noisy_net': [round(v, 3) for v in n['net_accel_world']],
-            'noisy_invalid_ratio': n['depth_stats']['valid_ratio']}
+            'noisy_net': [round(v, 3) for v in n['net_accel_world']]}
 
 
 # ---------------------------------------------------------------------------
@@ -284,112 +272,92 @@ def main():
     ap.add_argument('--depth-path', default=None,
                     help='replay a saved .npy depth (meters, 480x640)')
     ap.add_argument('--distances', default='3.0,2.0,1.5,1.0,0.7,0.5,0.35')
-    ap.add_argument('--out', default=None, help='override output json path')
+    ap.add_argument('--margin', default=uo.MARGIN_DEFAULT, type=float)
+    ap.add_argument('--max-speed', default=1.5, type=float)
+    ap.add_argument('--out', default=None)
     args = ap.parse_args()
 
     OUT.mkdir(parents=True, exist_ok=True)
     PLOTS.mkdir(parents=True, exist_ok=True)
 
-    runner = PolicyRunner()
-    state, R = build_state()
-    h0 = np.zeros((1, 192), np.float32)
-
+    runner = PolicyRunner(margin=args.margin, max_speed=args.max_speed)
     report = {'policy_only': True, 'inputs': vars(args), 'cases': {},
               'runner': runner.meta}
 
     if args.mode in ('all', 'frontal'):
         dists = [float(x) for x in args.distances.split(',')]
-        rows = run_frontal_sweep(runner, dists, state, R, h0)
+        rows = run_frontal_sweep(runner, dists)
         report['cases']['frontal_wall'] = {'rows': rows,
                                            'verdict': verdict_frontal(rows)}
         _plot_frontal(rows)
 
     if args.mode in ('all', 'left', 'right', 'mirror'):
-        rows_l, d_l = run_scene_compare(
-            runner, lambda: scene_side_wall(1.5, left=True), state, R, h0,
-            'left_wall_1.5m')
-        rows_r, d_r = run_scene_compare(
-            runner, lambda: scene_side_wall(1.5, left=False), state, R, h0,
-            'right_wall_1.5m')
-        report['cases']['left_wall'] = {'rows': [rows_l],
+        rows_l = run_scene_compare(runner, lambda: scene_side_wall(1.5, left=True),
+                                   'left_wall_1.5m')
+        rows_r = run_scene_compare(runner, lambda: scene_side_wall(1.5, left=False),
+                                   'right_wall_1.5m')
+        report['cases']['left_wall'] = {'rows': rows_l,
                                         'verdict': verdict_lateral(rows_l, -1)}
-        report['cases']['right_wall'] = {'rows': [rows_r],
+        report['cases']['right_wall'] = {'rows': rows_r,
                                          'verdict': verdict_lateral(rows_r, +1)}
         report['cases']['mirror_symmetry'] = {'verdict': verdict_mirror(rows_l, rows_r)}
 
     if args.mode in ('all', 'gate'):
-        rows_g, _ = run_scene_compare(
-            runner, lambda: scene_gate(1.5, 0.5), state, R, h0, 'gate_1.5m')
-        report['cases']['gate'] = {'rows': [rows_g], 'verdict': {
+        rows_g = run_scene_compare(runner, lambda: scene_gate(1.5, 0.5), 'gate_1.5m')
+        report['cases']['gate'] = {'rows': rows_g, 'verdict': {
             'verdict': 'PASS',
             'net_x': float(rows_g['net_accel_world'][0]),
             'net_y': float(rows_g['net_accel_world'][1]),
             'note': 'gate response recorded (oscillation check on sweep)'}}
 
     if args.mode in ('all', 'pole', 'empty'):
-        rows_e, _ = run_scene_compare(runner, scene_empty, state, R, h0, 'empty')
-        rows_p, _ = run_scene_compare(
-            runner, lambda: scene_pole(1.5, 0.0, 0.05), state, R, h0,
-            'pole_1.5m')
-        report['cases']['empty'] = {'rows': [rows_e], 'verdict': verdict_empty(rows_e)}
-        report['cases']['thin_pole'] = {'rows': [rows_p],
+        rows_e = run_scene_compare(runner, scene_empty, 'empty')
+        rows_p = run_scene_compare(runner, lambda: scene_pole(1.5, 0.0, 0.05),
+                                   'pole_1.5m')
+        report['cases']['empty'] = {'rows': rows_e, 'verdict': verdict_empty(rows_e)}
+        report['cases']['thin_pole'] = {'rows': rows_p,
                                         'verdict': verdict_pole(rows_e, rows_p)}
 
     if args.mode in ('all', 'framedrop'):
-        h = np.zeros_like(h0)
-        for _ in range(3):
-            _, h = runner.run_frame(scene_empty(), state, h)
-        base_depth = scene_front_wall(1.0)
+        base = scene_front_wall(1.0)
         frames = []
         for rep in (1, 2, 3, 5):
-            hh = np.zeros_like(h0)
-            for _ in range(3):
-                _, hh = runner.run_frame(scene_empty(), state, hh)
+            runner.reset()
+            _warmup(runner)
             for _ in range(rep):
-                outs, hh = runner.run_frame(base_depth, state, hh)
-            frames.append(record(outs, state, R, d=base_depth,
-                                 scene=f'framedrop_rep{rep}'))
+                result = runner.run_frame(base)
+            frames.append(record(result, scene=f'framedrop_rep{rep}'))
         report['cases']['frame_drop'] = {'rows': frames,
                                          'verdict': verdict_framedrop(frames)}
 
     if args.mode in ('all', 'noise'):
         rng = np.random.default_rng(7)
         base = scene_front_wall(1.0)
-        rows_clean, _ = run_scene_compare(runner, lambda: base, state, R, h0,
-                                          'noise_clean')
+        rows_clean = run_scene_compare(runner, lambda: base, 'noise_clean')
         noise_cases = {}
         for frac in (0.05, 0.10, 0.20):
             noisy = scene_with_noise(base, invalid_frac=frac, rng=rng)
-            h = np.zeros_like(h0)
-            for _ in range(3):
-                _, h = runner.run_frame(scene_empty(), state, h)
-            outs, _ = runner.run_frame(noisy, state, h)
-            rows_n = [record(outs, state, R, d=noisy, scene=f'noise_{frac}')]
+            runner.reset(); _warmup(runner)
+            result = runner.run_frame(noisy)
+            rows_n = record(result, scene=f'noise_{frac}')
             noise_cases[str(frac)] = {'rows': rows_n,
-                                      'verdict': verdict_noise(rows_clean, rows_n[0])}
-        gauss = scene_with_noise(base, invalid_frac=0.05, noise_sigma=0.05,
-                                 rng=rng)
-        h = np.zeros_like(h0)
-        for _ in range(3):
-            _, h = runner.run_frame(scene_empty(), state, h)
-        outs, _ = runner.run_frame(gauss, state, h)
-        rows_g = [record(outs, state, R, d=gauss, scene='noise_gauss')]
+                                      'verdict': verdict_noise(rows_clean, rows_n)}
+        gauss = scene_with_noise(base, invalid_frac=0.05, noise_sigma=0.05, rng=rng)
+        runner.reset(); _warmup(runner)
+        result = runner.run_frame(gauss)
+        rows_g = record(result, scene='noise_gauss')
         noise_cases['gauss_5cm_5holes'] = {'rows': rows_g,
-                                           'verdict': verdict_noise(rows_clean, rows_g[0])}
+                                           'verdict': verdict_noise(rows_clean, rows_g)}
         report['cases']['depth_noise'] = noise_cases
 
     if args.mode == 'replay':
         if not args.depth_path:
             raise SystemExit('--depth-path required for replay mode')
         depth = np.load(args.depth_path)
-        h = np.zeros_like(h0)
-        for _ in range(3):
-            _, h = runner.run_frame(scene_empty(), state, h)
-        outs, _ = runner.run_frame(depth, state, h)
-        report['cases']['replay'] = [record(outs, state, R, d=depth,
-                                            scene=Path(args.depth_path).name)]
+        runner.reset(); _warmup(runner)
+        result = runner.run_frame(depth)
+        report['cases']['replay'] = [record(result, scene=Path(args.depth_path).name)]
 
-    # summary verdicts
     fail = [k for k, v in report['cases'].items()
             if isinstance(v, dict) and v.get('verdict', {}).get('verdict') == 'FAIL']
     report['summary'] = {'overall': 'HAS_FAILURES' if fail else 'PASS',
@@ -417,10 +385,10 @@ def _plot_frontal(rows):
     plt.figure(figsize=(7, 4.5))
     plt.plot(dists, a_x, 'o-', label='a_x (accel)')
     plt.plot(dists, net_x, 's-', label='net_x (a-v)')
-    plt.plot(dists, leg_x, '^--', label='legacy net_x (sign-flip, no v)')
+    plt.plot(dists, leg_x, '^--', label='legacy net_x (sign-flip, no v) [A/B only]')
     plt.axhline(0, color='gray', lw=0.8)
     plt.xlabel('wall distance (m)'); plt.ylabel('forward command (m/s^2)')
-    plt.title('Frontal wall: distance vs forward command (policy-only)')
+    plt.title('Frontal wall: distance vs forward command (web_vis chain, policy-only)')
     plt.legend(); plt.grid(alpha=0.3)
     plt.gca().invert_xaxis()
     plt.tight_layout()

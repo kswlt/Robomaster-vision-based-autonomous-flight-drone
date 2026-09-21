@@ -20,6 +20,19 @@ from io import BytesIO
 import numpy as np
 
 # ============================================================================
+# Training-consistent observation/action module (shared with offline benchmark)
+# ============================================================================
+try:
+    from deployment.common import upstream_obs as uo
+except ImportError:
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "common"))
+        from upstream_obs import uo
+    except ImportError:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import upstream_obs as uo
+
+# ============================================================================
 # Configuration
 # ============================================================================
 CAMERA_WIDTH = 640
@@ -835,78 +848,75 @@ class TagDetector:
 
 
 # ============================================================================
-# Upstream Avoidance Policy (ONNX)
+# Upstream Avoidance Policy (ONNX) - TRAINING-CONSISTENT CHAIN
 # ============================================================================
 class UpstreamAvoidancePolicy:
-    """Load upstream DiffPhys avoidance checkpoint (ONNX) and run inference."""
-    def __init__(self, onnx_path):
+    """Upstream DiffPhys avoidance policy.
+
+    Uses deployment/common/upstream_obs.py as the SINGLE observation/action
+    implementation — identical to the offline benchmark:
+      D430 raw depth (m) -> upstream_obs.preprocess_depth()  [conservative
+        area-min FOV remap + inverse depth + 4x4 maxpool, invalid-depth stats]
+      -> upstream_obs.build_state()  [yaw-only frame R, TRUE body-up from
+        PX4 roll/pitch/yaw, fixed margin 0.2 (training [0.1,0.3] distribution)]
+      -> upstream_avoidance.onnx
+      -> upstream_obs.decode_action()  [net_accel_world = R @ (a_pred - v_pred)]
+      -> PX4
+
+    Removed legacy bugs: INTER_AREA resize, margin=min(depth), body_up=[0,0,1],
+    accel/vpred sign flips, net_accel=accel_world (dropped v_pred).
+    """
+    def __init__(self, onnx_path, margin=0.2, max_speed=MAX_SPEED, intrinsics=None):
         import onnxruntime as ort
         self.session = ort.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
         self.hidden = np.zeros((1, 192), dtype=np.float32)
-        print(f"[Policy] Upstream avoidance loaded: {onnx_path}")
+        self.margin = float(margin)          # fixed, inside training [0.1,0.3]
+        self.max_speed = float(max_speed)
+        self.intrinsics = intrinsics or {}   # {fx, fy, cx, cy}; {} -> D430 nominal
+        print(f"[Policy] Upstream avoidance loaded (training-consistent): {onnx_path}")
 
     def reset(self):
         self.hidden = np.zeros((1, 192), dtype=np.float32)
 
-    def infer(self, depth, pos, vel, yaw, target):
-        import cv2
-        fwd = np.array([np.cos(yaw), np.sin(yaw), 0.0])
-        right = np.array([-np.sin(yaw), np.cos(yaw), 0.0])
-        up = np.array([0.0, 0.0, 1.0])
-        R = np.stack([fwd, right, up], axis=1)
+    def infer(self, depth, pos, vel, roll, pitch, yaw, target):
+        """Run one policy step with the training-identical chain.
 
-        d = np.clip(depth, 0.3, 24.0)
-        x = 3.0 / d - 0.6
-        x_small = cv2.resize(x, (64, 48), interpolation=cv2.INTER_AREA)
-        x_12x16 = x_small.reshape(12, 4, 16, 4).max(axis=(1, 3))
-        depth_input = x_12x16.reshape(1, 1, 12, 16).astype(np.float32)
-
-        local_v_body = R.T @ vel
-        target_v_world = target - pos
-        target_norm = np.linalg.norm(target_v_world)
-        if target_norm > 1e-6:
-            target_v_unit = target_v_world / target_norm
-            target_v_clamped = target_v_unit * min(target_norm, MAX_SPEED)
-        else:
-            target_v_clamped = np.zeros(3)
-        target_v_body = R.T @ target_v_clamped
-        up_world = R[:, 2]
-        margin = float(np.min(depth[depth > 0])) if np.any(depth > 0) else 0.2
-        margin = min(max(margin, 0.1), 0.3)
-        state = np.concatenate([local_v_body, target_v_body, up_world, [margin]]).astype(np.float32)
-        state_input = state.reshape(1, 10)
+        depth: raw depth in METERS, shape (H, W) (480x640 z16/1000).
+        pos/vel: world NEU (x=north, y=east, z=up) — PX4 NED with z negated.
+        roll/pitch/yaw: PX4 ATTITUDE (rad, MAVLink convention).
+        target: world NEU target point.
+        """
+        pp = uo.preprocess_depth(depth, mode="conservative", fov_remap=True,
+                                 intrinsics=self.intrinsics)
+        R = uo.yaw_only_frame(yaw)
+        body_up = uo.body_up_world_neu(roll, pitch, yaw)
+        target_v = uo.clamp_target_velocity(
+            np.asarray(target, dtype=np.float64) - pos, self.max_speed)
+        state = uo.build_state(vel, target_v, body_up, self.margin, R=R)
 
         outputs = self.session.run(None, {
-            "depth": depth_input,
-            "state": state_input,
+            "depth": pp["input"],
+            "state": state.reshape(1, 10),
             "gru_hidden": self.hidden,
         })
-        action = outputs[0][0]
         self.hidden = outputs[2]
-
-        act_mat = action.reshape(3, 2)
-        accel_body = act_mat[:, 0].copy()
-        vpred_body = act_mat[:, 1].copy()
-        accel_body[0] *= -1.0
-        accel_body[1] *= -1.0
-        vpred_body[0] *= -1.0
-        vpred_body[1] *= -1.0
-
-        accel_world = R @ accel_body
-        vpred_world = R @ vpred_body
+        dec = uo.decode_action(outputs[0][0], R)
         return {
-            "accel_body": accel_body,
-            "accel_world": accel_world,
-            "vpred_body": vpred_body,
-            "vpred_world": vpred_world,
-            "margin": margin,
-            "target_v_body": target_v_body,
-            "fwd": fwd,
+            "raw_action": outputs[0][0],
+            "accel_body": dec["accel_body"],
+            "accel_world": dec["accel_world"],
+            "vpred_body": dec["vpred_body"],
+            "vpred_world": dec["vpred_world"],
+            "net_accel_world": dec["net_accel_world"],
+            "margin": self.margin,
+            "target_v_body": state[3:6],
+            "body_up_world": body_up,
+            "fwd": R[:, 0],
             "yaw": yaw,
+            "depth_stats": pp["stats"],
+            "processed_min": float(pp["x64"].min()),
         }
 
-
-# ============================================================================
 # PX4 OFFBOARD Controller
 # ============================================================================
 class PX4Controller:
@@ -1208,6 +1218,11 @@ def run_hardware_loop():
                 print(f"[Policy] Failed to load {p}: {e}")
     if policy is None:
         print("[Policy] WARNING: no upstream_avoidance.onnx found")
+    elif intrinsics is not None:
+        policy.intrinsics = {"fx": float(intrinsics.fx), "fy": float(intrinsics.fy),
+                             "cx": float(intrinsics.ppx), "cy": float(intrinsics.ppy)}
+        print(f"[Policy] D430 intrinsics fx={intrinsics.fx:.1f} fy={intrinsics.fy:.1f} "
+              f"cx={intrinsics.ppx:.1f} cy={intrinsics.ppy:.1f} (FOV remap)")
 
     # --- Flight Controller ---
     fc = None
@@ -1691,16 +1706,15 @@ def run_hardware_loop():
                         pos[2] + 0.5,
                     ], dtype=np.float32)
 
-                    result = policy.infer(depth, pos, vel, yaw, AVOIDANCE_TARGET)
+                    result = policy.infer(depth, pos, vel, roll, pitch, yaw, AVOIDANCE_TARGET)
                     accel_body = result["accel_body"]
                     vpred_body = result["vpred_body"]
                     accel_world_neu = result["accel_world"]
                     vpred_world_neu = result["vpred_world"]
 
-                    # Use the model's acceleration output directly as the command.
-                    # (Previously subtracted vpred - a velocity prediction in m/s - from
-                    # the acceleration in m/s^2, which polluted the setpoint.)
-                    net_accel_neu = accel_world_neu.copy()
+                    # Training-consistent net command: net = R @ (a_pred - v_pred).
+                    # v_pred is part of the action, NOT pollution (see audit §2.2).
+                    net_accel_neu = result["net_accel_world"].copy()
 
                     # Speed limiter
                     speed = float(np.linalg.norm(vel))
@@ -1811,7 +1825,8 @@ def run_hardware_loop():
                                         "roll": float(roll), "pitch": float(pitch), "yaw": float(yaw)}
                 shared_state["velocity"] = {"x": float(vel[0]), "y": float(vel[1]), "z": float(vel[2])}
                 shared_state["policy_action"] = {"ax": float(accel_body[0]), "ay": float(accel_body[1]), "az": float(accel_body[2])}
-                shared_state["policy_vpred"] = {"vx": float(-vpred_body[0]), "vy": float(-vpred_body[1]), "vz": float(vpred_body[2])}
+                shared_state["policy_vpred"] = {"vx": float(vpred_body[0]), "vy": float(vpred_body[1]), "vz": float(vpred_body[2])}
+                shared_state["policy_net_accel"] = {"x": float(net_accel_neu[0]), "y": float(net_accel_neu[1]), "z": float(net_accel_neu[2])}
                 shared_state["velocity_setpoint"] = {
                     "vx": float(net_accel_neu[0]) if auto_active else float(tag_vel_cmd_ned[0]),
                     "vy": float(net_accel_neu[1]) if auto_active else float(tag_vel_cmd_ned[1]),
