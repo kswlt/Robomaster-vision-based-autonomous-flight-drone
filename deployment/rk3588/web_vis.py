@@ -10,6 +10,7 @@ Run on Orange Pi 5: python3 web_vis.py [--port 8080]
 Open in browser: http://192.168.1.215:8080
 """
 import sys
+import os
 import time
 import json
 import threading
@@ -41,7 +42,7 @@ CAMERA_FPS = 30
 
 # Target point B for upstream avoidance policy
 AVOIDANCE_TARGET = np.array([5.0, 0.0, 1.5])
-MAX_SPEED = 1.5  # m/s
+MAX_SPEED = float(os.environ.get("E2E_MAX_SPEED", "1.5"))  # m/s; test flights: export E2E_MAX_SPEED=0.5
 ACCEL_LIMIT = 2.0  # m/s^2 net accel clip for avoidance
 DEPTH_ROTATE = 0   # 0 = no rotation; 180 = rotate depth/IR 180 deg if dashboard image is upside-down
 DEPTH_RANGE = (0.3, 24.0)
@@ -1212,7 +1213,7 @@ def run_hardware_loop():
     for p in onnx_paths:
         if Path(p).exists():
             try:
-                policy = UpstreamAvoidancePolicy(p)
+                policy = UpstreamAvoidancePolicy(p, margin=0.2, max_speed=1.5)
                 break
             except Exception as e:
                 print(f"[Policy] Failed to load {p}: {e}")
