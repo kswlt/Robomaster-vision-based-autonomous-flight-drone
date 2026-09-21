@@ -981,6 +981,17 @@ class FlightDataRecorder:
 
 # PX4 OFFBOARD Controller
 # ============================================================================
+def _is_px4_heartbeat(msg):
+    """True only for the flight controller's own HEARTBEAT (MAV_AUTOPILOT_PX4=12).
+
+    Other MAVLink nodes on the bus (optical flow, peripherals) also emit
+    HEARTBEAT with custom_mode=0; without this filter they could drive the
+    armed/mode flags and make the OFFBOARD confirm check fail forever.
+    """
+    return (msg is not None and msg.get_type() == "HEARTBEAT"
+            and getattr(msg, "autopilot", 0) == 12)
+
+
 class PX4Controller:
     """Send velocity/acceleration setpoints to PX4 in OFFBOARD mode."""
     PX4_MODE_OFFBOARD = 6 << 16
@@ -1483,6 +1494,8 @@ def run_hardware_loop():
                             pos = fc_pos_filtered.copy()
                             vel = fc_vel.copy()
                         elif mt == "HEARTBEAT":
+                            if not _is_px4_heartbeat(msg):
+                                continue  # ignore other MAVLink nodes
                             fc_armed = bool(msg.base_mode & mavutil_module.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)
                             armed = fc_armed
                             cm = msg.custom_mode
@@ -1542,15 +1555,15 @@ def run_hardware_loop():
                             time.sleep(0.05)
                         px4.set_mode_offboard()
                         offboard_ok = False
-                        for _ in range(20):
+                        for _ in range(40):
                             px4.send_acceleration(0, 0, 0)
                             time.sleep(0.05)
                             try:
-                                hb = fc.recv_match(type='HEARTBEAT', blocking=False)
-                                if hb:
-                                    if (hb.custom_mode >> 16) == 6:
-                                        offboard_ok = True
-                                        break
+                                hb = fc.recv_match(blocking=False)
+                                if (_is_px4_heartbeat(hb) and (hb.custom_mode >> 16) == 6
+                                        and (hb.base_mode & mavutil_module.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)):
+                                    offboard_ok = True
+                                    break
                             except:
                                 pass
                         auto_active = offboard_ok
@@ -1584,12 +1597,13 @@ def run_hardware_loop():
                             time.sleep(0.05)
                         px4.set_mode_offboard()
                         offboard_ok = False
-                        for _ in range(20):
+                        for _ in range(40):
                             px4.send_velocity_ned(0, 0, 0)
                             time.sleep(0.05)
                             try:
-                                hb = fc.recv_match(type='HEARTBEAT', blocking=False)
-                                if hb and (hb.custom_mode >> 16) == 6:
+                                hb = fc.recv_match(blocking=False)
+                                if (_is_px4_heartbeat(hb) and (hb.custom_mode >> 16) == 6
+                                        and (hb.base_mode & mavutil_module.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)):
                                     offboard_ok = True
                                     break
                             except:
@@ -1815,12 +1829,13 @@ def run_hardware_loop():
                             time.sleep(0.05)
                         px4.set_mode_offboard()
                         offboard_ok = False
-                        for _ in range(20):
+                        for _ in range(40):
                             px4.send_velocity_ned(0, 0, 0)
                             time.sleep(0.05)
                             try:
-                                hb = fc.recv_match(type='HEARTBEAT', blocking=False)
-                                if hb and (hb.custom_mode >> 16) == 6:
+                                hb = fc.recv_match(blocking=False)
+                                if (_is_px4_heartbeat(hb) and (hb.custom_mode >> 16) == 6
+                                        and (hb.base_mode & mavutil_module.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)):
                                     offboard_ok = True
                                     break
                             except:
