@@ -49,6 +49,7 @@ __pycache__
 *.rknn
 *.onnx
 !deployment/onnx/policy.onnx
+!deployment/onnx/upstream_avoidance.onnx
 !deployment/onnx/.gitkeep
 !deployment/rk3588/.gitkeep
 
