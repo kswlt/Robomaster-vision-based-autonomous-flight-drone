@@ -981,6 +981,28 @@ class FlightDataRecorder:
 
 # PX4 OFFBOARD Controller
 # ============================================================================
+def _request_px4_streams(fc):
+    """Explicitly ask PX4 for the telemetry web_vis needs.
+
+    Companion links get only a minimal default stream set (HEARTBEAT,
+    SYS_STATUS, ATTITUDE at low rate) until the GCS side requests intervals;
+    LOCAL_POSITION_NED in particular is NOT streamed by default. Without it
+    pos/vel stay frozen at init -> the carrot target is computed from a
+    stale position and the policy sees zero motion feedback (drone drifts
+    sideways chasing a wrong target).
+    """
+    try:
+        for msgid, hz in ((32, 20), (30, 20), (1, 5), (74, 10)):
+            # LOCAL_POSITION_NED, ATTITUDE, SYS_STATUS, VFR_HUD
+            fc.mav.command_long_send(
+                fc.target_system, fc.target_component,
+                mavutil_module.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL, 0,
+                msgid, int(1e6 / hz), 0, 0, 0, 0, 0)
+        print("[FC] stream intervals requested (LOCAL_POSITION_NED@20Hz, ATTITUDE@20Hz, SYS_STATUS@5Hz, VFR_HUD@10Hz)")
+    except Exception as e:
+        print(f"[FC] stream request failed: {e}")
+
+
 def _is_px4_heartbeat(msg):
     """True only for the flight controller's own HEARTBEAT (MAV_AUTOPILOT_PX4=12).
 
@@ -1306,6 +1328,7 @@ def run_hardware_loop():
         fc = mavutil.mavlink_connection("/dev/ttyACM0", baud=921600)
         fc.wait_heartbeat(timeout=5)
         px4 = PX4Controller(fc)
+        _request_px4_streams(fc)
         print("[FC] PX4 connected")
     except Exception as e:
         print(f"[FC] FAILED: {e}")
@@ -1487,7 +1510,9 @@ def run_hardware_loop():
                         elif mt == "LOCAL_POSITION_NED":
                             new_pos = np.array([msg.x, msg.y, -msg.z])
                             new_vel = np.array([msg.vx, msg.vy, -msg.vz])
-                            if np.linalg.norm(new_pos - fc_pos) < 2.0:
+                            # accept the first fix unconditionally, then gate jumps
+                            if (np.linalg.norm(new_pos - fc_pos) < 2.0
+                                    or np.allclose(fc_pos, np.array([0.0, 0.0, 0.1]))):
                                 fc_pos = new_pos
                                 fc_vel = new_vel
                                 fc_pos_filtered = 0.85 * fc_pos_filtered + 0.15 * fc_pos
