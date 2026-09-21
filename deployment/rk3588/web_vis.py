@@ -30,6 +30,7 @@ CAMERA_FPS = 30
 AVOIDANCE_TARGET = np.array([5.0, 0.0, 1.5])
 MAX_SPEED = 1.5  # m/s
 ACCEL_LIMIT = 2.0  # m/s^2 net accel clip for avoidance
+DEPTH_ROTATE = 0   # 0 = no rotation; 180 = rotate depth/IR 180 deg if dashboard image is upside-down
 DEPTH_RANGE = (0.3, 24.0)
 
 # --- Tag Landing Configuration ---
@@ -1275,8 +1276,12 @@ def run_hardware_loop():
                                 ir_frame = pf.get_infrared_frame(1) if TAG_IR_STREAM else None
                                 if depth_frame:
                                     last_depth = np.asanyarray(depth_frame.get_data()).astype(np.float32) / 1000.0
+                                    if DEPTH_ROTATE == 180:
+                                        last_depth = cv2.rotate(last_depth, cv2.ROTATE_180)
                                 if ir_frame:
                                     last_ir_gray = np.asanyarray(ir_frame.get_data())
+                                    if DEPTH_ROTATE == 180:
+                                        last_ir_gray = cv2.rotate(last_ir_gray, cv2.ROTATE_180)
                                     last_color = cv2.cvtColor(last_ir_gray, cv2.COLOR_GRAY2BGR)
                         except Exception:
                             pass
@@ -1288,9 +1293,13 @@ def run_hardware_loop():
                         ir_frame = frames.get_infrared_frame(1) if TAG_IR_STREAM else None
                         if depth_frame:
                             last_depth = np.asanyarray(depth_frame.get_data()).astype(np.float32) / 1000.0
+                            if DEPTH_ROTATE == 180:
+                                last_depth = cv2.rotate(last_depth, cv2.ROTATE_180)
                             depth = last_depth
                         if ir_frame:
                             last_ir_gray = np.asanyarray(ir_frame.get_data())
+                            if DEPTH_ROTATE == 180:
+                                last_ir_gray = cv2.rotate(last_ir_gray, cv2.ROTATE_180)
                             last_color = cv2.cvtColor(last_ir_gray, cv2.COLOR_GRAY2BGR)
                             color_image = last_color
                 except Exception:
@@ -1688,7 +1697,10 @@ def run_hardware_loop():
                     accel_world_neu = result["accel_world"]
                     vpred_world_neu = result["vpred_world"]
 
-                    net_accel_neu = accel_world_neu - vpred_world_neu
+                    # Use the model's acceleration output directly as the command.
+                    # (Previously subtracted vpred - a velocity prediction in m/s - from
+                    # the acceleration in m/s^2, which polluted the setpoint.)
+                    net_accel_neu = accel_world_neu.copy()
 
                     # Speed limiter
                     speed = float(np.linalg.norm(vel))
