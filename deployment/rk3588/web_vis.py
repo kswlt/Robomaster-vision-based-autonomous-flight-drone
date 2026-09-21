@@ -1003,6 +1003,51 @@ def _request_px4_streams(fc):
         print(f"[FC] stream request failed: {e}")
 
 
+def _try_offboard(fc, send_zero, timeout=3.0):
+    """Switch PX4 to OFFBOARD and confirm from the FC's own heartbeat.
+
+    Sends zero setpoints at 20 Hz for the whole window (PX4 drops OFFBOARD
+    without a >=1 Hz setpoint stream).  Confirms only on a PX4 heartbeat
+    (autopilot=12) showing main mode OFFBOARD with the armed bit.  Returns
+    (ok, reason, last_mode); prints a precise reason on failure.
+    """
+    ok = saw_px4 = saw_offboard = saw_armed = False
+    last_mode = "?"
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        try:
+            send_zero()
+        except Exception:
+            pass
+        time.sleep(0.05)
+        try:
+            hb = fc.recv_match(blocking=False)
+            if not _is_px4_heartbeat(hb):
+                continue
+            saw_px4 = True
+            mm = (hb.custom_mode >> 16) & 0xFF
+            last_mode = {1:"MANUAL",2:"ALTCTL",3:"POSCTL",4:"AUTO",5:"ACRO",6:"OFFBOARD",7:"STABILIZED",8:"RATTITUDE",9:"LAND"}.get(mm, f"MODE_{mm}")
+            if hb.base_mode & mavutil_module.mavlink.MAV_MODE_FLAG_SAFETY_ARMED:
+                saw_armed = True
+            if mm == 6:
+                saw_offboard = True
+                if hb.base_mode & mavutil_module.mavlink.MAV_MODE_FLAG_SAFETY_ARMED:
+                    ok = True
+                    break
+        except Exception:
+            pass
+    if ok:
+        reason = "confirmed"
+    elif not saw_px4:
+        reason = "no PX4 heartbeat in window"
+    elif not saw_offboard:
+        reason = f"PX4 never OFFBOARD (last {last_mode}, armed_seen={saw_armed})"
+    else:
+        reason = f"OFFBOARD seen but armed bit missing (armed_seen={saw_armed})"
+    print(f"[OFFBOARD] ok={ok} reason={reason} last_mode={last_mode}")
+    return ok, reason, last_mode
+
+
 def _is_px4_heartbeat(msg):
     """True only for the flight controller's own HEARTBEAT (MAV_AUTOPILOT_PX4=12).
 
@@ -1371,6 +1416,8 @@ def run_hardware_loop():
     if _rec_csv:
         recorder = FlightDataRecorder(_rec_csv)
 
+    _ob_lost_t0 = time.time()
+
     print("[LOOP] Starting main loop...")
 
     while True:
@@ -1537,6 +1584,30 @@ def run_hardware_loop():
             if time.time() - fc_last_msg_time > 2.0:
                 fc_mode = "失联" if fc else "无飞控"
 
+            # --- OFFBOARD watchdog: any active mode must actually stay in
+            # OFFBOARD; on loss degrade gracefully (never keep sending commands
+            # into a non-OFFBOARD controller) ---
+            _any_active = auto_active or key_active or tag_state in (TAG_SEARCH, TAG_ALIGN, TAG_DESCEND)
+            if _any_active and fc_mode != "OFFBOARD":
+                if time.time() - _ob_lost_t0 > 0.5:
+                    print(f"[WATCHDOG] OFFBOARD lost (mode={fc_mode}) -> auto/key/tag disabled")
+                    if auto_active:
+                        auto_active = False
+                        auto_state = AUTO_IDLE
+                        with state_lock:
+                            shared_state["auto_reject"] = f"OFFBOARD 丢失（{fc_mode}），自动已停止"
+                    if key_active:
+                        key_active = False
+                        with state_lock:
+                            shared_state["key_reject"] = f"OFFBOARD 丢失（{fc_mode}），键盘已停止"
+                    if tag_state in (TAG_SEARCH, TAG_ALIGN, TAG_DESCEND):
+                        tag_state = TAG_IDLE
+                        tag_land_start_pos = None
+                        with state_lock:
+                            shared_state["tag_reject"] = f"OFFBOARD 丢失（{fc_mode}），降落已停止"
+            else:
+                _ob_lost_t0 = time.time()
+
             # --- Control command processing ---
             with control_lock:
                 cmd_start = control_cmd["start"]
@@ -1579,18 +1650,7 @@ def run_hardware_loop():
                             px4.send_acceleration(0, 0, 0)
                             time.sleep(0.05)
                         px4.set_mode_offboard()
-                        offboard_ok = False
-                        for _ in range(40):
-                            px4.send_acceleration(0, 0, 0)
-                            time.sleep(0.05)
-                            try:
-                                hb = fc.recv_match(blocking=False)
-                                if (_is_px4_heartbeat(hb) and (hb.custom_mode >> 16) == 6
-                                        and (hb.base_mode & mavutil_module.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)):
-                                    offboard_ok = True
-                                    break
-                            except:
-                                pass
+                        offboard_ok, _ob_reason, _ob_mode = _try_offboard(fc, lambda: px4.send_acceleration(0, 0, 0))
                         auto_active = offboard_ok
                         auto_state = AUTO_ACTIVE if offboard_ok else AUTO_IDLE
                         if policy:
@@ -1621,18 +1681,7 @@ def run_hardware_loop():
                             px4.send_velocity_ned(0, 0, 0)
                             time.sleep(0.05)
                         px4.set_mode_offboard()
-                        offboard_ok = False
-                        for _ in range(40):
-                            px4.send_velocity_ned(0, 0, 0)
-                            time.sleep(0.05)
-                            try:
-                                hb = fc.recv_match(blocking=False)
-                                if (_is_px4_heartbeat(hb) and (hb.custom_mode >> 16) == 6
-                                        and (hb.base_mode & mavutil_module.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)):
-                                    offboard_ok = True
-                                    break
-                            except:
-                                pass
+                        offboard_ok, _ob_reason, _ob_mode = _try_offboard(fc, lambda: px4.send_velocity_ned(0, 0, 0))
                         if offboard_ok:
                             tag_state = TAG_SEARCH
                             tag_land_start_pos = pos.copy()
@@ -1853,18 +1902,7 @@ def run_hardware_loop():
                             px4.send_velocity_ned(0, 0, 0)
                             time.sleep(0.05)
                         px4.set_mode_offboard()
-                        offboard_ok = False
-                        for _ in range(40):
-                            px4.send_velocity_ned(0, 0, 0)
-                            time.sleep(0.05)
-                            try:
-                                hb = fc.recv_match(blocking=False)
-                                if (_is_px4_heartbeat(hb) and (hb.custom_mode >> 16) == 6
-                                        and (hb.base_mode & mavutil_module.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)):
-                                    offboard_ok = True
-                                    break
-                            except:
-                                pass
+                        offboard_ok, _ob_reason, _ob_mode = _try_offboard(fc, lambda: px4.send_velocity_ned(0, 0, 0))
                         key_active = offboard_ok
                         key_landing = False
                         if offboard_ok:
