@@ -266,3 +266,51 @@ python tools/test_policy_obstacle_response.py --mode all    # 写 results/benchm
 ```
 
 **本报告对应 commit**：见 `git log`（fix(policy) / test(policy) / docs(audit) 三个小步提交，本报告为 docs(audit) 提交）。
+
+---
+
+## 13. web_vis 集成（2026-09-21 更新）— 实机主程序已切换训练一致链路
+
+**`deployment/rk3588/web_vis.py` 已从 legacy 链路切换到 `deployment/common/upstream_obs.py` 唯一实现**（commit 见文末）：
+
+| 旧实现（已删除） | 新实现（upstream_obs） |
+|------|------|
+| `cv2.resize(..., INTER_AREA)` 640→64 | `preprocess_depth(mode="conservative", fov_remap=True)`（面积最小 FOV 重映射 + inverse + 4×4 maxpool） |
+| `margin = min(depth)+clip[0.1,0.3]` | 固定 `0.2`（训练分布 [0.1,0.3] 内，可配置） |
+| `up = [0,0,1]`（body_up 恒值） | `body_up_world_neu(roll, pitch, yaw)` — PX4 ATTITUDE 完整姿态 |
+| `accel_body[0:2]*=-1; vpred_body[0:2]*=-1` | 无任何符号翻转 |
+| `net_accel_neu = accel_world`（丢 v_pred） | `net_accel_world = R @ (a_pred − v_pred)`（训练一致解码） |
+| 帧 R 第二轴 = right（与训练 left 相反） | `yaw_only_frame`（与训练一致，列 = [fwd, left, up]） |
+
+保留项（接口/安全层，非 observation 语义）：速度限制器（speed>MAX_SPEED 时反向制动）、ACCEL_LIMIT 限幅、NEU→NED 转换、D430 intrinsics 传入（IR 流实测 fx/fy/cx/cy，无则用标称值）、`DEPTH_ROTATE`（物理安装 180° 补偿，作用于原始帧）。
+
+**benchmark 已改为直接实例化 `web_vis.UpstreamAvoidancePolicy`**（`tools/test_policy_obstacle_response.py`），保证离线测试与实机推理链路逐字节一致；carrot target 构造与 `run_hardware_loop` 相同（pos + fwd*5 + up*0.5，clamp 到 max_speed=1.5）。
+
+### 13.1 web_vis 链路 benchmark 结果（policy-only，`results/benchmark_all.json`）
+
+**正墙 3.0→0.35 m（用户要求的验收输出）**：
+
+| 距离 | 3.0 | 2.0 | 1.5 | 1.0 | 0.7 | 0.5 | 0.35 m |
+|------|-----|-----|-----|-----|-----|-----|--------|
+| a_x | +2.71 | +2.10 | +1.45 | +0.01 | −1.40 | −2.67 | −3.73 |
+| **net_x (a−v)** | **+2.32** | **+1.77** | **+1.17** | **−0.45** | **−2.27** | **−4.02** | **−5.60** |
+| legacy net_x（A/B 参考，web_vis 已不用） | −2.71 | −2.10 | −1.45 | −0.01 | **+1.40** | +2.67 | +3.73 |
+
+- 3.0→1.5 m：前向指令从 +2.32 降到 +1.17 —— **1.5 m 左右已开始明显减速** ✓
+- 1.0 m：net_x = −0.45 —— **1.0 m 内为负（刹车）** ✓
+- 0.7 m：net_x = −2.27 —— **无正向冲墙指令** ✓（legacy 同帧为 +1.40 冲墙）
+
+**其余场景**（与纯上游链路一致，差异 <3%）：
+- 左侧墙 → net_y=−1.18（向右规避）PASS；右侧墙 → net_y=+0.74（向左规避）PASS
+- 镜像：幅度不对称 1.6x FAIL（模型固有，方向正确）
+- 门洞 net=(+2.96, +0.29) PASS；空旷 net=(+2.82, −0.10) PASS；细柱 ax +2.82→−0.06 PASS
+- 帧重复：刹车单调增强 −0.45→−3.36，范围 2.9 FAIL（方向安全）
+
+### 13.2 残留检查（用户要求逐项确认）
+
+- `INTER_AREA`：策略路径已无（仅剩 dashboard JPEG 显示缩放）✓
+- `margin = min(depth)`：无 ✓（固定 0.2）
+- `body_up = [0,0,1]`：无 ✓（DCM 构造）
+- `accel_body[0/1] *= -1` / `vpred_body[0/1] *= -1`：无 ✓
+- `net_accel = accel_world`：无 ✓（`net_accel_world = R@(a−v)`）
+- legacy 符号翻转仅保留在 `upstream_obs.legacy_decode_action`（A/B 参考，实机不用）✓

@@ -1,6 +1,6 @@
 # Current State
 
-**Last updated**: 2026-09-21 (JST)
+**Last updated**: 2026-09-21 (JST) — web_vis 已接入训练一致链路
 **Branch**: E2E-RL (HEAD: 65290c2 + stage-1 commits)
 
 ## 2026-09-21 Avoidance Stage 1 — Deployment Audit & Offline Benchmark
@@ -11,9 +11,10 @@
 |----|------|------|
 | 上游 DiffPhys 审计 | ✅ | commit 2719361 已核对；observation/action/坐标系/预处理逐维取证 |
 | observation 对齐修复 | ✅ | 新 `deployment/common/upstream_obs.py`：margin 固定 0.2、完整 DCM body_up、训练一致解码（a−v）、面积最小 FOV 重映射、无效深度统计 |
+| web_vis 接入 | ✅ | deployment/rk3588/web_vis.py 已切换到 upstream_obs 唯一实现（删除 INTER_AREA / margin=min / body_up 恒值 / accel·vpred sign flip / net_accel=accel_world）；body_up 用 PX4 完整 roll/pitch/yaw，margin 固定 0.2；benchmark 直接实例化 web_vis 策略类，实机与离线链路逐字节一致 |
 | 坐标系单元测试 | ✅ | tests/test_coordinate_frames.py，27 passed |
 | Level 0 ONNX 数值 | ✅ | PyTorch↔ONNX 28 组输入最大误差 2.4e-06 |
-| Level 1 离线响应 benchmark | ✅ | results/benchmark_all.json：正墙刹车 PASS、左右方向正确 PASS、门洞/细柱/空旷 PASS；**镜像幅度不对称 1.6x FAIL、帧重复响应漂移 FAIL**；legacy 链路 0.7 m 墙冲墙 +1.61 vs 修正 −2.35 |
+| Level 1 离线响应 benchmark | ✅ | results/benchmark_all.json（**web_vis 链路**）：正墙 3.0→1.5 m 减速、1.0 m net_x=−0.45、0.7 m −2.27、0.35 m −5.60；左右方向正确 PASS；门洞/细柱/空旷 PASS；镜像幅度不对称 1.6x FAIL、帧重复漂移 FAIL |
 | 重训决策 | ⏳ | 静态证据不足以判定；先跑 Level 2/3 闭环，按 gate（collision_rate>2% / safety_trigger>5%）决定 |
 | Isaac 真实相机评测 | ⏳ | **禁用 synthetic_depth**（历史 100% 成功率即 synthetic 输入，不算避障证据） |
 | 实机 safety brake | ❌ | **代码中不存在**（历史文档声称存在，git 已查证为假）——实机前必须实现 |
