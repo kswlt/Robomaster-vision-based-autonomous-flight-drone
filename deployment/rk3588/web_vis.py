@@ -28,7 +28,8 @@ CAMERA_FPS = 30
 
 # Target point B for upstream avoidance policy
 AVOIDANCE_TARGET = np.array([5.0, 0.0, 1.5])
-MAX_SPEED = 1.0  # m/s
+MAX_SPEED = 1.5  # m/s
+ACCEL_LIMIT = 2.0  # m/s^2 net accel clip for avoidance
 DEPTH_RANGE = (0.3, 24.0)
 
 # --- Tag Landing Configuration ---
@@ -90,6 +91,9 @@ shared_state = {
     "tag_position": {"x": 0, "y": 0, "z": 0},  # body NED: fwd, right, down
     "tag_distance": 0.0,
     "tag_horizontal_error": 0.0,
+    "key_reject": "",
+    "auto_reject": "",
+    "tag_reject": "",
 }
 
 # Control commands (set by HTTP handler, read by control thread)
@@ -410,6 +414,9 @@ async function updateStatus() {
     if (keyStatus) {
       key_active = s.key_active;
       key_landing = s.key_landing;
+      key_reject = s.key_reject || '';
+      auto_reject = s.auto_reject || '';
+      tag_reject = s.tag_reject || '';
       if (key_landing) {
         keyStatus.textContent = '● 降落中 (LAND)';
         keyStatus.className = 'auto-status auto-stopping';
@@ -428,7 +435,12 @@ async function updateStatus() {
       'ACTIVE': '● 自动避障中...',
       'STOPPING': '正在停止...'
     }[s.auto_state] || s.auto_state;
-    autoStatus.className = 'auto-status auto-' + s.auto_state.toLowerCase();
+    if (s.auto_state !== 'ACTIVE' && auto_reject) {
+      autoStatus.textContent = '⚠ ' + auto_reject;
+      autoStatus.className = 'auto-status auto-idle';
+    } else {
+      autoStatus.className = 'auto-status auto-' + s.auto_state.toLowerCase();
+    }
     btnStart.disabled = !(s.auto_state === 'READY' && s.tag_state === 'TAG_IDLE');
     btnStop.disabled = !(s.auto_state === 'ACTIVE');
     // Tag state
@@ -444,6 +456,9 @@ async function updateStatus() {
       'TAG_LOST': '⚠ Tag 丢失，悬停中'
     };
     tagStatus.textContent = tagTexts[s.tag_state] || s.tag_state;
+    if (s.tag_state === 'TAG_IDLE' && tag_reject) {
+      tagStatus.textContent = '⚠ ' + tag_reject;
+    }
     tagStatus.className = 'tag-status tag-' + s.tag_state.replace('TAG_', '').toLowerCase();
     btnTagStart.disabled = !(s.auto_state === 'READY' && s.tag_state === 'TAG_IDLE');
     btnTagStop.disabled = !(s.tag_state !== 'TAG_IDLE' && s.tag_state !== 'TAG_LANDED');
@@ -533,9 +548,16 @@ async function stopAuto() {
   console.log('stop_auto:', data);
 }
 async function startTagLand() {
-  const resp = await fetch('/tag_land_start', {method:'POST'});
-  const data = await resp.json();
-  console.log('tag_land_start:', data);
+  let data = {};
+  try {
+    const resp = await fetch('/tag_land_start', {method:'POST'});
+    data = await resp.json().catch(() => ({}));
+  } catch(e) { return; }
+  if (!data.ok && data.msg) {
+    tag_reject = data.msg;
+    const el = document.getElementById('tag-status');
+    if (el) el.textContent = '⚠ ' + data.msg;
+  }
 }
 async function stopTagLand() {
   const resp = await fetch('/tag_land_stop', {method:'POST'});
@@ -543,6 +565,9 @@ async function stopTagLand() {
   console.log('tag_land_stop:', data);
 }
 let key_active = false;
+let key_reject = '';
+let auto_reject = '';
+let tag_reject = '';
 let key_landing = false;
 const KEY_SPEED = 0.5; // m/s
 let keys = {};
@@ -603,7 +628,10 @@ function updateKeyIndicator() {
   set('k-w', !!keys['w']); set('k-s', !!keys['s']); set('k-a', !!keys['a']); set('k-d', !!keys['d']);
   set('k-space', !!keys[' ']); set('k-q', !!keys['q']);
   if (key_landing) { line.textContent = '✈ 一键降落中（LAND 模式）'; return; }
-  if (!key_active) { line.textContent = '未激活'; return; }
+  if (!key_active) {
+    line.textContent = key_reject ? ('⚠ ' + key_reject) : '未激活';
+    return;
+  }
   let parts = [];
   if (keys['w']) parts.push('前 0.5');
   if (keys['s']) parts.push('后 0.5');
@@ -1051,9 +1079,14 @@ class RequestHandler(BaseHTTPRequestHandler):
                 control_cmd["stop"] = True
             self._json_response({"ok": True})
         elif self.path == "/tag_land_start":
-            with control_lock:
-                control_cmd["tag_land_start"] = True
-            self._json_response({"ok": True})
+            with state_lock:
+                armed_now = shared_state.get("armed", False)
+            if not armed_now:
+                self._json_response({"ok": False, "reason": "not armed", "msg": "飞机未解锁，请先遥控器解锁并起飞悬停"})
+            else:
+                with control_lock:
+                    control_cmd["tag_land_start"] = True
+                self._json_response({"ok": True, "msg": "开始 Tag 降落"})
         elif self.path == "/tag_land_stop":
             with control_lock:
                 control_cmd["tag_land_stop"] = True
@@ -1403,9 +1436,12 @@ def run_hardware_loop():
                 auto_state = AUTO_IDLE
                 if policy:
                     policy.reset()
+                with state_lock:
+                    shared_state["auto_reject"] = ""
+
 
             # --- Start avoidance ---
-            if cmd_start and not auto_active and tag_state == TAG_IDLE:
+            if cmd_start and not auto_active and tag_state == TAG_IDLE and not key_active:
                 if armed:
                     print(f"[AUTO] Start -> OFFBOARD avoidance")
                     if px4 and fc:
@@ -1415,6 +1451,7 @@ def run_hardware_loop():
                         px4.set_mode_offboard()
                         offboard_ok = False
                         for _ in range(20):
+                            px4.send_acceleration(0, 0, 0)
                             time.sleep(0.05)
                             try:
                                 hb = fc.recv_match(type='HEARTBEAT', blocking=False)
@@ -1424,16 +1461,28 @@ def run_hardware_loop():
                                         break
                             except:
                                 pass
-                        auto_active = True
-                        auto_state = AUTO_ACTIVE
+                        auto_active = offboard_ok
+                        auto_state = AUTO_ACTIVE if offboard_ok else AUTO_IDLE
                         if policy:
                             policy.reset()
+                        if offboard_ok:
+                            with state_lock:
+                                shared_state["auto_reject"] = ""
+                        else:
+                            print("[AUTO] OFFBOARD switch failed -> POSCTL, auto NOT active")
+                            if px4:
+                                try:
+                                    px4.set_mode_posctl()
+                                except Exception:
+                                    pass
+                            with state_lock:
+                                shared_state["auto_reject"] = "OFFBOARD 切换失败：请确认已解锁起飞悬停后再点开始"
                         print(f"[AUTO] OFFBOARD confirmed={offboard_ok}")
                 else:
                     print(f"[AUTO] Start rejected: not armed")
 
             # --- Tag landing start ---
-            if cmd_tag_start and tag_state == TAG_IDLE and not auto_active:
+            if cmd_tag_start and tag_state == TAG_IDLE and not auto_active and not key_active:
                 if armed:
                     print("[TAG] Tag landing start -> OFFBOARD")
                     if px4 and fc:
@@ -1442,10 +1491,34 @@ def run_hardware_loop():
                             px4.send_velocity_ned(0, 0, 0)
                             time.sleep(0.05)
                         px4.set_mode_offboard()
-                        tag_state = TAG_SEARCH
-                        tag_land_start_pos = pos.copy()
-                        tag_last_detected_time = time.time()
-                        print("[TAG] OFFBOARD engaged, entering SEARCH")
+                        offboard_ok = False
+                        for _ in range(20):
+                            px4.send_velocity_ned(0, 0, 0)
+                            time.sleep(0.05)
+                            try:
+                                hb = fc.recv_match(type='HEARTBEAT', blocking=False)
+                                if hb and (hb.custom_mode >> 16) == 6:
+                                    offboard_ok = True
+                                    break
+                            except:
+                                pass
+                        if offboard_ok:
+                            tag_state = TAG_SEARCH
+                            tag_land_start_pos = pos.copy()
+                            tag_last_detected_time = time.time()
+                            with state_lock:
+                                shared_state["tag_reject"] = ""
+                            print("[TAG] OFFBOARD confirmed, entering SEARCH")
+                        else:
+                            print("[TAG] OFFBOARD switch failed -> POSCTL, tag landing NOT active")
+                            if px4:
+                                try:
+                                    px4.set_mode_posctl()
+                                except Exception:
+                                    pass
+                            with state_lock:
+                                shared_state["tag_reject"] = "OFFBOARD 切换失败：请确认已解锁起飞悬停后再点开始"
+
                 else:
                     print("[TAG] Start rejected: not armed")
 
@@ -1456,6 +1529,9 @@ def run_hardware_loop():
                     px4.set_mode_posctl()
                 tag_state = TAG_IDLE
                 tag_land_start_pos = None
+                with state_lock:
+                    shared_state["tag_reject"] = ""
+
 
             # --- Update auto_state for display ---
             if not auto_active and tag_state == TAG_IDLE:
@@ -1621,7 +1697,7 @@ def run_hardware_loop():
                         vel_dir = vel / max(speed, 0.01)
                         net_accel_neu -= vel_dir * brake
 
-                    net_accel_neu = np.clip(net_accel_neu, -1.5, 1.5)
+                    net_accel_neu = np.clip(net_accel_neu, -ACCEL_LIMIT, ACCEL_LIMIT)
                     accel_setpoint_ned = np.array([
                         net_accel_neu[0],
                         net_accel_neu[1],
@@ -1642,6 +1718,7 @@ def run_hardware_loop():
                         px4.set_mode_offboard()
                         offboard_ok = False
                         for _ in range(20):
+                            px4.send_velocity_ned(0, 0, 0)
                             time.sleep(0.05)
                             try:
                                 hb = fc.recv_match(type='HEARTBEAT', blocking=False)
@@ -1650,8 +1727,20 @@ def run_hardware_loop():
                                     break
                             except:
                                 pass
-                        key_active = True
+                        key_active = offboard_ok
                         key_landing = False
+                        if offboard_ok:
+                            with state_lock:
+                                shared_state["key_reject"] = ""
+                        else:
+                            print("[KEY] OFFBOARD switch failed -> POSCTL, keyboard NOT active")
+                            if px4:
+                                try:
+                                    px4.set_mode_posctl()
+                                except Exception:
+                                    pass
+                            with state_lock:
+                                shared_state["key_reject"] = "OFFBOARD 切换失败：请确认已解锁起飞悬停后再点开始"
                         print(f"[KEY] OFFBOARD confirmed={offboard_ok}")
                 else:
                     print("[KEY] Start rejected: not armed")
@@ -1660,12 +1749,16 @@ def run_hardware_loop():
                 if px4:
                     px4.set_mode_posctl()
                 key_active = False
+                with state_lock:
+                    shared_state["key_reject"] = ""
             if cmd_key_land and key_active:
                 print("[KEY] Land requested -> LAND")
                 if px4:
                     px4.set_mode_land()
                 key_active = False
                 key_landing = True
+                with state_lock:
+                    shared_state["key_reject"] = ""
 
             # --- Send setpoints ---
             if key_active and px4 and fc:
