@@ -2,7 +2,7 @@
 import paramiko
 import sys
 
-HOST = "100.119.45.114"
+HOST = "192.168.1.215"  # LAN; Tailscale 100.119.45.114 often unreachable from here
 USER = "orangepi"
 PASS = "orangepi"
 

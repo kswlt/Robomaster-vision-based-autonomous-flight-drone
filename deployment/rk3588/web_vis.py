@@ -1720,6 +1720,20 @@ def run_hardware_loop():
                 else:
                     auto_state = AUTO_IDLE
 
+            # --- RC OFFBOARD -> auto: flipping the RC mode switch to OFFBOARD
+            # (or any armed OFFBOARD entry) starts avoidance control directly,
+            # no dashboard button needed. The watchdog above keeps auto active
+            # only while PX4 actually stays in OFFBOARD; flipping the switch
+            # back (or link loss) disables it. ---
+            if (not auto_active and not key_active
+                    and tag_state == TAG_IDLE
+                    and fc_mode == "OFFBOARD" and armed):
+                print("[AUTO] OFFBOARD detected (RC/MAVLink) -> auto avoidance ON")
+                auto_active = True
+                auto_state = AUTO_ACTIVE
+                with state_lock:
+                    shared_state["auto_reject"] = ""
+
             # --- Tag landing state machine ---
             tag_vel_cmd_ned = np.zeros(3)  # velocity command: [fwd, right, down]
             tag_active_control = False
