@@ -918,6 +918,67 @@ class UpstreamAvoidancePolicy:
             "processed_min": float(pp["x64"].min()),
         }
 
+class FlightDataRecorder:
+    """Append-only CSV recorder for flight diagnostics (Level 4 replay).
+
+    Records observation + policy action + final PX4 command + safety flags at
+    loop rate, buffered and flushed every 0.5 s.  Controlled by env var
+    E2E_RECORD_CSV (path); when unset, no recording.  Never raises into the
+    flight loop (all wrapped).
+    """
+    COLS = ["t_loop", "iso", "frame", "auto", "tag", "armed", "fc_mode",
+            "pos_x", "pos_y", "pos_z", "vel_x", "vel_y", "vel_z",
+            "roll", "pitch", "yaw",
+            "depth_valid", "depth_min", "depth_median", "depth_p5", "depth_p95",
+            "near_ratio", "processed_min", "margin",
+            "raw_a0", "raw_a1", "raw_a2", "raw_a3", "raw_a4", "raw_a5",
+            "accel_body_x", "accel_body_y", "accel_body_z",
+            "vpred_body_x", "vpred_body_y", "vpred_body_z",
+            "policy_net_x", "policy_net_y", "policy_net_z",
+            "cmd_ned_x", "cmd_ned_y", "cmd_ned_z",
+            "brake", "policy_lat_ms"]
+
+    def __init__(self, csv_path):
+        self.path = str(csv_path)
+        self._buf = []
+        self._last_flush = 0.0
+        try:
+            need_header = not Path(self.path).exists()
+            with open(self.path, "a", newline="", encoding="utf-8") as f:
+                if need_header:
+                    f.write(",".join(self.COLS) + "\n")
+            print(f"[Recorder] flight CSV -> {self.path}")
+        except Exception as e:
+            print(f"[Recorder] init FAILED: {e} (recording disabled)")
+            self.path = None
+
+    def record(self, row: dict):
+        if self.path is None:
+            return
+        try:
+            vals = [row.get(c, "") for c in self.COLS]
+            self._buf.append(",".join(str(v) for v in vals))
+            now = time.time()
+            if now - self._last_flush > 0.5:
+                self.flush(now)
+        except Exception as e:
+            print(f"[Recorder] record error: {e}")
+            self.path = None
+
+    def flush(self, now=None):
+        if self.path is None or not self._buf:
+            self._last_flush = time.time()
+            return
+        try:
+            with open(self.path, "a", newline="", encoding="utf-8") as f:
+                f.write("\n".join(self._buf) + "\n")
+            self._buf = []
+            self._last_flush = time.time() if now is None else now
+        except Exception as e:
+            print(f"[Recorder] flush error: {e}")
+            self.path = None
+
+
 # PX4 OFFBOARD Controller
 # ============================================================================
 class PX4Controller:
@@ -1269,6 +1330,12 @@ def run_hardware_loop():
     last_color = None
     depth_colored = None
     disp_frame = 0
+
+    # --- Flight data recorder (Level 4 replay) ---
+    recorder = None
+    _rec_csv = os.environ.get("E2E_RECORD_CSV", "").strip()
+    if _rec_csv:
+        recorder = FlightDataRecorder(_rec_csv)
 
     print("[LOOP] Starting main loop...")
 
@@ -1689,6 +1756,8 @@ def run_hardware_loop():
                         tag_align_stable_start = time.time()
 
             # --- Run avoidance policy (for display and when active) ---
+            policy_lat_ms = 0.0
+            result = None
             accel_body = np.zeros(3)
             vpred_body = np.zeros(3)
             accel_world_neu = np.zeros(3)
@@ -1707,7 +1776,9 @@ def run_hardware_loop():
                         pos[2] + 0.5,
                     ], dtype=np.float32)
 
+                    _t_infer = time.perf_counter()
                     result = policy.infer(depth, pos, vel, roll, pitch, yaw, AVOIDANCE_TARGET)
+                    policy_lat_ms = (time.perf_counter() - _t_infer) * 1000.0
                     accel_body = result["accel_body"]
                     vpred_body = result["vpred_body"]
                     accel_world_neu = result["accel_world"]
@@ -1859,6 +1930,42 @@ def run_hardware_loop():
                 shared_state["armed"] = armed
                 shared_state["fc_mode"] = fc_mode
                 shared_state["frame_count"] = frame_count
+
+            # --- Flight recorder (never raises into flight loop) ---
+            if recorder is not None and policy is not None and result is not None:
+                try:
+                    ds = result.get("depth_stats", {})
+                    recorder.record({
+                        "t_loop": round(time.time() - t0, 4),
+                        "iso": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime()),
+                        "frame": frame_count, "auto": int(auto_active),
+                        "tag": tag_state, "armed": int(armed),
+                        "fc_mode": fc_mode,
+                        "pos_x": pos[0], "pos_y": pos[1], "pos_z": pos[2],
+                        "vel_x": vel[0], "vel_y": vel[1], "vel_z": vel[2],
+                        "roll": roll, "pitch": pitch, "yaw": yaw,
+                        "depth_valid": valid_ratio,
+                        "depth_min": ds.get("depth_min", ""),
+                        "depth_median": ds.get("median", ""),
+                        "depth_p5": ds.get("p5", ""), "depth_p95": ds.get("p95", ""),
+                        "near_ratio": ds.get("near_ratio", ""),
+                        "processed_min": float(result.get("processed_min", 0.0)),
+                        "margin": float(result.get("margin", 0.0)),
+                        "raw_a0": result["raw_action"][0], "raw_a1": result["raw_action"][1],
+                        "raw_a2": result["raw_action"][2], "raw_a3": result["raw_action"][3],
+                        "raw_a4": result["raw_action"][4], "raw_a5": result["raw_action"][5],
+                        "accel_body_x": accel_body[0], "accel_body_y": accel_body[1], "accel_body_z": accel_body[2],
+                        "vpred_body_x": vpred_body[0], "vpred_body_y": vpred_body[1], "vpred_body_z": vpred_body[2],
+                        "policy_net_x": result["net_accel_world"][0],
+                        "policy_net_y": result["net_accel_world"][1],
+                        "policy_net_z": result["net_accel_world"][2],
+                        "cmd_ned_x": accel_setpoint_ned[0], "cmd_ned_y": accel_setpoint_ned[1],
+                        "cmd_ned_z": accel_setpoint_ned[2],
+                        "brake": int(float(np.linalg.norm(vel)) > MAX_SPEED),
+                        "policy_lat_ms": round(policy_lat_ms, 3),
+                    })
+                except Exception as e:
+                    print(f"[Recorder] error: {e}")
 
             frame_count += 1
             if frame_count % 100 == 0:
