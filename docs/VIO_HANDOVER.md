@@ -375,14 +375,17 @@ python3 /tmp/s_imu_audit.py /tmp/vio/imu_clock_diag_<时间戳>.csv
 
 ## 8. Git 状态
 
-- 上一次成功推送的远程 `origin/d430`：`aaeb55b`（本地与远程一致）。
-- 本轮新增、**尚未提交**的改动（都在本地工作区 `repo_d430/`）：
+- 远程 `origin/d430` HEAD：**`a55a449`**（本文档所在提交；上一状态是 `aaeb55b`）。
+- 本次提交 `a55a449`（`fix(vio): correct the stereo baseline and make the prechecks
+  self-healing`）包含：
   - `scripts/vio_precheck.py`：hw 阶段自愈 `laser_power`、IMU 速率策略改为
     100 Hz fail / 190 Hz 目标、新增双目基线强制校验、修引号比较 bug、新增
     dt p95 / 长间隔 / 非单调 / 微 dt 检查
   - `start_vio.sh`：启动时打印反推的双目实际基线
   - `scripts/set_extrinsics.sh`（新）：`rect50` / `baseline46` / `show`
-  - `config/d430/kalibr_imucam_chain.rect50.yaml`（新，**当前生效**）
+  - `config/d430/kalibr_imucam_chain.yaml`：**改成 rect50**（仓库里的"生效配置"
+    必须等于运行时生效配置，否则就是 §1.3 那个"运行时≠仓库"的根因本身）
+  - `config/d430/kalibr_imucam_chain.rect50.yaml`（新，备用/可复现）
   - `config/d430/kalibr_imucam_chain.baseline46.yaml`（新，用于 A/B）
   - `docs/VIO_HANDOVER.md`（本文件）
 - 板端运行时 SHA256（本轮实测生效值）：
@@ -395,4 +398,6 @@ python3 /tmp/s_imu_audit.py /tmp/vio/imu_clock_diag_<时间戳>.csv
 d476e15370855c65c98193e9c26cd91dcd066ced4ac9e36d7113c237da06c4eb  imu_clock_mapper.py
 ```
 
-板端 `gh_d430` 检出已更新到 `aaeb55b`（本轮修复的文件也已单独部署到运行时）。
+板端 `gh_d430` 检出：**可能仍停在 `aaeb55b`**，拉一下即可：
+`cd ~/kswlt/gh_d430 && git -c http.proxy= -c https.proxy= fetch origin d430 && git reset --hard origin/d430`
+（运行时实际使用的那 5 个文件已单独部署，功能不受此影响。）
