@@ -209,19 +209,17 @@ class VIOBridge(Node):
                     self.imu_clock_offset = arrival_offset
                     self.get_logger().info(
                         f'PX4 IMU时钟已映射到ROS时间, offset={self.imu_clock_offset:.6f}s')
-                elif arrival_offset < self.imu_clock_offset:
-                    # Serial delivery latency is non-negative and varies with
-                    # queueing.  Anchoring to the first packet made the whole
-                    # IMU clock late by up to ~12 ms in measured runs.  The
-                    # lowest observed arrival offset is the best available
-                    # one-way clock estimate when PX4 sends no SYSTEM_TIME.
-                    correction = self.imu_clock_offset - arrival_offset
-                    self.imu_clock_offset = arrival_offset
-                    if correction > 0.001 and now - self.last_clock_refine_log > 1.0:
-                        self.last_clock_refine_log = now
-                        self.get_logger().info(
-                            f'PX4 IMU时钟下包络校正: -{correction * 1e3:.2f}ms, '
-                            f'offset={self.imu_clock_offset:.6f}s')
+                else:
+                    # Follow the real PX4-vs-host clock drift with an EMA that
+                    # can rise or fall.  The old lower-envelope rule only ever
+                    # decreased the offset, accumulating a slow drift
+                    # (-0.9 ms/s measured) that broke VIO during motion while
+                    # leaving static (low-motion) periods looking stable.
+                    if self.imu_clock_offset is None:
+                        self.imu_clock_offset = arrival_offset
+                    else:
+                        alpha = 0.05
+                        self.imu_clock_offset += alpha * (arrival_offset - self.imu_clock_offset)
                 stamp = sensor_time + self.imu_clock_offset
                 self.last_imu_sensor_time = sensor_time
 
