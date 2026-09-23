@@ -118,11 +118,25 @@ def main():
     odom = read_odom(os.path.join(resdir, 'odom'))
     its, iw, ia = read_imu(rawbag)
     segs = segments(its, iw, ia)
-    ts = odom[:, 0]; P = odom[:, 1:4]
+
+    # A single non-finite published frame must not poison every downstream
+    # statistic (an earlier version turned one NaN into NaN closure/path/jump and
+    # silently dropped the whole run from the summary table).  Count them, keep
+    # them visible in the metrics, and compute on the finite samples only.
+    ts_all = odom[:, 0]
+    P_all = odom[:, 1:4]
+    finite = np.all(np.isfinite(P_all), axis=1) & np.isfinite(ts_all)
+    n_nonfinite = int((~finite).sum())
+    ts = ts_all[finite]
+    P = P_all[finite]
+    if len(ts) < 10:
+        print('  !! only %d finite odom samples (of %d); skipping' % (len(ts), len(ts_all)))
+        return
     base = its[0]
     step = np.linalg.norm(np.diff(P, axis=0), axis=1)
 
-    m = dict(label=label, n=int(len(odom)),
+    m = dict(label=label, n=int(len(odom)), n_finite=int(len(ts)),
+             n_nonfinite=n_nonfinite,
              span=float(ts[-1] - ts[0]),
              path_len_m=float(step.sum()),
              max_jump_m=float(step.max()),
