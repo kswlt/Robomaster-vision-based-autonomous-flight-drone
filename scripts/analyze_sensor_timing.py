@@ -38,6 +38,9 @@ def stream_stats(stamps):
     dt = np.diff(stamps) * 1e-9
     positive = dt[dt > 0]
     return dict(frame_count=len(stamps), duration_sec=float((stamps[-1]-stamps[0])*1e-9) if len(stamps)>1 else 0,
+                largest_gaps=[dict(start_ns=int(stamps[i]),end_ns=int(stamps[i+1]),
+                                   elapsed_sec=float((stamps[i]-stamps[0])*1e-9),gap_sec=float(dt[i]))
+                              for i in np.argsort(dt)[-5:][::-1]],
                 rate_hz=float((len(stamps)-1)/((stamps[-1]-stamps[0])*1e-9)) if len(stamps)>1 and stamps[-1]>stamps[0] else None,
                 dt_sec=distribution(dt), fps=distribution(1/positive),
                 negative_timestamp_count=int((dt<0).sum()), duplicate_timestamp_count=int((dt==0).sum()))

@@ -2,6 +2,17 @@
 
 **ROOT CAUSE UNDER INVESTIGATION — NOT VERIFIED IN FLIGHT**
 
+> **Handoff update 2026-09-24:** this file's detailed measurements below are
+> the 2026-09-13 audit snapshot. The operator subsequently confirmed STATIC
+> setup and a 124.56 s static bag was recorded. It contains >2 s sensor gaps,
+> and only 118.25 s valid `/odomimu`, so it is NOT a passing 120 s baseline.
+> It showed 9.99 mm peak position drift and 0.00169 m/s velocity RMS while
+> always-ZUPT was active. A bridge clock trace suggests -0.927 ms/s lower-
+> quantile trend across 181 s, but this is not proof of crystal drift. Current
+> remote board state is UNKNOWN: SSH timed out on 2026-09-24. Read
+> [HANDOFF_2026-09-24.md](HANDOFF_2026-09-24.md) first for current evidence,
+> caveats, uncommitted scripts and next steps.
+
 This document supersedes old status/hand-off claims. Initial Git HEAD:
 `b89b761895962ede7ff794b00b774a9ee7d7dc9d` (d430). Subsequent milestone SHAs
 are recorded in DEVELOPMENT_PROGRESS.md; use git log for this document's commit.

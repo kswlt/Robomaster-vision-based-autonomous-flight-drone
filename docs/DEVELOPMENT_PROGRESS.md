@@ -92,6 +92,23 @@
 3. 仓库代码同步（运行版 bridge + 稳定 config）
 # 2026-09-13: reproducible VIO investigation, first milestone
 
+## 2026-09-24 handoff addendum
+
+Operator confirmed the assembly was stationary. A dedicated temporary
+systemd capture unit recorded `/home/orangepi/vio_data/20260913T152326_772057Z_STATIC/`
+and a bridge-internal IMU timing trace. Do not promote this capture to the
+baseline: the bag has up to 2.26 s topic gaps and stereo mismatches. The
+OpenVINS stream covers only 118.25 s, so the 120 s static gate is incomplete.
+Observed static peak position drift=9.99 mm and velocity RMS=0.00169 m/s
+while always-ZUPT was active; those are descriptive, not a pass. The trace
+shows a lower-quantile host-minus-PX4-sample trend near -0.927 ms/s over 181 s;
+this needs independent clock validation. An additional 20 s fresh-domain SHM
+probe ended, but SSH loss prevented bag analysis. At the time of the last
+successful remote check, production VIO remained fault-latched/stopped and
+PX4 vision output remained false. SSH timed out on 2026-09-24; present board
+state is unknown. See [HANDOFF_2026-09-24.md](HANDOFF_2026-09-24.md).
+
+
 Second milestone: all-sample timing + CameraInfo verification + DDS diagnosis.
 First milestone SHA `e7ffdb0` pushed. Synthetic timing regression tests: 4 PASS
 on board (local Windows Python lacks numpy). Real ~58 s timing bag analyzed;
