@@ -1,0 +1,33 @@
+[INFO] [launch]: All log files can be found below /home/orangepi/.ros/log/2026-09-13-23-45-35-351779-orangepi5-1494263
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [launch.user]: 🚀 Launching as Normal ROS Node
+[INFO] [realsense2_camera_node-1]: process started with pid [1494265]
+[realsense2_camera_node-1] [0m[INFO] [1789314335.573753020] [camera.camera]: RealSense ROS v4.58.3[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.573987516] [camera.camera]: Built with LibRealSense v2.58.3[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.574008516] [camera.camera]: Running with LibRealSense v2.58.3[0m
+[realsense2_camera_node-1]  13/09 23:45:35,576 WARNING [548158105824] (context.cpp:41) No valid configuration file found at : /home/orangepi/.realsense-config.json loading defaults
+[realsense2_camera_node-1] [0m[INFO] [1789314335.614478324] [camera.camera]: Device with serial number 938422073656 was found.
+[realsense2_camera_node-1] [0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.614682196] [camera.camera]: Device with physical ID /sys/devices/platform/usbhost3_0/fcd00000.usb/xhci-hcd.8.auto/usb2/2-1/2-1:1.0/video4linux/video0 was found.[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.614727986] [camera.camera]: Device with name RealSense D430 was found.[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.616329792] [camera.camera]: Device with port number 2-1 was found.[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.616392500] [camera.camera]: Device USB type: 3.2[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.616640120] [camera.camera]: getParameters...[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.618423632] [camera.camera]: JSON file is not provided[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.618478172] [camera.camera]: Device Name: RealSense D430[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.618518422] [camera.camera]: Device Serial No: 938422073656[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.618556921] [camera.camera]: Device physical port: /sys/devices/platform/usbhost3_0/fcd00000.usb/xhci-hcd.8.auto/usb2/2-1/2-1:1.0/video4linux/video0[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.618596295] [camera.camera]: Device FW version: 5.17.3.10[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.618634211] [camera.camera]: Device Product ID: 0x0AD4[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.618670961] [camera.camera]: Sync Mode: Off[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.715858466] [camera.camera]: Set ROS param depth_module.depth_profile to default: 848x480x30[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.730962166] [camera.camera]: Stopping Sensor: Depth Module[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.749013690] [camera.camera]: Starting Sensor: Depth Module[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.753293826] [camera.camera]: Open profile: stream_type: Infra(1), Format: Y8, Width: 848, Height: 480, FPS: 30[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.753378699] [camera.camera]: Open profile: stream_type: Infra(2), Format: Y8, Width: 848, Height: 480, FPS: 30[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314335.760621825] [camera.camera]: RealSense Node Is Up![0m
+[realsense2_camera_node-1] [0m[INFO] [1789314452.150406391] [rclcpp]: signal_handler(SIGINT/SIGTERM)[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314452.152132154] [camera.camera]: Stop Sensor: Depth Module[0m
+[realsense2_camera_node-1] [0m[INFO] [1789314452.152303359] [camera.camera]: Close Sensor. [0m
+[realsense2_camera_node-1] [0m[INFO] [1789314452.242767479] [camera.camera]: Close Sensor - Done. [0m
+[INFO] [realsense2_camera_node-1]: process has finished cleanly [pid 1494265]

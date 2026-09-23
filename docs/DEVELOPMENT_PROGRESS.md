@@ -133,3 +133,199 @@ setup for labeled raw-sensor recordings. No parameter tuning or flight done.
 - Runtime domain 42 startup stalls and watchdog repeated restarts discovered;
   watchdog temporarily stopped for investigation. PX4 vision remains false.
 - No dynamic dataset or calibrated best offset yet. ROOT CAUSE UNDER INVESTIGATION.
+
+## 2026-09-13 23:55 - VIO 漂移根因确认与修复
+
+### 根本原因
+VIO 初始化时飞机在移动，导致初始加速度计偏置估计错误（ba = -0.1092 m/s²），
+然后 VIO 发散，位置飘到 98 米。保持飞机完全静止初始化后，偏置正常（ba ≈ 0），零漂移。
+
+### 修复措施
+1. 确保 VIO 初始化时飞机完全静止（init_max_disparity: 0.3）
+2. 保持 calib_cam_timeoffset: true（在线优化收敛到 0.01152）
+3. 降低 IMU 加速度计噪声（noise_density: 1e-3, random_walk: 5e-4）
+4. 提高 vio_bridge 健康门控阈值（避免轻微发散立即锁存）
+
+### 验证结果（静止）
+- 加速度计偏置 ba: 0.0007, 0.0038, -0.0033（正常 <0.01）
+- 位置漂移 dist: 0.00 米
+- 速度: 0.001 m/s
+- timeoffset: 0.01152（已收敛）
+- 特征点: 126 个
+- VIO 处理频率: 41-110 Hz
+
+### 关键教训
+- VIO 初始化必须保持飞机完全静止，否则初始偏置估计错误会导致发散
+- timeoffset 在线优化是有效的，不需要固定值
+- 加速度计偏置 ba 是判断 VIO 是否正常的关键指标（正常应 <0.01）
+
+### 下一步
+- 手持动态测试（缓慢平移/旋转）
+- 验证动态下 VIO 是否稳定
+
+## 2026-09-14 OpenVINS 编译成功 + VIO 稳定验证
+
+### 编译问题解决
+- **问题**：板子并行编译 OpenVINS 时 OOM（cc1plus 占用 2.3GB 虚拟内存被 OOM killer 杀死）
+- **解决**：使用 `MAKEFLAGS=-j1` 单线程编译，用时 1 分 11 秒成功
+- **编译产物**：libov_msckf_lib.so 199MB，时间戳 2026-09-14 02:00
+
+### timeoffset 固定修改
+- 修改 `ov_msckf/src/core/VioManagerOptions.h`：`calib_camimu_dt = 0.01152`（默认值）
+- 在 `kalibr_imucam_chain.yaml` cam0 下添加 `timeshift_cam_imu: 0.01152`
+- 配置 `calib_cam_timeoffset: false` 禁用在线优化
+- **验证**：LOADED_CAMERA_IMU_TIME_OFFSET_SEC=0.011520000 确认初始值已加载
+
+### VIO 稳定状态（静止）
+- 位置漂移：0.01 米（极小）
+- 加速度计偏置：ba = 0.0009, 0.0043, -0.0040（正常 <0.01）
+- timeoffset：稳定在 -0.00282（在线优化似乎仍在运行，但已收敛）
+- 特征点：145-147 个
+- ZUPT：正常工作
+
+### 待调查问题
+- `calib_cam_timeoffset: false` 配置似乎没有完全生效（日志仍输出 camera-imu timeoffset）
+- timeoffset 初始值 0.01152，但运行时收敛到 -0.00282，差异较大
+- 需要验证动态晃动时 VIO 是否稳定
+
+### Commit
+- 修改文件：estimator_config.yaml, kalibr_imucam_chain.yaml, VioManagerOptions.h
+
+## 2026-09-14 - VIO Drift Root Cause Fixed (Docker Cross Compile)
+
+### Root Cause Confirmed
+- VIO divergence on motion caused by unstable online camera-IMU timeoffset calibration
+- timeoffset jumped from 0.01152 (stationary) to -0.00282 during motion (14ms error)
+- This caused incorrect accelerometer bias estimation (ba = -0.1092 vs normal <0.01)
+- Position then diverged to hundreds of meters
+
+### Fix Applied
+1. Fixed timeoffset = 0.01152 in VioManagerOptions.h (calib_camimu_dt default)
+2. Force disabled online timeoffset calibration in StateOptions.h (do_calib_camera_timeoffset = false)
+3. Compiled using Docker amd64 cross-compile (aarch64-linux-gnu-gcc 11.4.0)
+   - ov_core: 78MB
+   - ov_init: 98MB
+   - ov_msckf: 199MB
+   - run_subscribe_msckf: 26MB
+
+### Verification Results (Stationary)
+- LOADED_CAMERA_IMU_TIME_OFFSET_SEC=0.011520000 ✓
+- Position drift: <1cm (p_IinG = -0.003, 0.008, 0.002) ✓
+- Accelerometer bias: ba = 0.0002, -0.0005, -0.0032 (normal <0.01) ✓
+- ZUPT velocity: 0.004 m/s ✓
+- Features: 134 ✓
+- VIO rate: 38-40 Hz ✓
+- Latency: <1ms ✓
+
+### Next Steps
+- Dynamic motion test (user needs to shake drone)
+- Verify no divergence during fast rotation/translation
+- Flight test (NOT VERIFIED IN FLIGHT)
+
+### Files Modified
+- ov_msckf/src/core/VioManagerOptions.h (calib_camimu_dt = 0.01152)
+- ov_msckf/src/state/StateOptions.h (force do_calib_camera_timeoffset = false)
+
+## 2026-09-14 - VIO Drift Fix Verified: timeoffset online calibration DISABLED
+
+### Root Cause Confirmed
+- Previous build did NOT include StateOptions.h modification due to build cache issue
+- First OOM failure compiled partial objects, second build did not recompile dependent files
+- timeoffset online calibration was still ACTIVE, causing divergence on motion
+
+### Fix Applied
+1. Added VERIFY_FORCE_DISABLED_TIMEOFFSET print to confirm modification is compiled
+2. Cleaned build directory completely (rm -rf build/ov_msckf)
+3. Recompiled with Docker amd64 cross-compile (-j2 to avoid OOM)
+4. Verified binary contains "VERIFY_FORCE_DISABLED_TIMEOFFSET" string
+
+### Verification Results
+- VERIFY_FORCE_DISABLED_TIMEOFFSET: do_calib_camera_timeoffset=0 ✓
+- No "camera-imu timeoffset" output in latest log (0 in last 100 lines) ✓
+- Position stable: p_IinG = 0.006, 0.023, 0.043 ✓
+- Distance: 1.25m (stable, not diverging) ✓
+- VIO rate: 25-60 Hz
+- ZUPT: velocity 0.003 m/s, 128 features
+
+### Remaining Issue
+- Accelerometer bias ba = -0.0746, 0.0518 (still slightly high, normal <0.01)
+- May indicate timeoffset=0.01152 is not perfectly accurate, or minor extrinsics error
+- Need dynamic motion test to verify no divergence
+
+### Files Modified
+- ov_msckf/src/state/StateOptions.h (added VERIFY print, force do_calib_camera_timeoffset=false)
+- ov_msckf/src/core/VioManagerOptions.h (calib_camimu_dt = 0.01152)
+
+## 2026-09-14 - VIO Drift Fix Attempt 2: Adjust IMU Noise Parameters
+
+### Problem
+After fixing timeoffset online calibration (disabled), VIO still diverges on vigorous motion:
+- Position drifts to 18.84m
+- Accelerometer bias becomes abnormal: ba = -0.0453, -0.0170 (normal <0.01)
+- Initialization bias is normal: ba = -0.0000, 0.0001, -0.0050
+- Features normal: 122-156
+- timeoffset is fixed (0 "camera-imu timeoffset" in latest log)
+
+### Root Cause Hypothesis
+IMU noise parameters may be too optimistic, causing VIO to over-trust IMU measurements
+and incorrectly adjust accelerometer bias during dynamic motion. This leads to position
+divergence as the biased acceleration is integrated.
+
+### Fix Applied
+Adjusted IMU noise parameters in kalibr_imu_chain.yaml:
+- accelerometer_noise_density: 1.0e-3 -> 2.0e-3 (2x increase, trust vision more)
+- accelerometer_random_walk: 5.0e-4 -> 2.0e-3 (4x increase, slower bias adjustment)
+- gyroscope_random_walk: 1.94e-5 -> 5.0e-5 (2.5x increase)
+
+### Expected Effect
+- VIO will trust visual measurements more during dynamic motion
+- Accelerometer bias will adjust more slowly, reducing incorrect bias estimation
+- Position should be more stable during motion
+
+### Files Modified
+- config/d430/kalibr_imu_chain.yaml
+
+## 2026-09-14 - ROOT CAUSE FOUND & FIXED: Camera-IMU 7-degree pitch extrinsics error
+
+### Stage
+Stage 1.5 VIO baseline - root cause of static/dynamic drift.
+
+### Root Cause (confirmed by controlled experiment)
+D430 camera is physically mounted pitched DOWN ~7 deg relative to the flight-controller IMU,
+but kalibr_imucam_chain.yaml assumed a perfectly level mount (R_IC = [0,0,1;-1,0,0;0,-1,0]).
+At rest, vision demands body pitch ~+7 deg while the IMU gravity vector demands pitch 0.
+The filter absorbs this ~7 deg conflict into accelerometer bias ba_x (steady +1.15 m/s^2 = g*sin7)
+and attitude pitch (drifts to +7 deg). ZUPT masks it while stationary; on motion ZUPT stops and
+the bad bias double-integrates -> position explodes ("drifts the moment it is moved").
+Online extrinsics calibration cannot fix it: State.cpp initial rotation covariance std is only
+0.005 rad = 0.29 deg, ~24x smaller than the 7 deg error.
+
+### Evidence (static, ZUPT passed / failed = 0)
+- Before (extrinsics 0 deg): pitch 0.3 -> +6.97 deg, ba_x 0 -> +1.15, static drift 2.5 m.
+- After (extrinsics -7 deg, camera down-tilt): pitch stable 0.32 deg (range 0.16-0.32),
+  ba_x stable +0.004 (residual implied tilt 0.02 deg), static position drift 0.02 m.
+- FRD->FLU transform verified correct (static IMU z~+9.81, x/y~0); IMU data normal.
+
+### Fix Applied
+- kalibr_imucam_chain.yaml: R_IC_new = R_IC_old * Rx(-7 deg) for BOTH cameras, translations kept.
+  Optical axis in IMU frame = [0.9925, 0, -0.1219] (forward, 7 deg down).
+  Nominal level extrinsics backed up at runtime config/d430/kalibr_imucam_chain.nominal.yaml.
+- estimator_config.yaml: reverted tracking/ZUPT params to original baseline
+  (num_pts=100, fast_threshold=20, track_frequency=21, max_msckf_in_update=25,
+  zupt_chi2_multipler=0, zupt_max_velocity=0.1, init_max_disparity=10);
+  calib_cam_extrinsics/intrinsics/timeoffset all false; timeshift fixed -0.011.
+  NOTE: stacking 9 tuning changes (num_pts=200, zupt_chi2=0.5, msckf=75...) on top of the
+  corrected extrinsics caused yaw drift/attitude jumps, so they were reverted.
+- Added scripts/apply_extrinsics.py, scripts/analyze_attitude.py, scripts/tune_estimator.py.
+- Added docs/VIO_PITCH_EXTRINSICS_ROOTCAUSE.md.
+
+### Verification
+- Static ~75 s: PASS (pitch 0.32 deg, ba_x 0.004, drift 0.02 m).
+- Hand-held dynamic excitation: NOT VERIFIED (requires on-site motion test).
+- Real flight: NOT VERIFIED IN FLIGHT.
+
+### Next
+1. On-site hand-held translation + fast rotation, run analyze_attitude.py to confirm bounded bias/pose.
+2. Optional precision: Kalibr offline cam-IMU calibration, or enlarge State.cpp extrinsics rotation
+   covariance (0.005 -> ~0.1 rad) and run extrinsics-only online calibration.
+3. Only after dynamic stability: resume Depth / 2D Map / A* / Follower stages.

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>OpenVINS 实时轨迹可视化</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
+<style>
+  body { margin:0; background:#111; color:#ddd; font-family: sans-serif; }
+  #bar { padding:8px 14px; background:#1a1a2e; font-size:13px; }
+  #bar b { color:#4fc3f7; }
+  #toggle { margin-left:12px; padding:3px 10px; background:#263238; color:#80cbc4; border:1px solid #37474f; border-radius:4px; cursor:pointer; font-size:13px; }
+  .row { display:flex; height:62vh; }
+  .cell { flex:1; margin:6px; }
+  .row2 { display:flex; height:30vh; }
+  #status { color:#9e9e9e; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <b>OpenVINS 实时轨迹</b> &nbsp; 连接: <span id="conn">连接中…</span>
+  &nbsp; 点数: <span id="cnt">0</span>
+  &nbsp; 当前位置: <span id="pos">-</span>
+  &nbsp; 显示坐标系: <button id="toggle">NED（北-东-地）</button>
+  <span id="status"></span>
+  <span style="float:right">刷新间隔 1s | 原始数据 frame=global(ENU)</span>
+</div>
+<div class="row">
+  <div class="cell" id="c3d"></div>
+  <div class="cell" id="cxy"></div>
+</div>
+<div class="row2">
+  <div class="cell" id="crpy"></div>
+  <div class="cell" id="cvel"></div>
+</div>
+<script>
+function q2rpy(q){
+  var w=q[0],x=q[1],y=q[2],z=q[3];
+  var r=Math.atan2(2*(w*x+y*z),1-2*(x*x+y*y));
+  var p=Math.asin(Math.max(-1,Math.min(1,2*(w*y-z*x))));
+  var y2=Math.atan2(2*(w*z+x*y),1-2*(y*y+z*z));
+  return [r*180/Math.PI,p*180/Math.PI,y2*180/Math.PI];
+}
+var c3d=echarts.init(document.getElementById('c3d'));
+var cxy=echarts.init(document.getElementById('cxy'));
+var crpy=echarts.init(document.getElementById('crpy'));
+var cvel=echarts.init(document.getElementById('cvel'));
+var frameMode='NED';
+document.getElementById('toggle').onclick=function(){
+  frameMode=(frameMode==='NED')?'ENU':'NED';
+  this.textContent=frameMode==='NED'?'NED（北-东-地）':'ENU（东-北-天）';
+  var cur=window.__lastPts; if(cur) draw({pts:cur,t0:window.__lastT0});
+};
+// position transform: ENU(x东,y北,z上) -> NED(x北,y东,z下)
+function tfPos(p){
+  if(frameMode==='NED') return [p[1], p[2], -p[3]];
+  return [p[1], p[2], p[3]];
+}
+function draw(data){
+  var pts=data.pts||[];
+  document.getElementById('cnt').textContent=pts.length;
+  window.__lastPts=pts; window.__lastT0=data.t0;
+  if(!pts.length){ return; }
+  var X=pts.map(p=>tfPos(p)[0]), Y=pts.map(p=>tfPos(p)[1]), Z=pts.map(p=>tfPos(p)[2]);
+  var last=pts[pts.length-1], lastPos=tfPos(last);
+  var t=[];
+  for(var i=0;i<pts.length;i++){ t.push(pts[i][0]-data.t0); }
+  var n=pts.length>6000?6000:pts.length;
+  var sX=X.slice(-n), sY=Y.slice(-n), sZ=Z.slice(-n), sT=t.slice(-n);
+  c3d.setOption({
+    backgroundColor:'#111',
+    tooltip:{},
+    grid3D:{boxWidth:4,boxDepth:4,viewControl:{autoRotate:false},light:{main:{intensity:1.2,shadow:true}}},
+    xAxis3D:{type:'value',name:'X'+(frameMode==='NED'?'(北)':'(东)')},
+    yAxis3D:{type:'value',name:'Y'+(frameMode==='NED'?'(东)':'(北)')},
+    zAxis3D:{type:'value',name:'Z'+(frameMode==='NED'?'(下)':'(上)')},
+    series:[
+      {type:'line3D',data:sX.map((x,i)=>[x,sY[i],sZ[i]]),lineStyle:{width:3,color:'#4fc3f7'}},
+      {type:'scatter3D',data:[[lastPos[0],lastPos[1],lastPos[2]]],symbolSize:12,itemStyle:{color:'#ff5252'}}
+    ]
+  });
+  cxy.setOption({
+    backgroundColor:'#111',tooltip:{},
+    xAxis:{type:'value',name:'X'+(frameMode==='NED'?'(北)':'(东)')},
+    yAxis:{type:'value',name:'Y'+(frameMode==='NED'?'(东)':'(北)')},
+    grid:{left:50,right:20,top:20,bottom:40},
+    series:[
+      {type:'line',data:sX.map((x,i)=>[x,sY[i]]),showSymbol:false,lineStyle:{width:2,color:'#4fc3f7'}},
+      {type:'scatter',data:[[lastPos[0],lastPos[1]]],symbolSize:10,itemStyle:{color:'#ff5252'}}
+    ]
+  });
+  var rpy=pts.map(p=>q2rpy([p[4],p[5],p[6],p[7]]));
+  var T=sT;
+  crpy.setOption({
+    backgroundColor:'#111',legend:{textStyle:{color:'#ddd'}},tooltip:{},
+    xAxis:{type:'value',name:'t'}, yAxis:{type:'value',name:'deg',max:180,min:-180},
+    grid:{left:50,right:20,top:30,bottom:40},
+    series:['roll','pitch','yaw'].map((nm,i)=>({
+      name:nm,type:'line',showSymbol:false,
+      data:rpy.slice(-n).map((r,j)=>[T[j],r[i]]),
+      lineStyle:{width:1.5}
+    }))
+  });
+  var dt=t.map((x,i)=>i?x-t[i-1]:0);
+  cvel.setOption({
+    backgroundColor:'#111',tooltip:{},
+    xAxis:{type:'value',name:'t'}, yAxis:{type:'value',name:'dt(s)'},
+    grid:{left:50,right:20,top:20,bottom:40},
+    series:[{type:'line',showSymbol:false,data:dt.slice(-2000),lineStyle:{width:1,color:'#ffb74d'}}]
+  });
+  document.getElementById('pos').textContent='('+lastPos[0].toFixed(3)+', '+lastPos[1].toFixed(3)+', '+lastPos[2].toFixed(3)+') '+frameMode;
+}
+function poll(){
+  fetch('/api').then(r=>r.json()).then(d=>{document.getElementById('conn').textContent='OK';draw(d);})
+    .catch(()=>{document.getElementById('conn').textContent='连接失败';});
+}
+poll();
+setInterval(poll,1000);
+</script>
+</body>
+</html>

@@ -1,0 +1,197 @@
+[WARN] [1789314341.406560790] [vio_bridge]: PX4视觉输出: 关闭（仅观察，不写入PX4）
+[INFO] [1789314341.406986032] [vio_bridge]: 连接PX4: /dev/ttyACM0 @ 921600
+[INFO] [1789314341.410740593] [vio_bridge]: 等待飞控心跳... (第1次尝试)
+[INFO] [1789314341.445255545] [vio_bridge]: PX4连接成功, 系统ID: 1
+[INFO] [1789314341.447687420] [vio_bridge]: 已强制请求200Hz IMU (SET_MESSAGE_INTERVAL)
+[INFO] [1789314341.448030706] [vio_bridge]: 已请求200Hz IMU数据流
+[INFO] [1789314341.448617821] [vio_bridge]: 已请求EKF状态流
+[INFO] [1789314341.449603929] [vio_bridge]: 已请求本地位置流
+[INFO] [1789314341.450973280] [vio_bridge]: IMU读取线程已启动
+[INFO] [1789314341.453862481] [vio_bridge]: PX4 IMU时钟已映射到ROS时间, offset=1789296590.007505s
+[INFO] [1789314341.522085939] [vio_bridge]: PX4 IMU时钟下包络校正: -30.71ms, offset=1789296589.976797s
+[INFO] [1789314341.660491365] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=-0.00 vz=0.00
+[INFO] [1789314342.230454286] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314342.665402349] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=-0.00 vy=-0.00 vz=0.00
+[INFO] [1789314343.236018884] [vio_bridge]: PX4 IMU时钟下包络校正: -1.27ms, offset=1789296589.967670s
+[INFO] [1789314343.675936279] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=-0.00 vy=-0.00 vz=0.00
+[INFO] [1789314344.707934759] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=-0.00 vy=0.00 vz=-0.00
+[INFO] [1789314345.226941760] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.000 vel=nan
+[INFO] [1789314345.743314472] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=-0.00 vy=-0.00 vz=0.00
+[INFO] [1789314346.744702475] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=-0.00 vy=0.00 vz=0.00
+[INFO] [1789314347.773427928] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=-0.00 vy=0.00 vz=0.00
+[INFO] [1789314348.224409508] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314348.806927298] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=0.00 vz=0.00
+[INFO] [1789314349.807517607] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=0.00 vy=-0.00 vz=0.00
+[INFO] [1789314350.839348672] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=-0.00 vy=0.00 vz=-0.00
+[INFO] [1789314351.218565730] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314351.872694046] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=-0.00 vy=0.00 vz=0.00
+[INFO] [1789314352.904414863] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=-0.00 vy=0.00 vz=0.00
+[INFO] [1789314353.936586590] [vio_bridge]: EKF位置: x=-64.35 y=-50.80 z=0.01 vx=-0.00 vy=0.00 vz=0.00
+[INFO] [1789314354.214132428] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314354.967349591] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=-0.00 vy=-0.00 vz=-0.00
+[INFO] [1789314355.998275339] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=-0.00 vy=-0.00 vz=0.00
+[INFO] [1789314356.216752978] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314356.999530344] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.00 vx=0.00 vy=-0.00 vz=-0.00
+[INFO] [1789314358.032199937] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.00 vx=-0.00 vy=0.00 vz=0.00
+[INFO] [1789314359.064335498] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=0.00 vz=0.00
+[INFO] [1789314359.213442574] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314360.095551449] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=0.00 vz=0.00
+[INFO] [1789314361.126181452] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=-0.00 vz=0.00
+[INFO] [1789314362.127158796] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=-0.00 vy=-0.00 vz=0.00
+[INFO] [1789314362.206835225] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314363.160589043] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=-0.00 vy=-0.00 vz=0.00
+[INFO] [1789314363.790838142] [vio_bridge]: 等待VIO健康门控: 1/90, pos=0.013m, speed=0.026m/s, max_var=0.003117m^2
+[INFO] [1789314364.196367458] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=0.00 vz=0.00
+[INFO] [1789314364.213066256] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314365.225600693] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=-0.00 vz=0.00
+[INFO] [1789314365.805203908] [vio_bridge]: 等待VIO健康门控: 60/90, pos=0.001m, speed=0.001m/s, max_var=0.002507m^2
+[INFO] [1789314366.254075900] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=-0.00 vy=0.00 vz=0.00
+[INFO] [1789314366.803801000] [vio_bridge]: VIO健康门控通过: pos=0.002m, speed=0.001m/s, max_var=0.002505m^2
+[INFO] [1789314366.805328724] [vio_bridge]: VIO健康，但PX4视觉输出处于关闭状态（仅供Foxglove观察）
+[INFO] [1789314367.208207711] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.002 vel=nan
+[INFO] [1789314367.254622459] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=0.00 vz=0.00
+[INFO] [1789314368.256103502] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=0.00 vz=0.00
+[INFO] [1789314369.288457225] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=0.00 vy=-0.00 vz=0.00
+[INFO] [1789314370.206195200] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314370.318546196] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=0.00 vy=-0.00 vz=0.00
+[INFO] [1789314371.352336937] [vio_bridge]: EKF位置: x=-64.35 y=-50.80 z=0.01 vx=-0.00 vy=0.00 vz=0.00
+[INFO] [1789314371.806226093] [vio_bridge]: VIO健康，但PX4视觉输出处于关闭状态（仅供Foxglove观察）
+[INFO] [1789314372.385137486] [vio_bridge]: EKF位置: x=-64.35 y=-50.80 z=0.01 vx=-0.00 vy=-0.00 vz=0.00
+[INFO] [1789314373.198089003] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314373.418499484] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=-0.00 vy=-0.00 vz=0.00
+[INFO] [1789314374.381822138] [vio_bridge]: PX4 IMU时钟下包络校正: -1.16ms, offset=1789296589.939360s
+[INFO] [1789314374.447479849] [vio_bridge]: EKF位置: x=-64.35 y=-50.80 z=0.01 vx=-0.00 vy=0.00 vz=0.00
+[INFO] [1789314375.482085492] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=-0.00 vy=0.00 vz=0.00
+[INFO] [1789314376.202843043] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314376.483721699] [vio_bridge]: EKF位置: x=-64.35 y=-50.80 z=0.01 vx=-0.00 vy=0.00 vz=0.00
+[INFO] [1789314376.828663260] [vio_bridge]: VIO健康，但PX4视觉输出处于关闭状态（仅供Foxglove观察）
+[INFO] [1789314376.914433376] [vio_bridge]: PX4 IMU时钟下包络校正: -1.16ms, offset=1789296589.937504s
+[INFO] [1789314377.485428197] [vio_bridge]: EKF位置: x=-64.35 y=-50.80 z=0.01 vx=-0.00 vy=-0.00 vz=-0.00
+[INFO] [1789314378.519154480] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.00 vx=-0.00 vy=0.00 vz=-0.00
+[INFO] [1789314379.197228220] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314379.548578462] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=-0.00 vy=0.00 vz=0.00
+[INFO] [1789314380.579851288] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=0.00 vz=0.00
+[INFO] [1789314380.711234375] [vio_bridge]: PX4 IMU时钟下包络校正: -1.03ms, offset=1789296589.934118s
+[INFO] [1789314381.580766215] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=0.00 vy=-0.00 vz=0.00
+[INFO] [1789314381.844942573] [vio_bridge]: VIO健康，但PX4视觉输出处于关闭状态（仅供Foxglove观察）
+[INFO] [1789314382.190704578] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314382.607684824] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=0.00 vz=0.00
+[INFO] [1789314383.609129409] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=0.00 vz=0.00
+[INFO] [1789314383.720622044] [vio_bridge]: PX4 IMU时钟下包络校正: -1.64ms, offset=1789296589.931202s
+[INFO] [1789314384.641397092] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=0.00 vy=-0.00 vz=0.00
+[INFO] [1789314385.187260884] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314385.671774808] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=0.00 vy=-0.00 vz=0.00
+[INFO] [1789314386.677583819] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=-0.00 vz=0.00
+[INFO] [1789314386.847153878] [vio_bridge]: VIO健康，但PX4视觉输出处于关闭状态（仅供Foxglove观察）
+[INFO] [1789314387.702017761] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=-0.00 vy=0.00 vz=-0.00
+[INFO] [1789314388.076419485] [vio_bridge]: PX4 IMU时钟下包络校正: -1.27ms, offset=1789296589.927066s
+[INFO] [1789314388.191481476] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314388.734938183] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=-0.00 vz=-0.00
+[INFO] [1789314389.735362245] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=0.00 vz=0.00
+[INFO] [1789314390.515242827] [vio_bridge]: PX4 IMU时钟下包络校正: -1.05ms, offset=1789296589.925155s
+[INFO] [1789314390.770797665] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=0.00 vz=0.00
+[INFO] [1789314391.182151174] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314391.682482786] [vio_bridge]: PX4 IMU时钟下包络校正: -1.65ms, offset=1789296589.923500s
+[INFO] [1789314391.801200464] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=0.00 vy=-0.00 vz=0.00
+[INFO] [1789314391.850451039] [vio_bridge]: VIO健康，但PX4视觉输出处于关闭状态（仅供Foxglove观察）
+[INFO] [1789314392.830663529] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=-0.00 vy=-0.00 vz=0.00
+[INFO] [1789314393.865967119] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=-0.00 vy=0.00 vz=0.00
+[INFO] [1789314394.183058489] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314394.866502886] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=-0.00 vy=-0.00 vz=0.00
+[INFO] [1789314395.894740388] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=-0.00 vy=0.00 vz=-0.00
+[INFO] [1789314396.879207056] [vio_bridge]: VIO健康，但PX4视觉输出处于关闭状态（仅供Foxglove观察）
+[INFO] [1789314396.929134869] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=-0.00 vy=-0.00 vz=-0.00
+[INFO] [1789314397.175927607] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.000 vel=nan
+[INFO] [1789314397.959166382] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=0.00 vz=0.00
+[INFO] [1789314398.992969664] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=-0.00 vz=0.00
+[INFO] [1789314400.024090826] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=-0.00 vy=-0.00 vz=0.00
+[INFO] [1789314400.147258386] [vio_bridge]: PX4 IMU时钟下包络校正: -1.03ms, offset=1789296589.915838s
+[INFO] [1789314400.175051703] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.000 vel=nan
+[INFO] [1789314401.057869025] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=0.00 vy=-0.00 vz=0.00
+[INFO] [1789314401.883984400] [vio_bridge]: VIO健康，但PX4视觉输出处于关闭状态（仅供Foxglove观察）
+[INFO] [1789314402.056823403] [vio_bridge]: EKF位置: x=-64.34 y=-50.81 z=0.01 vx=0.00 vy=-0.00 vz=0.00
+[INFO] [1789314403.060020583] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=0.00 vy=0.00 vz=0.00
+[INFO] [1789314403.173755805] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314404.092547846] [vio_bridge]: EKF位置: x=-64.34 y=-50.80 z=0.01 vx=-0.00 vy=0.00 vz=0.00
+[INFO] [1789314405.091647763] [vio_bridge]: EKF位置: x=-64.36 y=-50.82 z=-0.01 vx=-0.02 vy=-0.01 vz=-0.08
+[INFO] [1789314406.119158152] [vio_bridge]: EKF位置: x=-64.36 y=-50.79 z=0.00 vx=-0.01 vy=0.06 vz=0.01
+[INFO] [1789314406.169745704] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=111 posH=nan posV=0.007 vel=nan
+[INFO] [1789314406.897857213] [vio_bridge]: VIO健康，但PX4视觉输出处于关闭状态（仅供Foxglove观察）
+[INFO] [1789314407.120555780] [vio_bridge]: EKF位置: x=-64.36 y=-50.72 z=0.03 vx=0.01 vy=0.08 vz=0.03
+[INFO] [1789314407.316059229] [vio_bridge]: PX4 IMU时钟下包络校正: -1.02ms, offset=1789296589.908758s
+[INFO] [1789314408.154548059] [vio_bridge]: EKF位置: x=-64.36 y=-50.62 z=0.03 vx=0.04 vy=0.15 vz=0.12
+[INFO] [1789314409.163028399] [vio_bridge]: EKF状态: 水平相对位置有效=False 水平速度有效=False flags=101 posH=nan posV=0.017 vel=nan
+[INFO] [1789314409.182442567] [vio_bridge]: EKF位置: x=-64.34 y=-50.48 z=0.00 vx=0.00 vy=0.12 vz=-0.04
+[INFO] [1789314410.215170201] [vio_bridge]: EKF位置: x=-64.34 y=-50.31 z=-0.02 vx=0.00 vy=0.14 vz=-0.02
+[INFO] [1789314411.163461779] [vio_bridge]: EKF状态: 水平相对位置有效=False 水平速度有效=False flags=101 posH=nan posV=0.013 vel=nan
+[INFO] [1789314411.215333517] [vio_bridge]: EKF位置: x=-64.36 y=-50.18 z=-0.03 vx=-0.05 vy=0.10 vz=-0.03
+[INFO] [1789314411.850976898] [vio_bridge]: PX4 IMU时钟下包络校正: -1.30ms, offset=1789296589.904723s
+[INFO] [1789314411.914257567] [vio_bridge]: VIO健康，但PX4视觉输出处于关闭状态（仅供Foxglove观察）
+[INFO] [1789314412.216550023] [vio_bridge]: EKF位置: x=-64.44 y=-50.08 z=0.03 vx=-0.10 vy=0.11 vz=0.03
+[INFO] [1789314413.167959464] [vio_bridge]: EKF状态: 水平相对位置有效=False 水平速度有效=False flags=101 posH=nan posV=0.006 vel=nan
+[INFO] [1789314413.245197893] [vio_bridge]: EKF位置: x=-64.60 y=-49.98 z=0.02 vx=-0.23 vy=0.07 vz=0.01
+[INFO] [1789314414.278894719] [vio_bridge]: EKF位置: x=-64.86 y=-49.91 z=0.04 vx=-0.34 vy=0.10 vz=-0.00
+[INFO] [1789314414.826999930] [vio_bridge]: PX4 IMU时钟下包络校正: -1.25ms, offset=1789296589.902459s
+[INFO] [1789314415.279723606] [vio_bridge]: EKF位置: x=-65.11 y=-49.85 z=-0.01 vx=-0.28 vy=0.06 vz=-0.03
+[INFO] [1789314416.163652159] [vio_bridge]: EKF状态: 水平相对位置有效=False 水平速度有效=False flags=101 posH=nan posV=0.007 vel=nan
+[INFO] [1789314416.313601554] [vio_bridge]: EKF位置: x=-65.41 y=-49.78 z=-0.01 vx=-0.27 vy=0.07 vz=-0.01
+[INFO] [1789314416.924698105] [vio_bridge]: VIO健康，但PX4视觉输出处于关闭状态（仅供Foxglove观察）
+[INFO] [1789314417.342331673] [vio_bridge]: EKF位置: x=-65.37 y=-49.79 z=0.00 vx=0.01 vy=0.00 vz=0.00
+[INFO] [1789314418.343955630] [vio_bridge]: EKF位置: x=-65.37 y=-49.79 z=0.01 vx=0.00 vy=0.00 vz=0.00
+[INFO] [1789314419.157311098] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314419.372216174] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=-0.00 vy=0.00 vz=0.00
+[INFO] [1789314420.406115996] [vio_bridge]: EKF位置: x=-65.38 y=-49.80 z=0.01 vx=-0.00 vy=-0.00 vz=0.00
+[INFO] [1789314421.436659084] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=-0.00 vy=0.00 vz=-0.00
+[INFO] [1789314421.921570834] [vio_bridge]: VIO健康，但PX4视觉输出处于关闭状态（仅供Foxglove观察）
+[INFO] [1789314422.156532900] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314422.438851198] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=-0.00 vy=0.00 vz=0.00
+[INFO] [1789314423.442762950] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=-0.00 vy=-0.00 vz=-0.00
+[INFO] [1789314424.469481186] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=0.00 vy=-0.00 vz=-0.00
+[INFO] [1789314425.150112507] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314425.501386917] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=0.00 vy=-0.00 vz=0.00
+[INFO] [1789314426.539181298] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=0.00 vy=0.00 vz=0.00
+[INFO] [1789314426.923551434] [vio_bridge]: VIO健康，但PX4视觉输出处于关闭状态（仅供Foxglove观察）
+[INFO] [1789314427.568023998] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=0.00 vy=-0.00 vz=0.00
+[INFO] [1789314428.153318116] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314428.601438787] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=0.00 vy=0.00 vz=0.00
+[INFO] [1789314429.634389250] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=-0.00 vy=-0.00 vz=0.00
+[INFO] [1789314430.632221898] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=-0.00 vy=-0.00 vz=-0.00
+[INFO] [1789314431.148757357] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314431.661405550] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=0.00 vy=-0.00 vz=-0.00
+[INFO] [1789314431.949752787] [vio_bridge]: VIO健康，但PX4视觉输出处于关闭状态（仅供Foxglove观察）
+[INFO] [1789314432.693641734] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=-0.00 vy=-0.00 vz=0.00
+[INFO] [1789314433.729001615] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=-0.00 vy=-0.00 vz=0.00
+[INFO] [1789314434.143356322] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.002 vel=nan
+[INFO] [1789314434.185631807] [vio_bridge]: PX4 IMU时钟下包络校正: -1.07ms, offset=1789296589.884093s
+[INFO] [1789314434.727307629] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=0.00 vy=-0.00 vz=0.00
+[INFO] [1789314435.756127580] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=-0.00 vy=0.00 vz=0.00
+[INFO] [1789314436.756106857] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=0.00 vy=0.01 vz=0.00
+[INFO] [1789314436.963877596] [vio_bridge]: VIO健康，但PX4视觉输出处于关闭状态（仅供Foxglove观察）
+[INFO] [1789314437.017603427] [vio_bridge]: PX4 IMU时钟下包络校正: -1.03ms, offset=1789296589.881605s
+[INFO] [1789314437.138845437] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314437.758299846] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.00 vx=-0.00 vy=0.00 vz=-0.00
+[INFO] [1789314438.792234084] [vio_bridge]: EKF位置: x=-65.38 y=-49.80 z=0.00 vx=0.00 vy=-0.00 vz=-0.00
+[INFO] [1789314439.794809734] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=0.00 vy=-0.00 vz=0.00
+[INFO] [1789314440.137593873] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314440.822051503] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=-0.00 vy=-0.00 vz=-0.00
+[INFO] [1789314441.270562417] [vio_bridge]: PX4 IMU时钟下包络校正: -1.05ms, offset=1789296589.878266s
+[INFO] [1789314441.859620429] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=-0.00 vy=0.00 vz=0.00
+[INFO] [1789314441.983336897] [vio_bridge]: VIO健康，但PX4视觉输出处于关闭状态（仅供Foxglove观察）
+[INFO] [1789314442.883311801] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=0.00 vy=0.00 vz=0.00
+[INFO] [1789314443.137346790] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314443.917150665] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=0.00 vy=-0.00 vz=-0.00
+[ERROR] [1789314444.893482889] [vio_bridge]: VIO_FATAL: 位置方差超限(24.026m^2); 已停止视觉输出，故障将锁存并等待人工复位
+[INFO] [1789314444.953966229] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=0.00 vy=-0.00 vz=-0.00
+[INFO] [1789314445.214529483] [vio_bridge]: PX4 IMU时钟下包络校正: -1.13ms, offset=1789296589.873875s
+[INFO] [1789314445.981156958] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.00 vx=-0.00 vy=-0.00 vz=-0.00
+[INFO] [1789314446.137496368] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314447.018885131] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.00 vx=-0.00 vy=0.00 vz=-0.00
+[INFO] [1789314447.615610345] [vio_bridge]: PX4 IMU时钟下包络校正: -1.02ms, offset=1789296589.872326s
+[INFO] [1789314448.048784522] [vio_bridge]: EKF位置: x=-65.37 y=-49.79 z=0.00 vx=0.00 vy=0.00 vz=-0.00
+[INFO] [1789314449.081942940] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=0.00 vy=0.00 vz=-0.00
+[INFO] [1789314449.132623823] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314450.115817971] [vio_bridge]: EKF位置: x=-65.38 y=-49.80 z=0.01 vx=-0.00 vy=-0.00 vz=0.00
+[INFO] [1789314451.114916430] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=0.00 vy=0.00 vz=0.00
+[INFO] [1789314451.221325694] [vio_bridge]: PX4 IMU时钟下包络校正: -1.40ms, offset=1789296589.868624s
+[INFO] [1789314452.135403315] [vio_bridge]: EKF状态: 水平相对位置有效=True 水平速度有效=True flags=239 posH=nan posV=0.001 vel=nan
+[INFO] [1789314452.146299795] [vio_bridge]: EKF位置: x=-65.38 y=-49.79 z=0.01 vx=0.00 vy=-0.00 vz=0.00

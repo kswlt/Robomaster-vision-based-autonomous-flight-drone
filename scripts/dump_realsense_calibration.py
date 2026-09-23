@@ -16,7 +16,7 @@ from analyze_sensor_timing import read_bag
 def main():
     p=argparse.ArgumentParser(__doc__)
     p.add_argument('bag')
-    p.add_argument('--config', default='/home/orangepi/vio_ws/src/open_vins/config/d430/kalibr_imucam_chain.yaml')
+    p.add_argument('--config', default='/home/orangepi/kswlt/vio_ws/src/open_vins/config/d430/kalibr_imucam_chain.yaml')
     p.add_argument('--output', default='results/vio_validation')
     a=p.parse_args()
     out=Path(a.output)

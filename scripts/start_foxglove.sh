@@ -10,7 +10,7 @@ FOXLOVE_PID=$!
 echo "foxglove_bridge PID: $FOXLOVE_PID"
 
 # Start system_monitor
-python3 /home/orangepi/vio-improve/scripts/system_monitor.py > /tmp/system_monitor.log 2>&1 &
+python3 /home/orangepi/kswlt/vio-improve/scripts/system_monitor.py > /tmp/system_monitor.log 2>&1 &
 MONITOR_PID=$!
 echo "system_monitor PID: $MONITOR_PID"
 
