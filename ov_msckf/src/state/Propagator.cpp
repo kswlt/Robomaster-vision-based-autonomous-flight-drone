@@ -21,6 +21,8 @@
 
 #include "Propagator.h"
 
+#include <cmath>
+
 #include "state/State.h"
 #include "state/StateHelper.h"
 #include "utils/print.h"
@@ -152,13 +154,39 @@ bool Propagator::fast_state_propagate(std::shared_ptr<State> state, double times
   // First lets construct an IMU vector of measurements we need
   double time0 = cache_state_time + cache_t_off;
   double time1 = timestamp + cache_t_off;
+  // This path runs from the IMU callback while camera updates can rebase the
+  // cached state on another executor thread. If the requested IMU timestamp is
+  // at/before that state, select_imu_readings() can return a reversed interval;
+  // the integration below would then apply negative dt to position and Qc/dt.
+  // Do not publish a prediction until timestamps are strictly forward again.
+  static std::atomic<unsigned long long> rejected_fast_propagations{0};
+  auto reject_prediction = [&](const char *reason, double span) {
+    cache_imu_valid = false;
+    const auto count = ++rejected_fast_propagations;
+    if (count == 1 || count % 100 == 0) {
+      PRINT_WARNING(YELLOW "fast_state_propagate(): dropping prediction (%s, span=%.6f s, rejects=%llu)\n" RESET,
+                    reason, span, count);
+    }
+    return false;
+  };
+  const double span = time1 - time0;
+  if (!std::isfinite(time0) || !std::isfinite(time1) || span <= 0.0 || span > 0.100) {
+    return reject_prediction("non-forward or stale IMU time", span);
+  }
+
   std::vector<ov_core::ImuData> prop_data;
   {
     std::lock_guard<std::mutex> lck(imu_data_mtx);
     prop_data = Propagator::select_imu_readings(imu_data, time0, time1, false);
   }
   if (prop_data.size() < 2)
-    return false;
+    return reject_prediction("fewer than two IMU samples", span);
+  for (size_t i = 0; i + 1 < prop_data.size(); ++i) {
+    const double dt = prop_data[i + 1].timestamp - prop_data[i].timestamp;
+    if (!std::isfinite(dt) || dt <= 0.0 || dt > 0.020) {
+      return reject_prediction("invalid IMU sample interval", dt);
+    }
+  }
 
   // Biases
   Eigen::Vector3d bias_g = cache_state_est.block(10, 0, 3, 1);
