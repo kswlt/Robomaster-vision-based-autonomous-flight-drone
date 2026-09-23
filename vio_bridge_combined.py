@@ -379,7 +379,8 @@ class VIOBridge(Node):
                             mavutil.mavlink.MAV_DATA_STREAM_POSITION, 5, 1)
                     except Exception as e:
                         self.get_logger().warn(f'重连后请求流失败: {e}')
-                    self.clock.reset(reason='serial_reconnect')
+                    self.clock.reset(reason='serial_reconnect',
+                                     preserve_last_stamp=True)
                     self.get_logger().warn(
                         'IMU时钟映射已重置（串口重连），将重新 bootstrap')
                     self.yaw_reset_sent = False

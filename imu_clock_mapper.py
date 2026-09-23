@@ -82,6 +82,7 @@ class ImuClockMapper:
                  tau_s=30.0,
                  gate_s=0.050,
                  jump_s=0.5,
+                 step_s=0.25,
                  win_s=20.0,
                  slope_win_s=90.0,
                  slope_interval_s=5.0,
@@ -97,37 +98,33 @@ class ImuClockMapper:
         self.alpha = 1.0 / max(1.0, self.tau_s * self.nominal_rate)
         self.gate_s = float(gate_s)
         self.jump_s = float(jump_s)
+        # a gap in PX4's own sensor_time larger than this is treated as a time
+        # base step (not jitter): normal spacing is ~4.5-10.5 ms, and a genuine
+        # transport stall delays arrival without stretching sensor_time
+        self.step_s = float(step_s)
         self.win_s = float(win_s)
         self.slope_win_s = float(slope_win_s)
         self.slope_interval_s = float(slope_interval_s)
         self.scale_smooth = float(scale_smooth)
         self.decim = max(1, int(decim))
         self.logger = logger
+        self._init_counters()
+        self.dt_hist = []
+        self.ao_hist = []
+        self.offset_hist = []
+        self.t_start = time.time()
         self.reset()
 
-    # ------------------------------------------------------------------ state
-    def reset(self, reason='startup'):
-        # --- generic ---
-        self.last_sensor_time = None
-        self.last_stamp = None
-        self.ref_sensor = None
+    def _init_counters(self):
+        """Cumulative counters, created once and never zeroed by reset().
+
+        An earlier version zeroed these inside reset(), which had two bad
+        consequences: a fatal mid-stream reset erased the evidence that it had
+        happened, and (because reset() also cleared last_stamp) the next sample
+        could be emitted with a backwards stamp while the repair counter read 0.
+        Diagnostics must survive a reset; only the estimator state is reset.
+        """
         self.n = 0
-        # --- offset estimation ---
-        self.offset = None            # current best offset estimate (seconds)
-        self.offset_ref = None        # offset at ref_sensor
-        self.scale_a = 1.0            # host_rate / px4_rate
-        self.scale_ppm = 0.0
-        self.boot = []                # bootstrap arrival offsets (raw list)
-        self.boot_sorted = []
-        self.bootstrapped = False
-        # --- sliding window low quantile ---
-        self.win = collections.deque()        # (sensor_time, arrival_offset)
-        self.win_sorted = []
-        # --- slope window ---
-        self.slope_pts = collections.deque()  # (sensor_time, arrival_offset)
-        self.last_slope_t = None
-        self.slope_updates = 0
-        # --- counters ---
         self.n_clock_reset = 0
         self.n_gated = 0
         self.n_gate_forced = 0
@@ -136,14 +133,56 @@ class ImuClockMapper:
         self.n_repair_consec_max = 0
         self.n_repair_bad_dt = 0
         self.n_fatal_reset = 0
-        self.consec_gated = 0
+        self.n_reanchor_backwards = 0
+        self.n_resets = 0
         self.last_repair_reason = ''
-        # --- diagnostics ---
-        self.dt_hist = []
-        self.ao_hist = []
-        self.offset_hist = []
-        self.t_start = time.time()
+
+    # ------------------------------------------------------------------ state
+    def reset(self, reason='startup', preserve_last_stamp=False,
+              keep_anchor=False):
+        """Reset the estimator state.
+
+        preserve_last_stamp must be True whenever a reset happens mid-stream:
+        last_stamp is the guarantee of monotonic output, and dropping it lets the
+        next sample jump backwards, which OpenVINS cannot digest.
+
+        keep_anchor must be True when the caller has just computed a valid offset
+        (a re-anchor).  Without it, reset() clears `bootstrapped` and the next
+        sample re-bootstraps from the P5 quantile, silently overwriting the anchor
+        and breaking the continuity that the re-anchor was performed to achieve
+        (measured on the real trace: 59 implausible dt values and 71 repairs).
+        """
+        prev_stamp = self.last_stamp if preserve_last_stamp else None
+        keep_boot = self.bootstrapped if keep_anchor else False
+        keep_offset = self.offset if keep_anchor else None
+        keep_offset_ref = self.offset_ref if keep_anchor else None
+        keep_ref_sensor = self.ref_sensor if keep_anchor else None
+        keep_scale = self.scale_a if keep_anchor else 1.0
+        keep_scale_ppm = self.scale_ppm if keep_anchor else 0.0
+        # --- generic ---
+        self.last_sensor_time = None
+        self.last_stamp = prev_stamp
+        self.ref_sensor = keep_ref_sensor
+        # --- offset estimation ---
+        self.offset = keep_offset
+        self.offset_ref = keep_offset_ref
+        self.scale_a = keep_scale
+        self.scale_ppm = keep_scale_ppm
+        self.boot = []                # bootstrap arrival offsets (raw list)
+        self.boot_sorted = []
+        self.bootstrapped = keep_boot
+        # --- sliding window low quantile ---
+        self.win = collections.deque()        # (sensor_time, arrival_offset)
+        self.win_sorted = []
+        # --- slope window ---
+        self.slope_pts = collections.deque()  # (sensor_time, arrival_offset)
+        self.last_slope_t = None
+        self.slope_updates = 0
+        self.consec_gated = 0
+        self.n_repair_consec = 0
         self.reset_reason = reason
+        if reason != 'startup':
+            self.n_resets += 1
 
     # ------------------------------------------------------------- internals
     def _log(self, level, msg):
@@ -270,6 +309,7 @@ class ImuClockMapper:
     def update(self, sensor_time, arrival_time):
         """Map one PX4 sample.  Returns (stamp_seconds, diag_dict)."""
         self.n += 1
+        self.diag_force_stamp = None
         arrival_offset = arrival_time - sensor_time
         self.ao_hist.append(arrival_offset)
         diag = {
@@ -288,18 +328,44 @@ class ImuClockMapper:
         }
 
         # ---- PX4 time base discontinuity ----
-        if (self.last_sensor_time is not None and
-                sensor_time < self.last_sensor_time - self.jump_s):
-            self.n_clock_reset += 1
-            self._log('warn',
-                      'PX4 IMU time base jumped backwards (%.3f s); re-anchoring '
-                      'clock mapping (reset #%d)'
-                      % (sensor_time - self.last_sensor_time, self.n_clock_reset))
-            diag['clock_reset'] = True
-            self.reset(reason='timebase_backward')
-            self.offset = arrival_offset
-            self.offset_ref = arrival_offset
-            self.ref_sensor = sensor_time
+        # A step in PX4's own time_usec must be absorbed into the offset while the
+        # OUTPUT axis stays continuous.  Fighting it instead (letting the offset
+        # crawl back) produced 99 clamped stamps and 80 implausible dt values in
+        # the regression test.  Absorbing it keeps stamps smooth and monotonic.
+        if self.last_sensor_time is not None:
+            step = sensor_time - self.last_sensor_time
+            if step < -self.jump_s or step > self.step_s:
+                self.n_clock_reset += 1
+                what = 'backwards' if step < 0 else 'forwards'
+                anchor = None
+                if self.last_stamp is not None:
+                    anchor = self.last_stamp + min(1.0 / self.nominal_rate, 0.005)
+                self._log('warn',
+                          'PX4 IMU time base jumped %s by %.6f s; re-anchoring the '
+                          'offset so the output axis stays continuous (event #%d)'
+                          % (what, step, self.n_clock_reset))
+                diag['clock_reset'] = True
+                self.reset(reason='timebase_' + what, preserve_last_stamp=True)
+                if anchor is not None:
+                    # pick the offset that makes the next stamp continue from the
+                    # last emitted one, instead of snapping back to arrival time
+                    self.offset = anchor - sensor_time
+                    self.offset_ref = self.offset
+                    self.ref_sensor = sensor_time
+                    self.scale_a = 1.0
+                    stamp_anchor = anchor
+                else:
+                    self.offset = arrival_time - sensor_time
+                    self.offset_ref = self.offset
+                    self.ref_sensor = sensor_time
+                    stamp_anchor = None
+                # Keep the anchor: without this, _update_slow() below sees
+                # bootstrapped == False and immediately replaces the offset we
+                # just computed with the window P5 quantile, destroying the
+                # continuity the re-anchor exists to provide.
+                self.bootstrapped = True
+                # let the estimator rebuild its windows around the new anchor
+                self.diag_force_stamp = stamp_anchor
 
         # ---- offset / timescale estimation ----
         if self.mode == 'lower':
@@ -329,19 +395,43 @@ class ImuClockMapper:
             stamp = ((self.ref_sensor + self.offset_ref) +
                      (sensor_time - self.ref_sensor) * self.scale_a)
         else:
-            stamp = sensor_time + self.offset
+            # A time base step was absorbed above: emit the continuous anchor so
+            # the output axis does not jump or reverse.
+            stamp = (self.diag_force_stamp if self.diag_force_stamp is not None
+                     else sensor_time + self.offset)
 
         if abs(stamp - arrival_time) > self.jump_s:
-            self._log('warn',
-                      'mapped IMU stamp deviates %.3f s from arrival time; '
-                      're-anchoring clock mapping' % (stamp - arrival_time))
+            # The mapping has drifted far from arrival time.  This happens when
+            # PX4's own time_usec steps (observed: a +0.5 s step), and the offset
+            # estimate is then wrong by that step until it is re-anchored.
+            raw_stamp = stamp
             self.offset = arrival_time - sensor_time
             self.offset_ref = self.offset
             self.ref_sensor = sensor_time
             self.scale_a = 1.0
+            self.bootstrapped = True     # keep this anchor (see note above)
             stamp = arrival_time
-            self.last_stamp = None
             diag['clock_reset'] = True
+            self.n_clock_reset += 1
+            # Re-anchoring must NOT move the IMU axis backwards: OpenVINS cannot
+            # digest a backwards stamp, and the previous version of this code
+            # cleared last_stamp here, which produced a -0.49 s discontinuity
+            # (measured on a real PX4 trace).  Hold monotonicity instead and
+            # count the event so the underlying PX4 step stays visible.
+            if self.last_stamp is not None and stamp <= self.last_stamp:
+                self.n_reanchor_backwards += 1
+                self._log('warn',
+                          're-anchor would step the IMU axis backwards by %.6f s '
+                          '(raw stamp %.6f -> arrival %.6f); holding monotonicity '
+                          '(event #%d). This indicates a PX4 time_usec step.'
+                          % (self.last_stamp - stamp, raw_stamp, arrival_time,
+                             self.n_reanchor_backwards))
+                stamp = self.last_stamp + MIN_PLAUSIBLE_DT
+            else:
+                self._log('warn',
+                          'mapped IMU stamp deviated %.6f s from arrival time; '
+                          're-anchored clock mapping (event #%d)'
+                          % (raw_stamp - arrival_time, self.n_clock_reset))
             self.n_clock_reset += 1
 
         # ---- monotonicity guard: explicit, counted, never silent ----
@@ -365,11 +455,14 @@ class ImuClockMapper:
                               'resetting clock mapping'
                               % (self.n_repair_consec, orig_dt))
                     self.n_fatal_reset += 1
-                    self.reset(reason='consecutive_repairs')
+                    self.reset(reason='consecutive_repairs', preserve_last_stamp=True)
                     self.offset = arrival_time - sensor_time
                     self.offset_ref = self.offset
                     self.ref_sensor = sensor_time
-                    stamp = arrival_time
+                    # keep monotonicity even on the fatal path: derive the stamp
+                    # from the last emitted one rather than from arrival time
+                    stamp = (self.last_stamp + MIN_PLAUSIBLE_DT
+                             if self.last_stamp is not None else arrival_time)
                     dt = None
             else:
                 self.n_repair_consec = 0
@@ -433,6 +526,8 @@ class ImuClockMapper:
             'n_repairs_consecutive_max': self.n_repair_consec_max,
             'n_repairs_bad_dt': self.n_repair_bad_dt,
             'n_fatal_resets': self.n_fatal_reset,
+            'n_reanchor_backwards': self.n_reanchor_backwards,
+            'n_resets': self.n_resets,
             'last_repair_reason': self.last_repair_reason,
             'arrival_offset': self._stats(self.ao_hist),
             'dt': self._stats(self.dt_hist),
@@ -459,10 +554,11 @@ class ImuClockMapper:
             L.append('  final rate   : %.3f Hz (nominal %.1f)'
                      % (1.0 / d['mean'] if d['mean'] else 0.0, self.nominal_rate))
         L.append('  repairs=%d (max consecutive %d, implausible-dt %d) resets=%d '
-                 'gated=%d gate_forced=%d clock_resets=%d'
+                 'gated=%d gate_forced=%d clock_resets=%d reanchor_backwards=%d'
                  % (s['n_repairs'], s['n_repairs_consecutive_max'],
                     s['n_repairs_bad_dt'], s['n_fatal_resets'], s['n_gated'],
-                    s['n_gate_forced'], s['n_clock_reset']))
+                    s['n_gate_forced'], s['n_clock_reset'],
+                    s['n_reanchor_backwards']))
         return '\n'.join(L)
 
 
