@@ -1,0 +1,58 @@
+%YAML:1.0
+
+# camera-IMU temporal offset, MEASURED not guessed.
+#
+# Was +0.001256 in this repository while the machine actually ran -0.010, so the
+# committed value never described the validated configuration.
+#
+# A single-variable sweep on one immutable bag (LASEROFF3, 64 s, still 17 s +
+# rotating 45 s) over 15 settings gives a two-sided minimum:
+#
+#     +0.005   -> closure 0.2987 m   (and a 12.0 cm single-frame jump)
+#     +0.001256-> closure 0.1890 m   <-- what this file used to say
+#      0.0     -> closure 0.1747 m
+#     -0.005   -> closure 0.1325 m
+#     -0.008   -> closure 0.1061 m
+#     -0.010   -> closure 0.0664 m   <-- what the machine ran
+#     -0.012   -> closure 0.0654 m
+#     -0.015   -> closure 0.0279 m   <-- MINIMUM
+#     -0.018   -> closure 0.0506 m
+#     -0.020   -> closure 0.0752 m   (1 jump > 10 cm)
+#     -0.024   -> closure 0.9750 m   (COLLAPSE)
+#
+# Repeatability of the pipeline is <= 2% on a repeat run of the same config.
+# Usable window is roughly -0.010 .. -0.018; -0.015 is the minimum.
+#
+# Sanity check: the D430 exposure in use is 8500 us, so a camera timestamp that
+# marks frame-ready rather than mid-exposure implies a true offset of roughly
+# exposure/2 + readout + USB/ROS latency ~= 10-15 ms, consistent with -0.015.
+#
+# Re-derive with: scripts/sweep_timeshift.sh + scripts/analyze_all.sh
+cam0:
+  timeshift_cam_imu: -0.015
+  T_imu_cam:
+    - [0.001031, -0.014090, 0.999900, 0.077055]
+    - [-0.999929, 0.011886, 0.001199, 0.022100]
+    - [-0.011902, -0.999830, -0.014077, 0.021867]
+    - [0.000000, 0.000000, 0.000000, 1.000000]
+  cam_overlaps: [1]
+  camera_model: pinhole
+  distortion_coeffs: [0.0, 0.0, 0.0, 0.0, 0.0]
+  distortion_model: radtan
+  intrinsics: [422.216200, 422.216200, 423.230800, 240.207100]
+  resolution: [848, 480]
+  rostopic: /camera/camera/infra1/image_rect_raw
+
+cam1:
+  T_imu_cam:
+    - [0.002307, -0.011917, 0.999926, 0.078242]
+    - [-0.999929, 0.011686, 0.002446, -0.024760]
+    - [-0.011715, -0.999861, -0.011889, 0.021220]
+    - [0.000000, 0.000000, 0.000000, 1.000000]
+  cam_overlaps: [0]
+  camera_model: pinhole
+  distortion_coeffs: [0.0, 0.0, 0.0, 0.0, 0.0]
+  distortion_model: radtan
+  intrinsics: [422.216200, 422.216200, 423.230800, 240.207100]
+  resolution: [848, 480]
+  rostopic: /camera/camera/infra2/image_rect_raw

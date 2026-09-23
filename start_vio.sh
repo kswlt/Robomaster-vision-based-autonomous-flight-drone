@@ -111,6 +111,14 @@ for f in "$BRIDGE_PY" "$MAPPER_PY"; do
   fi
 done
 echo "TIMESHIFT_IN_FILE $(grep -h timeshift_cam_imu "$CONFIG_DIR/kalibr_imucam_chain.yaml" | head -1 | tr -d ' ')"
+# 双目相对外参不能只看文件写了什么，要看反推出来的实际基线，所以启动时直接算一遍
+SETEXT="$SELF_DIR/scripts/set_extrinsics.sh"
+[ -f "$SETEXT" ] || SETEXT="$WS/scripts/set_extrinsics.sh"
+if [ -f "$SETEXT" ]; then
+  VIO_CFG_DIR="$CONFIG_DIR" bash "$SETEXT" show
+else
+  echo "WARN: scripts/set_extrinsics.sh not found -- effective stereo baseline NOT verified"
+fi
 
 # -------------------------------------------------------- stage 1: hardware
 echo

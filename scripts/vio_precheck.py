@@ -87,12 +87,13 @@ def check_config(cfgdir):
         if key == 'try_zupt':
             continue
         mm = re.search(r'^%s:\s*(\S+)' % key, e, re.M)
+        got = mm.group(1).strip('"\'') if mm else None
         if not mm:
             fail('estimator_config.yaml missing %s' % key)
-        elif mm.group(1) != want:
-            warn('%s = %s (expected %s)' % (key, mm.group(1), want))
+        elif got != want:
+            warn('%s = %s (expected %s)' % (key, got, want))
         else:
-            ok('%s = %s' % (key, mm.group(1)))
+            ok('%s = %s' % (key, got))
 
     # ZUPT semantics: chi2_multipler == 0 makes UpdaterZeroVelocity reject every
     # update (chi2_limit = 0), while the INFO log still prints "passed disparity".
@@ -125,6 +126,48 @@ def check_config(cfgdir):
             fail('timeshift_cam_imu not found inside the cam0 block')
     else:
         fail('no cam0 block in kalibr_imucam_chain.yaml')
+
+    # --- stereo intrinsic/extrinsic consistency -----------------------------
+    #
+    # The estimator only ever sees cam1's pose RELATIVE to cam0, computed as
+    #   T_cam1_cam0 = inv(T_imu_cam1) * T_imu_cam0
+    # and the images it is given are the RealSense RECTIFIED streams.  The bags
+    # carry the CameraInfo for those streams and it states the rectified stereo
+    # geometry exactly: identical K/P for both cameras, zero distortion, and
+    # P[3](infra2) = -21.168875 with fx = 422.216248  =>  baseline 50.137518 mm
+    # (which is also the D430 factory baseline).  The shipped YAML used to
+    # triangulate with only 46.98 mm, i.e. every feature depth came out 6.3%
+    # short -- a scale error that is invisible at rest and grows with motion.
+    # Check it here so a wrong extrinsic can never silently reach the estimator.
+    try:
+        import numpy as _np
+        T = {}
+        for camname in ('cam0', 'cam1'):
+            blk = re.search(r'^%s:\s*$(.*?)(?=^cam\d:|\Z)' % camname,
+                            c, re.S | re.M).group(1)
+            rows = re.findall(r'\[([^\]]*)\]',
+                              re.search(r'T_imu_cam:\s*\n((?:\s*-\s*\[[^\]]*\]\s*\n){4})',
+                                        blk).group(1))
+            T[camname] = _np.array([[float(x) for x in r.split(',')] for r in rows])
+        A = _np.linalg.inv(T['cam1']) @ T['cam0']
+        base_mm = float(_np.linalg.norm(A[:3, 3])) * 1000.0
+        ang = float(_np.degrees(_np.arccos(
+            _np.clip((_np.trace(A[:3, :3]) - 1) / 2, -1, 1))))
+        ok('stereo baseline (cam1 relative to cam0) = %.4f mm, relative rotation '
+           '= %.4f deg' % (base_mm, ang))
+        if abs(base_mm - 50.137518) / 50.137518 > 0.01:
+            fail('stereo baseline is %.4f mm but the RealSense rectified geometry '
+                 'is 50.137518 mm -> %.2f%% off; every triangulated depth will be '
+                 'scaled wrong.  Fix with: scripts/set_extrinsics.sh rect50'
+                 % (base_mm, 100.0 * (base_mm - 50.137518) / 50.137518))
+        else:
+            ok('stereo baseline matches the rectified CameraInfo geometry '
+               '(50.137518 mm) within 1%')
+        if ang > 0.05:
+            warn('relative rotation between the two cameras is %.4f deg; for '
+                 'rectified streams it should be 0 (set_extrinsics.sh rect50)' % ang)
+    except Exception as exc:                            # noqa: BLE001
+        warn('could not verify the stereo extrinsic consistency: %s' % exc)
 
     mm = re.search(r'^update_rate:\s*([\d.]+)', m, re.M)
     if mm:
@@ -217,7 +260,21 @@ def check_hw(cfgdir):
     elif lp == 0.0:
         ok('laser_power = 0 (persistent; this is the reliable off switch)')
     else:
-        fail('laser_power = %s (expected 0; the projector can emit)' % lp)
+        # laser_power is a PERSISTENT device option, so the hardware stage can
+        # and must fix it here.  Merely failing on it deadlocks the whole chain:
+        # the camera stage, which is the stage that re-asserts the projector off,
+        # would never be reached, and the startup would abort forever on a
+        # setting left behind by any earlier session.
+        try:
+            sen.set_option(names['laser_power'], 0.0)
+            lp2 = rd('laser_power')
+        except Exception as exc:                       # noqa: BLE001
+            lp2 = None
+            warn('laser_power write failed: %s' % exc)
+        if lp2 == 0.0:
+            ok('laser_power was %s -> forced to 0, read back 0 (persists)' % lp)
+        else:
+            fail('laser_power could not be forced to 0 (read back %s)' % lp2)
     if ee is None:
         warn('emitter_enabled option not exposed')
     elif ee == 0.0:
@@ -379,7 +436,27 @@ def check_camera(cfgdir, domain, timeout=40.0):
 
 
 # ------------------------------------------------------------------------ imu
-def check_imu(cfgdir, domain, timeout=25.0, expect_min_hz=180.0):
+def check_imu(cfgdir, domain, timeout=25.0, expect_min_hz=100.0,
+              expect_nominal_hz=190.0):
+    """检查 /imu 的时间戳质量。
+
+    关于速率的策略（这是实测出来的，不是拍的）：
+      本机 PX4 的 HIGHRES_IMU 实测只有 ~145 Hz，而且 MAVLink seq 完全连续
+      （1999 个相邻差全为 1，丢失率 0.00%），所以不是我们丢包。
+      在板子上做过对照实验：
+        - SET_MESSAGE_INTERVAL 把 msgid 234 设成 5000/2500/1000 us
+          -> 实得 145.8 / 145.1 / 145.7 Hz，完全无效
+        - GET_MESSAGE_INTERVAL 对 msgid 234 返回 interval_us = -1
+        - RAW_SENSORS 流请求 100 Hz 或 400 Hz -> 都是 145 Hz
+        - 把 ATTITUDE/ODOMETRY 等所有高频流压到 1 Hz、总消息降到 240/s
+          -> HIGHRES_IMU 仍然只有 154 Hz
+      即这个速率是 PX4 自己定的（USB 实例走 Normal 档位的预置流），
+      从伴飞机这一侧改不动。
+      因此这里只对"真正不可用"的速率 fail：< 100 Hz 说明 IMU 链路本身出了问题；
+      100~190 Hz 是警告，并明确写清原因，避免把一个改不了的条件当成启动阻塞。
+      要真正拿到 200 Hz 需要改飞控侧（把对应 MAVLink 实例的模式改成 Onboard
+      之类）并重启飞控，那属于飞控改动，不在本脚本职责内。
+    """
     print('-- imu (ROS) --')
     import rclpy
     from rclpy.node import Node
@@ -409,10 +486,22 @@ def check_imu(cfgdir, domain, timeout=25.0, expect_min_hz=180.0):
         return
     d = sorted(stamps[i + 1] - stamps[i] for i in range(n - 1))
     rate = (n - 1) / (stamps[-1] - stamps[0])
+    p95 = d[int(0.95 * (len(d) - 1))]
     ok('/imu: %d msgs, %.2f Hz, dt p50=%.3f ms p95=%.3f ms max=%.3f ms'
-       % (n, rate, d[len(d) // 2] * 1e3, d[int(0.95 * (len(d) - 1))] * 1e3, d[-1] * 1e3))
+       % (n, rate, d[len(d) // 2] * 1e3, p95 * 1e3, d[-1] * 1e3))
     if rate < expect_min_hz:
-        fail('/imu rate %.2f Hz < %.0f Hz' % (rate, expect_min_hz))
+        fail('/imu rate %.2f Hz < %.0f Hz -> the IMU link itself is broken'
+             % (rate, expect_min_hz))
+    elif rate < expect_nominal_hz:
+        warn('/imu rate %.2f Hz is below the %.0f Hz target, but this is a PX4-side '
+             'cap, not message loss: MAVLink seq is contiguous (0%% loss) and '
+             'SET_MESSAGE_INTERVAL / stream-rate requests / silencing other streams '
+             'were all measured to have no effect.  OpenVINS runs fine on it; the '
+             'cost is a coarser propagation step (dt p95 = %.2f ms).  Raising it '
+             'needs a flight-controller change (MAVLink instance mode), not a '
+             'companion-side one.' % (rate, expect_nominal_hz, p95 * 1e3))
+    else:
+        ok('/imu rate %.2f Hz meets the %.0f Hz target' % (rate, expect_nominal_hz))
     bad = sum(1 for x in d if x <= 0)
     if bad:
         fail('%d /imu messages with non-increasing timestamps' % bad)
@@ -421,6 +510,12 @@ def check_imu(cfgdir, domain, timeout=25.0, expect_min_hz=180.0):
     tiny = sum(1 for x in d if 0 < x < 1e-4)
     if tiny:
         fail('%d IMU dt values below 100 us (timestamp clamping?)' % tiny)
+    long_gaps = sum(1 for x in d if x > 0.020)
+    if long_gaps > max(3, n // 300):
+        warn('%d IMU gaps longer than 20 ms in %d samples (max %.1f ms)'
+             % (long_gaps, n, d[-1] * 1e3))
+    else:
+        ok('no significant IMU gaps (only %d > 20 ms)' % long_gaps)
     node.destroy_node()
     rclpy.shutdown()
 
