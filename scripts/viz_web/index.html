@@ -9,6 +9,7 @@
   body { margin:0; background:#111; color:#ddd; font-family: sans-serif; }
   #bar { padding:8px 14px; background:#1a1a2e; font-size:13px; }
   #bar b { color:#4fc3f7; }
+  #toggle { margin-left:12px; padding:3px 10px; background:#263238; color:#80cbc4; border:1px solid #37474f; border-radius:4px; cursor:pointer; font-size:13px; }
   .row { display:flex; height:62vh; }
   .cell { flex:1; margin:6px; }
   .row2 { display:flex; height:30vh; }
@@ -19,8 +20,10 @@
 <div id="bar">
   <b>OpenVINS 实时轨迹</b> &nbsp; 连接: <span id="conn">连接中…</span>
   &nbsp; 点数: <span id="cnt">0</span>
-  &nbsp; 当前位置: <span id="pos">-</span> &nbsp; <span id="status"></span>
-  <span style="float:right">刷新间隔 1s | frame=global</span>
+  &nbsp; 当前位置: <span id="pos">-</span>
+  &nbsp; 显示坐标系: <button id="toggle">NED（北-东-地）</button>
+  <span id="status"></span>
+  <span style="float:right">刷新间隔 1s | 原始数据 frame=global(ENU)</span>
 </div>
 <div class="row">
   <div class="cell" id="c3d"></div>
@@ -42,13 +45,24 @@ var c3d=echarts.init(document.getElementById('c3d'));
 var cxy=echarts.init(document.getElementById('cxy'));
 var crpy=echarts.init(document.getElementById('crpy'));
 var cvel=echarts.init(document.getElementById('cvel'));
-var trail=[];
+var frameMode='NED';
+document.getElementById('toggle').onclick=function(){
+  frameMode=(frameMode==='NED')?'ENU':'NED';
+  this.textContent=frameMode==='NED'?'NED（北-东-地）':'ENU（东-北-天）';
+  var cur=window.__lastPts; if(cur) draw({pts:cur,t0:window.__lastT0});
+};
+// position transform: ENU(x东,y北,z上) -> NED(x北,y东,z下)
+function tfPos(p){
+  if(frameMode==='NED') return [p[1], p[2], -p[3]];
+  return [p[1], p[2], p[3]];
+}
 function draw(data){
   var pts=data.pts||[];
   document.getElementById('cnt').textContent=pts.length;
+  window.__lastPts=pts; window.__lastT0=data.t0;
   if(!pts.length){ return; }
-  var X=pts.map(p=>p[1]), Y=pts.map(p=>p[2]), Z=pts.map(p=>p[3]);
-  var last=pts[pts.length-1];
+  var X=pts.map(p=>tfPos(p)[0]), Y=pts.map(p=>tfPos(p)[1]), Z=pts.map(p=>tfPos(p)[2]);
+  var last=pts[pts.length-1], lastPos=tfPos(last);
   var t=[];
   for(var i=0;i<pts.length;i++){ t.push(pts[i][0]-data.t0); }
   var n=pts.length>6000?6000:pts.length;
@@ -57,18 +71,22 @@ function draw(data){
     backgroundColor:'#111',
     tooltip:{},
     grid3D:{boxWidth:4,boxDepth:4,viewControl:{autoRotate:false},light:{main:{intensity:1.2,shadow:true}}},
-    xAxis3D:{type:'value',name:'X'}, yAxis3D:{type:'value',name:'Y'}, zAxis3D:{type:'value',name:'Z'},
+    xAxis3D:{type:'value',name:'X'+(frameMode==='NED'?'(北)':'(东)')},
+    yAxis3D:{type:'value',name:'Y'+(frameMode==='NED'?'(东)':'(北)')},
+    zAxis3D:{type:'value',name:'Z'+(frameMode==='NED'?'(下)':'(上)')},
     series:[
       {type:'line3D',data:sX.map((x,i)=>[x,sY[i],sZ[i]]),lineStyle:{width:3,color:'#4fc3f7'}},
-      {type:'scatter3D',data:[[last[1],last[2],last[3]]],symbolSize:12,itemStyle:{color:'#ff5252'}}
+      {type:'scatter3D',data:[[lastPos[0],lastPos[1],lastPos[2]]],symbolSize:12,itemStyle:{color:'#ff5252'}}
     ]
   });
   cxy.setOption({
     backgroundColor:'#111',tooltip:{},
-    xAxis:{type:'value',name:'X'}, yAxis:{type:'value',name:'Y'}, grid:{left:50,right:20,top:20,bottom:40},
+    xAxis:{type:'value',name:'X'+(frameMode==='NED'?'(北)':'(东)')},
+    yAxis:{type:'value',name:'Y'+(frameMode==='NED'?'(东)':'(北)')},
+    grid:{left:50,right:20,top:20,bottom:40},
     series:[
       {type:'line',data:sX.map((x,i)=>[x,sY[i]]),showSymbol:false,lineStyle:{width:2,color:'#4fc3f7'}},
-      {type:'scatter',data:[[last[1],last[2]]],symbolSize:10,itemStyle:{color:'#ff5252'}}
+      {type:'scatter',data:[[lastPos[0],lastPos[1]]],symbolSize:10,itemStyle:{color:'#ff5252'}}
     ]
   });
   var rpy=pts.map(p=>q2rpy([p[4],p[5],p[6],p[7]]));
@@ -90,7 +108,7 @@ function draw(data){
     grid:{left:50,right:20,top:20,bottom:40},
     series:[{type:'line',showSymbol:false,data:dt.slice(-2000),lineStyle:{width:1,color:'#ffb74d'}}]
   });
-  document.getElementById('pos').textContent='('+last[1].toFixed(3)+', '+last[2].toFixed(3)+', '+last[3].toFixed(3)+')';
+  document.getElementById('pos').textContent='('+lastPos[0].toFixed(3)+', '+lastPos[1].toFixed(3)+', '+lastPos[2].toFixed(3)+') '+frameMode;
 }
 function poll(){
   fetch('/api').then(r=>r.json()).then(d=>{document.getElementById('conn').textContent='OK';draw(d);})
