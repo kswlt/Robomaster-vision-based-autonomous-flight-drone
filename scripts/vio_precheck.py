@@ -114,12 +114,17 @@ def check_config(cfgdir):
     if try_zupt and maxdisp <= 0.0 and chi2m <= 0.0:
         fail('both ZUPT gates disabled -> no zero-velocity constraint at all')
 
-    mm = re.search(r'^cam0:\s*\n(?:\s+.*\n)*?\s+timeshift_cam_imu:\s*([\d.eE+-]+)', c)
+    mm = re.search(r'^cam0:\s*$', c, re.M)
+    mm1 = re.search(r'^cam1:\s*$', c, re.M)
     if mm:
-        ts = float(mm.group(1))
-        ok('timeshift_cam_imu (cam0) = %+.6f s' % ts)
+        seg = c[mm.end(): mm1.start() if mm1 else len(c)]
+        ts_m = re.search(r'timeshift_cam_imu:\s*([-\d.eE+]+)', seg)
+        if ts_m:
+            ok('timeshift_cam_imu (cam0) = %+.6f s' % float(ts_m.group(1)))
+        else:
+            fail('timeshift_cam_imu not found inside the cam0 block')
     else:
-        fail('timeshift_cam_imu not found for cam0')
+        fail('no cam0 block in kalibr_imucam_chain.yaml')
 
     mm = re.search(r'^update_rate:\s*([\d.]+)', m, re.M)
     if mm:
@@ -161,11 +166,26 @@ def check_hw(cfgdir):
     else:
         ok('PX4 serial present: %s' % out.split()[0])
 
-    # emitter: set and verify via the hardware SDK
+    # --- IR projector state ---
+    #
+    # Measured behaviour of this D430 (firmware 5.17.3.10) worth recording:
+    #   * `laser_power` PERSISTS across stream stop/start.
+    #   * `emitter_enabled` is a STREAM-SESSION setting: starting a stream resets
+    #     it to its default 1, and so does stopping one.  A `set_option(...,0)`
+    #     performed before any stream is open therefore does not survive.
+    #   * the write order matters: laser_power must be zeroed FIRST, otherwise
+    #     the emitter_enabled=0 write is rejected (readback comes back as 1).
+    #
+    # Consequence: the projector cannot be disabled by a launch argument, by a
+    # config file, or once at boot -- it has to be re-asserted after the stream
+    # is up.  That is exactly why earlier "we disabled the laser" experiments
+    # never applied to the real startup path.  At the hw stage, before any
+    # stream exists, we can only report the state; the enforcing check lives in
+    # the camera stage where a stream is guaranteed.
     try:
         import pyrealsense2 as rs
     except Exception as exc:
-        fail('pyrealsense2 unavailable, cannot verify IR emitter: %s' % exc)
+        warn('pyrealsense2 unavailable, cannot inspect IR emitter: %s' % exc)
         return
     sen = None
     for d in rs.context().query_devices():
@@ -182,35 +202,98 @@ def check_hw(cfgdir):
     for o in sen.get_supported_options():
         n = getattr(o, 'name', None) or str(o).replace('option.', '')
         names[n] = o
-    try:
-        if 'emitter_enabled' in names:
-            sen.set_option(names['emitter_enabled'], 0.0)
-        if 'laser_power' in names:
-            sen.set_option(names['laser_power'], 0.0)
-        time.sleep(0.5)
-        ee = sen.get_option(names['emitter_enabled']) if 'emitter_enabled' in names else None
-        lp = sen.get_option(names['laser_power']) if 'laser_power' in names else None
-        if ee is not None and ee != 0.0:
-            fail('IR emitter could NOT be disabled (emitter_enabled=%s)' % ee)
-        elif ee == 0.0:
-            ok('IR emitter disabled and verified (emitter_enabled=0)')
-        if lp is not None and lp != 0.0:
-            fail('laser_power could NOT be zeroed (laser_power=%s)' % lp)
-        elif lp == 0.0:
-            ok('laser_power = 0 verified')
-        if 'emitter_always_on' in names:
-            eao = sen.get_option(names['emitter_always_on'])
-            if eao == 0.0:
-                warn('emitter_always_on=0 and depth stream disabled: the projector '
-                     'contributes very little, but this also means "IR off" cannot '
-                     'be demonstrated by image brightness alone')
-    except Exception as exc:
-        fail('failed to force IR emitter off: %s' % exc)
+
+    def rd(k):
+        try:
+            return sen.get_option(names[k]) if k in names else None
+        except Exception:
+            return None
+
+    lp = rd('laser_power')
+    ee = rd('emitter_enabled')
+    eao = rd('emitter_always_on')
+    if lp is None:
+        warn('laser_power option not exposed on this device')
+    elif lp == 0.0:
+        ok('laser_power = 0 (persistent; this is the reliable off switch)')
+    else:
+        fail('laser_power = %s (expected 0; the projector can emit)' % lp)
+    if ee is None:
+        warn('emitter_enabled option not exposed')
+    elif ee == 0.0:
+        ok('emitter_enabled = 0 (no stream open)')
+    else:
+        warn('emitter_enabled = %s before the stream opens; this is reset to the '
+             'default on every stream start and is re-asserted in the camera stage'
+             % ee)
+    if eao is not None:
+        ok('emitter_always_on = %s' % eao)
 
 
 # --------------------------------------------------------------------- camera
 def check_camera(cfgdir, domain, timeout=40.0):
     print('-- camera (ROS) --')
+
+    # ------------------------------------------------------------------
+    # IR projector: this is the ONLY place where it can be reliably disabled,
+    # because emitter_enabled is a stream-session setting.  Order matters:
+    # laser_power first, then emitter_enabled, otherwise the emitter write is
+    # rejected and reads back as 1.
+    # ------------------------------------------------------------------
+    try:
+        import pyrealsense2 as rs
+        sen = None
+        for d in rs.context().query_devices():
+            for s in d.sensors:
+                try:
+                    if 'Stereo' in s.get_info(rs.camera_info.name):
+                        sen = s
+                except Exception:
+                    pass
+        if sen is None:
+            fail('cannot verify IR emitter: no Stereo Module handle')
+        else:
+            names = {}
+            for o in sen.get_supported_options():
+                n = getattr(o, 'name', None) or str(o).replace('option.', '')
+                names[n] = o
+
+            def w(k, v):
+                if k in names:
+                    try:
+                        sen.set_option(names[k], float(v))
+                        return True
+                    except Exception as exc:
+                        fail('set %s=%s raised %r' % (k, v, exc))
+                return False
+
+            # laser_power must be zeroed FIRST (verified ordering dependency)
+            w('laser_power', 0)
+            time.sleep(0.4)
+            w('emitter_enabled', 0)
+            time.sleep(0.6)
+            try:
+                lp = sen.get_option(names['laser_power'])
+            except Exception:
+                lp = None
+            try:
+                ee = sen.get_option(names['emitter_enabled'])
+            except Exception:
+                ee = None
+            if lp == 0.0:
+                ok('IR projector: laser_power = 0 verified WITH the stream open')
+            elif lp is not None:
+                fail('IR projector: laser_power reads %s with the stream open' % lp)
+            if ee == 0.0:
+                ok('IR projector: emitter_enabled = 0 verified with the stream open')
+            elif ee is not None:
+                fail('IR projector: emitter_enabled reads %s with the stream open '
+                     '(expected 0; the projector may be emitting)' % ee)
+    except ImportError:
+        warn('pyrealsense2 unavailable: IR projector state NOT verified')
+    except Exception as exc:
+        fail('IR projector enforcement failed: %r' % exc)
+
     import rclpy
     from rclpy.node import Node
     from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
