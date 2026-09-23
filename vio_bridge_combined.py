@@ -8,6 +8,7 @@
 import glob
 import math
 import os
+import sys
 import threading
 import time
 
@@ -17,6 +18,12 @@ from pymavlink import mavutil
 from pymavlink.dialects.v20 import common as mavlink_v20
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
+
+# PX4-boot-clock -> ROS-clock mapping with explicit diagnostics.  Kept in a
+# separate module so the same code can be replayed offline over recorded
+# (sensor_time, arrival_time) traces to A/B the strategies.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from imu_clock_mapper import ImuClockMapper  # noqa: E402
 
 class VIOBridge(Node):
     SYSTEM_ID = 42
@@ -34,6 +41,21 @@ class VIOBridge(Node):
         # Fail-safe default: the estimator can be observed without injecting
         # anything into PX4.  Enable explicitly only after a controlled test.
         self.declare_parameter('send_vision_to_px4', False)
+        # --- IMU clock mapping (see imu_clock_mapper.py) ---
+        # 'slow'   : robust low-quantile offset + explicit host/px4 frequency
+        #            ratio (default, validated)
+        # 'ema005' : previous per-packet EMA (writes transport jitter into the
+        #            IMU axis)
+        # 'lower'  : legacy lower-envelope (kept only to reproduce the old bug)
+        self.declare_parameter('imu_clock_mode', 'slow')
+        self.declare_parameter('imu_clock_tau_s', 30.0)
+        self.declare_parameter('imu_clock_win_s', 20.0)
+        self.declare_parameter('imu_clock_slope_win_s', 90.0)
+        self.declare_parameter('imu_clock_nominal_rate', 200.0)
+        # per-packet diagnostic trace (sensor/arrival/offset/stamp/dt)
+        self.declare_parameter('imu_diag_enable', True)
+        self.declare_parameter('imu_diag_csv', '/tmp/imu_clock_diag.csv')
+        self.declare_parameter('imu_diag_summary_period_s', 30.0)
 
         port = self.get_parameter('serial_port').value
         baud = self.get_parameter('baudrate').value
@@ -69,10 +91,36 @@ class VIOBridge(Node):
 
         # Preserve the PX4 sampling interval while mapping its boot clock to ROS time.
         # Arrival-time stamping adds serial and scheduler jitter to every IMU sample.
-        self.imu_clock_offset = None
-        self.last_imu_sensor_time = None
-        self.last_imu_stamp = None
+        self.clock_mode = str(self.get_parameter('imu_clock_mode').value)
+        self.clock = ImuClockMapper(
+            mode=self.clock_mode,
+            nominal_rate=float(self.get_parameter('imu_clock_nominal_rate').value),
+            tau_s=float(self.get_parameter('imu_clock_tau_s').value),
+            win_s=float(self.get_parameter('imu_clock_win_s').value),
+            slope_win_s=float(self.get_parameter('imu_clock_slope_win_s').value),
+            logger=self.get_logger())
+        self.get_logger().warn(
+            f'IMU时钟映射模式 = {self.clock_mode} '
+            f'(tau={self.get_parameter("imu_clock_tau_s").value}s, '
+            f'win={self.get_parameter("imu_clock_win_s").value}s)')
         self.last_clock_refine_log = 0.0
+        # per-packet diagnostics
+        self.imu_diag_enable = bool(self.get_parameter('imu_diag_enable').value)
+        self.imu_diag_csv = str(self.get_parameter('imu_diag_csv').value)
+        self.imu_diag_period = float(
+            self.get_parameter('imu_diag_summary_period_s').value)
+        self.imu_diag_fp = None
+        self.imu_diag_n = 0
+        self.imu_diag_last_summary = time.time()
+        if self.imu_diag_enable:
+            try:
+                self.imu_diag_fp = open(self.imu_diag_csv, 'w')
+                self.imu_diag_fp.write(
+                    'seq,sensor_time,arrival_time,arrival_offset,clock_offset,'
+                    'stamp,dt,repaired,repaired_orig_dt,scale_ppm,gated\n')
+            except Exception as e:
+                self.get_logger().error(f'无法打开IMU诊断文件 {self.imu_diag_csv}: {e}')
+                self.imu_diag_fp = None
 
         # VIO健康门控：启动时先观察，运行后 fail-closed 并锁存故障。
         self.vio_healthy = False
@@ -191,56 +239,59 @@ class VIOBridge(Node):
             self.get_logger().info('IMU读取线程已启动')
 
     def imu_timestamp(self, msg):
-        """Map PX4 HIGHRES_IMU sample time into the ROS system-time domain."""
+        """Map a PX4 HIGHRES_IMU sample time into the ROS system-time domain.
+
+        The mapping itself lives in ImuClockMapper so that the strategy can be
+        A/B compared offline on recorded traces.  Everything this function does
+        beyond delegating is bookkeeping: diagnostics and periodic summaries.
+        """
         now = self.get_clock().now().nanoseconds * 1e-9
         sensor_usec = int(getattr(msg, 'time_usec', 0) or 0)
+        diag = None
         if sensor_usec <= 0:
+            # No sensor time at all: arrival-time stamping is the only option.
             stamp = now
+        elif sensor_usec >= 1_000_000_000_000:
+            # PX4 is already reporting an epoch-based time base; use it directly.
+            stamp = sensor_usec * 1e-6
         else:
-            sensor_time = sensor_usec * 1e-6
-            if sensor_usec >= 1_000_000_000_000:
-                stamp = sensor_time
-            else:
-                clock_reset = (
-                    self.last_imu_sensor_time is not None and
-                    sensor_time < self.last_imu_sensor_time - 0.5)
-                arrival_offset = now - sensor_time
-                if self.imu_clock_offset is None or clock_reset:
-                    self.imu_clock_offset = arrival_offset
-                    self.get_logger().info(
-                        f'PX4 IMU时钟已映射到ROS时间, offset={self.imu_clock_offset:.6f}s')
-                else:
-                    # Follow the real PX4-vs-host clock drift with an EMA that
-                    # can rise or fall.  The old lower-envelope rule only ever
-                    # decreased the offset, accumulating a slow drift
-                    # (-0.9 ms/s measured) that broke VIO during motion while
-                    # leaving static (low-motion) periods looking stable.
-                    if self.imu_clock_offset is None:
-                        self.imu_clock_offset = arrival_offset
-                    else:
-                        alpha = 0.05
-                        self.imu_clock_offset += alpha * (arrival_offset - self.imu_clock_offset)
-                stamp = sensor_time + self.imu_clock_offset
-                self.last_imu_sensor_time = sensor_time
+            stamp, diag = self.clock.update(sensor_usec * 1e-6, now)
 
-        # PX4 can change the HIGHRES_IMU time base after boot/time-sync.  A
-        # fixed offset would then put IMU samples minutes into the future and
-        # OpenVINS would reject every image as out-of-order.  Re-anchor only
-        # after a large discontinuity; normal samples still retain PX4 timing.
-        if abs(stamp - now) > 0.5:
-            self.get_logger().warn(
-                f'PX4 IMU时基跳变({stamp - now:+.3f}s)，重新对齐ROS时间')
-            if 0 < sensor_usec < 1_000_000_000_000:
-                self.imu_clock_offset = now - sensor_time
-            stamp = now
-            self.last_imu_stamp = None
+        if diag is not None and self.imu_diag_fp is not None:
+            try:
+                self.imu_diag_fp.write('%d,%.9f,%.9f,%.9f,%.9f,%.9f,%s,%d,%s,%+.1f,%d\n' % (
+                    diag['seq'], diag['sensor_time'], diag['arrival_time'],
+                    diag['arrival_offset'], diag['clock_offset'], stamp,
+                    ('%.9f' % diag['final_dt']) if diag['final_dt'] is not None else '',
+                    1 if diag['repaired'] else 0,
+                    ('%.9f' % diag['repaired_orig_dt'])
+                    if diag['repaired_orig_dt'] is not None else '',
+                    diag['scale_ppm'], 1 if diag['gated'] else 0))
+                self.imu_diag_n += 1
+                if self.imu_diag_n % 200 == 0:
+                    self.imu_diag_fp.flush()
+            except Exception:
+                pass
 
-        # Guard against duplicate/backward timestamps after a serial reconnect.
-        if self.last_imu_stamp is not None and stamp <= self.last_imu_stamp:
-            stamp = self.last_imu_stamp + 1e-6
-        self.last_imu_stamp = stamp
+        now_wall = time.time()
+        if now_wall - self.imu_diag_last_summary >= self.imu_diag_period:
+            self.imu_diag_last_summary = now_wall
+            try:
+                for line in self.clock.summary_text().split('\n'):
+                    self.get_logger().info(line)
+            except Exception:
+                pass
+            if self.imu_diag_fp is not None:
+                try:
+                    self.imu_diag_fp.flush()
+                except Exception:
+                    pass
+
         sec = int(stamp)
         nanosec = int((stamp - sec) * 1e9)
+        if nanosec < 0:
+            sec -= 1
+            nanosec += 1000000000
         return sec, nanosec
 
     def handle_command_ack(self, msg):
@@ -328,9 +379,9 @@ class VIOBridge(Node):
                             mavutil.mavlink.MAV_DATA_STREAM_POSITION, 5, 1)
                     except Exception as e:
                         self.get_logger().warn(f'重连后请求流失败: {e}')
-                    self.imu_clock_offset = None
-                    self.last_imu_sensor_time = None
-                    self.last_imu_stamp = None
+                    self.clock.reset(reason='serial_reconnect')
+                    self.get_logger().warn(
+                        'IMU时钟映射已重置（串口重连），将重新 bootstrap')
                     self.yaw_reset_sent = False
                     self.yaw_reset_pending = False
                     self.yaw_reset_attempts = 0
