@@ -21,6 +21,8 @@
 
 #include "ROS2Visualizer.h"
 
+#include <atomic>
+
 #include "core/VioManager.h"
 #include "ros/ROSVisualizerHelper.h"
 #include "sim/Simulator.h"
@@ -278,6 +280,39 @@ void ROS2Visualizer::visualize_odometry(double timestamp) {
   if (!_app->get_propagator()->fast_state_propagate(state, timestamp, state_plus, cov_plus))
     return;
 
+  // Output guard: never publish a non-finite or physically absurd prediction
+  // on /odomimu.  A healthy stationary run has |p| and |v| << 1 m / 1 m/s;
+  // a 3518 m excursion is the known failure this must refuse to emit.
+  // Counted, rate-limited, and does not mutate filter state.
+  {
+    static std::atomic<unsigned long long> rejected_odomimu{0};
+    const Eigen::Vector3d p = state_plus.block(4, 0, 3, 1);
+    const Eigen::Vector3d v = state_plus.block(7, 0, 3, 1);
+    const Eigen::Vector4d q = state_plus.block(0, 0, 4, 1);
+    const double pos_var = cov_plus.block(3, 3, 3, 3).trace();
+    auto reject = [&](const char *reason) {
+      const auto n = ++rejected_odomimu;
+      if (n == 1 || n % 100 == 0) {
+        PRINT_WARNING(YELLOW "visualize_odometry(): dropping odomimu publish (%s, "
+                             "p=[%.3f %.3f %.3f] |v|=%.3f var=%.3g, rejects=%llu)\n" RESET,
+                      reason, p.x(), p.y(), p.z(), v.norm(), pos_var, n);
+      }
+      return;
+    };
+    if (!p.allFinite() || !v.allFinite() || !q.allFinite() || !cov_plus.allFinite()) {
+      reject("non-finite state or covariance");
+      return;
+    }
+    if (p.norm() > 50.0 || v.norm() > 20.0) {
+      reject("position/velocity magnitude exceeds output bound");
+      return;
+    }
+    if (!(pos_var >= 0.0) || pos_var > 1e4) {
+      reject("position covariance out of range");
+      return;
+    }
+  }
+
   // Publish our odometry message if requested
   if (true) {  // 无条件发布odomimu
 
@@ -310,6 +345,20 @@ void ROS2Visualizer::visualize_odometry(double timestamp) {
     Phi.block(3, 0, 3, 3).setIdentity();
     Phi.block(6, 6, 6, 6).setIdentity();
     cov_plus = Phi * cov_plus * Phi.transpose();
+    // Stage-15 covariance tracking: rate-limited diagnostic when position
+    // variance grows large (historical bridge latch at ~4 m^2).
+    {
+      static double last_cov_warn_time = -1e9;
+      static unsigned long long cov_warn_count = 0;
+      const double pos_var = cov_plus.block(3, 3, 3, 3).trace();
+      if (pos_var > 4.0 && (timestamp - last_cov_warn_time) > 1.0) {
+        last_cov_warn_time = timestamp;
+        ++cov_warn_count;
+        PRINT_WARNING(YELLOW "visualize_odometry(): fastprop position variance %.3f m^2 "
+                             "exceeds 4.0 (warn#%llu)\n" RESET,
+                      pos_var, cov_warn_count);
+      }
+    }
     for (int r = 0; r < 6; r++) {
       for (int c = 0; c < 6; c++) {
         odomIinM.pose.covariance[6 * r + c] = cov_plus(r, c);

@@ -11,11 +11,15 @@
 > `docs/HANDOFF_2026-09-24.md` 已标记为 `HISTORICAL / SUPERSEDED`，仅作历史存档；
 > 其中与本文冲突的 HEAD / timeshift / 结论一律以本文为准。
 >
-> **fastprop guard（commit `56c9587`）**：源码已包含全部 guard
-> （`span<=0` / `span>0.100` / `dt<=0` / `dt>0.020` / `prop_data.size<2` /
-> `dropping prediction` 日志），但**板端 binary 尚未编译进这些 guard**
-> （`strings` 检查：`fast_state_propagate` / `dropping` / `non-forward` /
-> `rejects` 均为 0）——**板端 binary 过期，必须在阶段4 重编后才能声称 guard 生效**。
+> **fastprop guard（commit `56c9587`）**：**板端已于 2026-09-24 11:59 重编并验证生效**。
+> 源码含全部 guard（`span<=0` / `span>0.100` / `dt<=0` / `dt>0.020` /
+> `prop_data.size<2` / `dropping prediction` 日志）。
+> **验证位置是共享库 `install/ov_msckf/lib/libov_msckf_lib.so`，不是主 executable**
+> （`run_subscribe_msckf` 只链接该 .so；Propagator 代码在 .so 内）：
+> `strings` 计数 `fast_state_propagate=7`、`dropping prediction=1`、
+> `non-forward=1`、`rejects=1`、`fewer than two=1`、`invalid IMU sample=27`；
+> `nm` 可见 `fast_state_propagate` 与 `reject_prediction` 符号。
+> **此前对主 binary 做 strings 得 0 是查错了文件，不是 guard 缺失。**
 
 本文件只写**当前实测能证明的东西**。凡是没有实测支撑的，一律标 `尚未验证`。
 
@@ -403,9 +407,10 @@ python3 /tmp/s_imu_audit.py /tmp/vio/imu_clock_diag_<时间戳>.csv
 1. **平移 / 旋转下的动态漂移** —— 这是本次要解决的核心问题，也是唯一**还没验收**的关键项。
    本轮只做了静止 120 s（结果见 §1.6：净漂移 0.8 mm、无跳变）。
    实机动态验收步骤见 §4.3。
-2. **fastprop guard（`56c9587`）在板端 binary 是否生效** —— 源码已含，**板端 binary
-   `strings` 查不到 `fast_state_propagate` / `dropping` / `non-forward`**，即 binary
-   未重编。**必须阶段4 重编**后才能声称 guard 生效；在此之前不得把 guard 当作已修复。
+2. **fastprop guard（`56c9587`）在板端是否生效** —— **已验证生效**（2026-09-24 11:59
+   重编；`libov_msckf_lib.so` 含 `fast_state_propagate` / `dropping prediction` /
+   `non-forward` / `fewer than two` 等字符串与 `nm` 符号）。guard **能**挡住非法
+   IMU 时间跨度并打日志，但**尚无实机日志证明它在 3518 m 炸机路径上被触发过**。
 3. **`multi_threading_subs` 单变量 A/B**（阶段7）—— 开关已可配置（默认 `1`=历史 ON，
    `0`=单线程 joined），**A/B 实验本身尚未跑**。在 A/B 完成前**不写 mutex**。
 4. **race 是否真实导致 odomimu 炸到 3518 m** —— 源码层面已定位候选点
@@ -457,22 +462,32 @@ python3 /tmp/s_imu_audit.py /tmp/vio/imu_clock_diag_<时间戳>.csv
 - 本地 / 权威 HEAD：**`ad6e0446`**（merge `d430 investigation and update handoff`；
   含 `56c9587 fix(vio): guard invalid fast IMU propagation`）。
 - 上一状态 `a55a449`（baseline / precheck 自愈）已被本 merge 取代，其独有结论仍有效。
-- **本次待提交内容**（阶段3–20 源码改动，尚未 commit）：
+- **本次已提交内容**（阶段3–21 源码改动）：
   - `docs/HANDOFF_2026-09-24.md`：标记 `HISTORICAL / SUPERSEDED`
-  - `docs/VIO_HANDOVER.md`：本文件，写入权威 HEAD 与板端 binary 缺 guard 的事实
+  - `docs/VIO_HANDOVER.md`：本文件，写入权威 HEAD 与板端 binary 含 guard 的事实
   - `ov_msckf/src/run_subscribe_msckf.cpp`：去掉 `use_multi_threading_subs = true`
     硬编码，改为 `parser->parse_config("multi_threading_subs", ...)`（A/B 开关）
   - `config/d430/estimator_config.yaml`：显式 `multi_threading_subs: 1`（历史默认 ON）
   - `imu_clock_mapper.py`：修复 re-anchor 路径 `n_clock_reset` 双重计数
-    （原 415 与 435 行各 +1，同一事件算两次）
+    （原 415 与 435 行各 +1，同一事件算两次）；`test_clock_monotonic.py` PASS
   - `start_vio.sh`：service 生命周期只等 OpenVINS pid（不再是裸 `wait`）；
     PX4 串口按 VID:PID 解析，不再硬编码 `/dev/ttyACM0`
   - `watchdog_camera.sh`：日志路径改到 `$VIO_LOG_DIR/*_latest.log`
-    （原先读的 `/tmp/camera.log` / `/tmp/vio_bridge.log` 是过期路径，watchdog 臂盲）
   - `scripts/vio_precheck.py`：串口检测按 VID:PID 解析，与 start_vio.sh 共用逻辑
   - `scripts/compare_filter_fastprop.py`（新）：A/B 阶段8 双话题 recorder
+  - `scripts/test_zupt_semantics.py`（新）：断言 ZUPT 本地 AND 语义 + 冻结配置
+    （`test_zupt_semantics.py` PASS）
+  - `ov_msckf/src/ros/ROS2Visualizer.cpp`：
+    - **阶段14 输出 guard**：`visualize_odometry` 拒绝非有限 / `|p|>50 m` /
+      `|v|>20 m/s` / 位置方差非法的 `/odomimu` 发布，带 `rejects` 计数与限速日志
+    - **阶段15 协方差诊断**：位置方差 `trace>4 m²` 时每秒最多打 1 条 WARNING
+      （历史 bridge 门控在 ~4 m² 锁存）
   - `vio.service`：`WorkingDirectory` / `ExecStart` 指向真实板端路径
     `/home/orangepi/kswlt/vio_ws/start_vio_systemd.sh`
+- **板端状态（2026-09-24 11:59）**：源码 MD5 已对齐；`colcon build ov_msckf` 成功；
+  `libov_msckf_lib.so` 含 fastprop guard 字符串；`/etc/systemd/system/vio.service`
+  已指向 `/home/orangepi/kswlt/vio_ws/start_vio_systemd.sh`；`vio.service` /
+  `vio-watchdog.service` 当前 `inactive`（未启动，符合禁止飞行约束）。
 - 板端运行时 SHA256（本轮实测生效值）：
 
 ```
