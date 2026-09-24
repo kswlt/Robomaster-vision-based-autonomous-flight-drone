@@ -129,6 +129,15 @@ up_slam_chi2_multipler: 1
 up_aruco_sigma_px: 1
 up_aruco_chi2_multipler: 1
 
+# multi_threading_subs A/B (frozen experiment knob; do not change casually)
+# 1 = historical default: camera EKF update thread is DETACHED from the IMU
+#     callback, so fast_state_propagate() can run concurrently with EKF update
+# 0 = single-thread: camera update is joined inside callback_inertial before
+#     the next IMU callback can start fastprop
+# Keep every other frozen config (timeshift, rect50, ZUPT, D430 profile,
+# send_vision_to_px4) unchanged while A/B-ing this flag.
+multi_threading_subs: 1
+
 # masks for our images
 use_mask: false
 

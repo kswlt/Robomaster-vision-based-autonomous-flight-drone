@@ -99,7 +99,16 @@ int main(int argc, char **argv) {
            << " EXTRINSICS_Q_ItoC_P_IinC=" << params.camera_extrinsics.at(camera.first).transpose() << "\n";
     PRINT_INFO("%s", loaded.str().c_str());
   }
-  params.use_multi_threading_subs = true;
+  // A/B experiment knob: do NOT hardcode. Default preserves historical ON.
+  // Multi-thread ON detaches the camera EKF-update thread while the IMU
+  // callback keeps calling fast_state_propagate(); OFF joins the update thread
+  // inside callback_inertial so state mutation cannot overlap with fastprop.
+  parser->parse_config("multi_threading_subs", params.use_multi_threading_subs, false);
+  PRINT_INFO("LOADED_MULTI_THREADING_SUBS=%d\n", (int)params.use_multi_threading_subs);
+  if (!params.use_multi_threading_subs) {
+    PRINT_WARNING(YELLOW "multi_threading_subs=0: camera update runs joined in IMU callback "
+                         "(single-thread A/B path)\n" RESET);
+  }
   sys = std::make_shared<VioManager>(params);
 #if ROS_AVAILABLE == 1
   viz = std::make_shared<ROS1Visualizer>(nh, sys);

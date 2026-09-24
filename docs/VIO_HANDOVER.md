@@ -1,11 +1,21 @@
 # D430 双目 + PX4 IMU + OpenVINS —— 交接文档（实机测试用）
 
 ```
-交接 HEAD   : 见文末「Git 状态」（本次改动尚未全部提交）
-交接日期    : 2026-09-23
+权威 HEAD   : ad6e0446d8e27877be4fc3c34d82d602cd627a2b  (origin/d430)
+交接日期    : 2026-09-24
 运行环境    : Orange Pi 5 (RK3588) / ROS 2 Humble / ROS_DOMAIN_ID=42 / ROS_LOCALHOST_ONLY=1
 运行时目录  : /home/orangepi/kswlt/vio_ws
 ```
+
+> **文档状态**：本文是**唯一权威交接入口**。
+> `docs/HANDOFF_2026-09-24.md` 已标记为 `HISTORICAL / SUPERSEDED`，仅作历史存档；
+> 其中与本文冲突的 HEAD / timeshift / 结论一律以本文为准。
+>
+> **fastprop guard（commit `56c9587`）**：源码已包含全部 guard
+> （`span<=0` / `span>0.100` / `dt<=0` / `dt>0.020` / `prop_data.size<2` /
+> `dropping prediction` 日志），但**板端 binary 尚未编译进这些 guard**
+> （`strings` 检查：`fast_state_propagate` / `dropping` / `non-forward` /
+> `rejects` 均为 0）——**板端 binary 过期，必须在阶段4 重编后才能声称 guard 生效**。
 
 本文件只写**当前实测能证明的东西**。凡是没有实测支撑的，一律标 `尚未验证`。
 
@@ -393,24 +403,32 @@ python3 /tmp/s_imu_audit.py /tmp/vio/imu_clock_diag_<时间戳>.csv
 1. **平移 / 旋转下的动态漂移** —— 这是本次要解决的核心问题，也是唯一**还没验收**的关键项。
    本轮只做了静止 120 s（结果见 §1.6：净漂移 0.8 mm、无跳变）。
    实机动态验收步骤见 §4.3。
-2. **外参修正（基线 46.88 → 50.14 mm）对动态精度的贡献** —— 没跑离线 A/B；
+2. **fastprop guard（`56c9587`）在板端 binary 是否生效** —— 源码已含，**板端 binary
+   `strings` 查不到 `fast_state_propagate` / `dropping` / `non-forward`**，即 binary
+   未重编。**必须阶段4 重编**后才能声称 guard 生效；在此之前不得把 guard 当作已修复。
+3. **`multi_threading_subs` 单变量 A/B**（阶段7）—— 开关已可配置（默认 `1`=历史 ON，
+   `0`=单线程 joined），**A/B 实验本身尚未跑**。在 A/B 完成前**不写 mutex**。
+4. **race 是否真实导致 odomimu 炸到 3518 m** —— 源码层面已定位候选点
+   （非原子 cache 快照 + `get_marginal_covariance` 无锁 + `invalidate_cache` 分散在
+   camera transaction 中间），但**没有 A/B 实验证据**，只能标 `尚未验证`。
+5. **外参修正（基线 46.88 → 50.14 mm）对动态精度的贡献** —— 没跑离线 A/B；
    实机 A/B 步骤见 §4.3 / §4.4。
-3. **能否真的让 PX4 给出 200 Hz IMU** —— 需要改飞控 MAVLink 实例模式并重启，本轮没做。
-4. **长时漂移**（分钟级以上）—— 未测。
-5. **红外散斑（IR speckle）是否影响视觉** —— 之前把"IR 投影器是动态漂移根因"这个
+6. **能否真的让 PX4 给出 200 Hz IMU** —— 需要改飞控 MAVLink 实例模式并重启，本轮没做。
+7. **长时漂移**（分钟级以上）—— 未测。
+8. **红外散斑（IR speckle）是否影响视觉** —— 之前把"IR 投影器是动态漂移根因"这个
    结论降级了：实测投影器只贡献约 5–10 个灰度级（0 mW → 93.84/92.02；
    360 mW → 98.90/100.97；关发射 → 93.08/91.23），而历史上 DYN50 与 LASEROFF3 的差距
    是 76 个灰度级，对不上。**关闭投影器仍然照做**（它只会让散斑变差），但别再声称它是根因。
-6. **`init_max_disparity`** —— 同批次 A/B：0.3 → closure 0.0463 m，10.0 → 0.0277 m，
+9. **`init_max_disparity`** —— 同批次 A/B：0.3 → closure 0.0463 m，10.0 → 0.0277 m，
    现值 10.0 更优；但只有一次对照。
-7. **`/tmp` 里那些外部脚本是谁拉起来的** —— 只确认了它们存在、内容和影响，没查到
-   拉起者（父进程都是 init，说明是 detach 起的）。
-8. **板上残留的 8 个历史 `.bak` 配置文件** —— 不影响运行（启动只读三个正式文件名），
-   但没清理。
-9. **`select window = 13`** —— 本轮日志里静态初始化器报 13 次
-   `unable to select window of IMU readings`。这出现在**初始化成功之前**，属于初始化器
-   每帧试跑的固有行为（IMU 缓冲还没攒满 1 s 窗口），初始化一旦成功就不再出现。
-   判定为正常，但没有逐条核对。
+10. **`/tmp` 里那些外部脚本是谁拉起来的** —— 只确认了它们存在、内容和影响，没查到
+    拉起者（父进程都是 init，说明是 detach 起的）。
+11. **板上残留的 8 个历史 `.bak` 配置文件** —— 不影响运行（启动只读三个正式文件名），
+    但没清理。
+12. **`select window = 13`** —— 本轮日志里静态初始化器报 13 次
+    `unable to select window of IMU readings`。这出现在**初始化成功之前**，属于初始化器
+    每帧试跑的固有行为（IMU 缓冲还没攒满 1 s 窗口），初始化一旦成功就不再出现。
+    判定为正常，但没有逐条核对。
 
 ---
 
@@ -436,19 +454,25 @@ python3 /tmp/s_imu_audit.py /tmp/vio/imu_clock_diag_<时间戳>.csv
 
 ## 8. Git 状态
 
-- 远程 `origin/d430` HEAD：**`a55a449`**（本文档所在提交；上一状态是 `aaeb55b`）。
-- 本次提交 `a55a449`（`fix(vio): correct the stereo baseline and make the prechecks
-  self-healing`）包含：
-  - `scripts/vio_precheck.py`：hw 阶段自愈 `laser_power`、IMU 速率策略改为
-    100 Hz fail / 190 Hz 目标、新增双目基线强制校验、修引号比较 bug、新增
-    dt p95 / 长间隔 / 非单调 / 微 dt 检查
-  - `start_vio.sh`：启动时打印反推的双目实际基线
-  - `scripts/set_extrinsics.sh`（新）：`rect50` / `baseline46` / `show`
-  - `config/d430/kalibr_imucam_chain.yaml`：**改成 rect50**（仓库里的"生效配置"
-    必须等于运行时生效配置，否则就是 §1.3 那个"运行时≠仓库"的根因本身）
-  - `config/d430/kalibr_imucam_chain.rect50.yaml`（新，备用/可复现）
-  - `config/d430/kalibr_imucam_chain.baseline46.yaml`（新，用于 A/B）
-  - `docs/VIO_HANDOVER.md`（本文件）
+- 本地 / 权威 HEAD：**`ad6e0446`**（merge `d430 investigation and update handoff`；
+  含 `56c9587 fix(vio): guard invalid fast IMU propagation`）。
+- 上一状态 `a55a449`（baseline / precheck 自愈）已被本 merge 取代，其独有结论仍有效。
+- **本次待提交内容**（阶段3–20 源码改动，尚未 commit）：
+  - `docs/HANDOFF_2026-09-24.md`：标记 `HISTORICAL / SUPERSEDED`
+  - `docs/VIO_HANDOVER.md`：本文件，写入权威 HEAD 与板端 binary 缺 guard 的事实
+  - `ov_msckf/src/run_subscribe_msckf.cpp`：去掉 `use_multi_threading_subs = true`
+    硬编码，改为 `parser->parse_config("multi_threading_subs", ...)`（A/B 开关）
+  - `config/d430/estimator_config.yaml`：显式 `multi_threading_subs: 1`（历史默认 ON）
+  - `imu_clock_mapper.py`：修复 re-anchor 路径 `n_clock_reset` 双重计数
+    （原 415 与 435 行各 +1，同一事件算两次）
+  - `start_vio.sh`：service 生命周期只等 OpenVINS pid（不再是裸 `wait`）；
+    PX4 串口按 VID:PID 解析，不再硬编码 `/dev/ttyACM0`
+  - `watchdog_camera.sh`：日志路径改到 `$VIO_LOG_DIR/*_latest.log`
+    （原先读的 `/tmp/camera.log` / `/tmp/vio_bridge.log` 是过期路径，watchdog 臂盲）
+  - `scripts/vio_precheck.py`：串口检测按 VID:PID 解析，与 start_vio.sh 共用逻辑
+  - `scripts/compare_filter_fastprop.py`（新）：A/B 阶段8 双话题 recorder
+  - `vio.service`：`WorkingDirectory` / `ExecStart` 指向真实板端路径
+    `/home/orangepi/kswlt/vio_ws/start_vio_systemd.sh`
 - 板端运行时 SHA256（本轮实测生效值）：
 
 ```

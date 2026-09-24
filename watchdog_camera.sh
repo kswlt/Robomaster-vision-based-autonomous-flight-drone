@@ -1,8 +1,12 @@
 #!/bin/bash
 # VIO链路健康看门狗（10秒级检测）
 # 相机/进程暂态异常时重启；VIO发散时锁存停机，禁止重启后重复注入。
-CAMERA_LOG=/tmp/camera.log
-BRIDGE_LOG=/tmp/vio_bridge.log
+# Log paths MUST match start_vio.sh (VIO_LOG_DIR default /tmp/vio, with
+# *_latest.log symlinks). /tmp/camera.log and /tmp/vio_bridge.log are stale
+# paths from an older layout and made the watchdog blind to real failures.
+VIO_LOG_DIR="${VIO_LOG_DIR:-/tmp/vio}"
+CAMERA_LOG="${CAMERA_LOG:-$VIO_LOG_DIR/camera_latest.log}"
+BRIDGE_LOG="${BRIDGE_LOG:-$VIO_LOG_DIR/bridge_latest.log}"
 LOCK=/tmp/watchdog_last_restart
 LOG_FRESH_WINDOW=30
 RESTART_COOLDOWN=180

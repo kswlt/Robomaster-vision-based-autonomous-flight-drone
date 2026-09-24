@@ -185,8 +185,35 @@ python3 "$PRECHECK" camera "$CONFIG_DIR" "$DOMAIN" || {
 # ----------------------------------------------------------- stage 4: bridge
 echo
 echo "########## STAGE 4/6: IMU bridge (PX4 -> /imu) ##########"
+# Resolve the PX4 CDC-ACM device deterministically. USB re-enumeration can
+# move ttyACM0 -> ttyACM1; the precheck and the bridge MUST use the same
+# device, never a hardcoded path.
+SERIAL_PORT=""
+for d in /dev/ttyACM*; do
+  [ -e "$d" ] || continue
+  # Prefer the MicoAir/PX4 VID:PID when udev db is available; otherwise take
+  # the only ACM device present (fails closed if ambiguous and none match).
+  if [ -r "/sys/class/tty/$(basename "$d")/device/../idVendor" ]; then
+    VID=$(cat "/sys/class/tty/$(basename "$d")/device/../idVendor" 2>/dev/null || true)
+    PID=$(cat "/sys/class/tty/$(basename "$d")/device/../idProduct" 2>/dev/null || true)
+    if [ "$VID" = "1b8c" ] || [ "$VID" = "26ac" ] || [ "$VID" = "2e3a" ]; then
+      SERIAL_PORT="$d"
+      echo "PX4 serial resolved by VID:PID ${VID}:${PID} -> $SERIAL_PORT"
+      break
+    fi
+    # keep first candidate as fallback
+    [ -n "$SERIAL_PORT" ] || SERIAL_PORT="$d"
+  else
+    [ -n "$SERIAL_PORT" ] || SERIAL_PORT="$d"
+  fi
+done
+if [ -z "$SERIAL_PORT" ]; then
+  echo "PRECHECK FAIL: no /dev/ttyACM* device for PX4"
+  exit 1
+fi
+echo "PX4 SERIAL_PORT=$SERIAL_PORT (precheck and bridge share this path)"
 python3 "$BRIDGE_PY" --ros-args \
-    -p serial_port:=/dev/ttyACM0 \
+    -p serial_port:="$SERIAL_PORT" \
     -p send_vision_to_px4:=$SEND_VISION_TO_PX4 \
     -p imu_clock_mode:=$IMU_CLOCK_MODE \
     -p imu_diag_enable:=true \
@@ -248,4 +275,21 @@ echo "   /odomimu_viz  = throttled visualisation ONLY -- never for control or ma
 echo "============================================================"
 
 echo "$STAMP" > "$RUN_DIR/last_start_stamp"
-wait
+
+# ---------------------------------------------------------------------------
+# Lifecycle: systemd must track the ESTIMATOR, not "any background child".
+# A bare `wait` blocks on camera/bridge/foxglove even after OpenVINS dies,
+# so Restart=on-failure never fires while the camera keeps running.
+# ---------------------------------------------------------------------------
+OPENVINS_PID=$(cat "$RUN_DIR/openvins.pid" 2>/dev/null || true)
+if [ -z "${OPENVINS_PID:-}" ]; then
+  echo "FATAL: openvins.pid missing after stage 6 -- cannot track estimator"
+  exit 1
+fi
+echo "waiting on OpenVINS pid=$OPENVINS_PID (service lifetime tracks estimator)"
+wait "$OPENVINS_PID"
+RC=$?
+echo "OpenVINS exited with RC=$RC -- cleaning up camera/bridge/foxglove"
+cleanup
+trap - EXIT INT TERM
+exit "$RC"

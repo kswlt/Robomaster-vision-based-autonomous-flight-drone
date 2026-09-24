@@ -203,11 +203,35 @@ def check_hw(cfgdir):
     elif '0ad4' in run('lsusb')[1].lower():
         fail('could not confirm USB3 SuperSpeed for the RealSense')
 
-    rc, out = run('ls /dev/ttyACM* 2>/dev/null')
-    if rc != 0 or not out.strip():
+    # PX4 CDC-ACM: resolve deterministically by VID, never "first ttyACM*".
+    # USB re-enumeration can move ttyACM0 -> ttyACM1; start_vio.sh and this
+    # precheck must agree on the same device.
+    PX4_VIDS = {'1b8c', '26ac', '2e3a'}  # MicoAir / common PX4 CDC vendors
+    candidates = []
+    for path in sorted(glob.glob('/dev/ttyACM*')):
+        base = os.path.basename(path)
+        sysdev = os.path.join('/sys/class/tty', base, 'device')
+        vid = pid = None
+        for up in (sysdev, os.path.dirname(sysdev)):
+            vp = os.path.join(up, 'idVendor')
+            pp = os.path.join(up, 'idProduct')
+            if os.path.isfile(vp):
+                vid = open(vp).read().strip().lower()
+                pid = open(pp).read().strip().lower() if os.path.isfile(pp) else None
+                break
+        candidates.append((path, vid, pid))
+    px4 = next((c for c in candidates if c[1] in PX4_VIDS), None)
+    if px4 is None and candidates:
+        px4 = candidates[0]  # fallback: only/first ACM device
+    if px4 is None:
         fail('no /dev/ttyACM* found (PX4 not connected)')
+    elif px4[1] not in PX4_VIDS:
+        fail('PX4 serial %s has unexpected VID:PID %s:%s (expected one of %s)'
+             % (px4[0], px4[1], px4[2], ','.join(sorted(PX4_VIDS))))
     else:
-        ok('PX4 serial present: %s' % out.split()[0])
+        ok('PX4 serial resolved by VID:PID %s:%s -> %s' % (px4[1], px4[2], px4[0]))
+        # Export so a parent start_vio.sh can share the same path if desired.
+        print('PX4_SERIAL_PORT=%s' % px4[0])
 
     # --- IR projector state ---
     #

@@ -432,7 +432,8 @@ class ImuClockMapper:
                           'mapped IMU stamp deviated %.6f s from arrival time; '
                           're-anchored clock mapping (event #%d)'
                           % (raw_stamp - arrival_time, self.n_clock_reset))
-            self.n_clock_reset += 1
+            # NOTE: n_clock_reset was already incremented once above for this
+            # same re-anchor event; do not count it a second time.
 
         # ---- monotonicity guard: explicit, counted, never silent ----
         dt = None
